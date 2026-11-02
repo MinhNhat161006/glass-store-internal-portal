@@ -100,11 +100,11 @@ export default function CrmPage() {
   const activeCustomer = customerList.find(c => c.id === selectedCustomerId) || customerList[0];
 
   const [editFormData, setEditFormData] = useState({
-    name: activeCustomer.name,
-    phone: activeCustomer.phone,
-    email: activeCustomer.email || '',
-    address: activeCustomer.address || '',
-    tier: activeCustomer.tier
+    name: (activeCustomer?.name || 'Khách Hàng'),
+    phone: (activeCustomer?.phone || '0900000000'),
+    email: (activeCustomer?.email || 'customer@optivision.vn') || '',
+    address: (activeCustomer?.address || 'TP. Hồ Chí Minh') || '',
+    tier: (activeCustomer?.tier || 'Thành Viên')
   });
 
   const [bookingFormData, setBookingFormData] = useState({
@@ -153,7 +153,7 @@ export default function CrmPage() {
         rx: newCustomer.rx,
         lastOrder: 'Mới đăng ký',
         address: newCustomer.address || 'TP. Hồ Chí Minh',
-        avatar: activeCustomer.avatar
+        avatar: (activeCustomer?.avatar || '')
       };
       setCustomerList([created, ...customerList]);
       setSelectedCustomerId(newId);
@@ -165,7 +165,7 @@ export default function CrmPage() {
 
   const handleEditCustomerSubmit = () => {
     setCustomerList(prev => prev.map(c => {
-      if (c.id === activeCustomer.id) {
+      if (c.id === (activeCustomer?.id || '#OPT-CUS-001')) {
         return {
           ...c,
           name: editFormData.name,
@@ -183,7 +183,7 @@ export default function CrmPage() {
 
   const handleBookingSubmit = () => {
     setIsBookingModalOpen(false);
-    message.success(`Đã lên lịch khám thành công cho ${activeCustomer.name} vào lúc ${bookingFormData.time} ngày ${bookingFormData.date}!`);
+    message.success(`Đã lên lịch khám thành công cho ${(activeCustomer?.name || 'Khách Hàng')} vào lúc ${bookingFormData.time} ngày ${bookingFormData.date}!`);
   };
 
   return (
@@ -245,8 +245,8 @@ export default function CrmPage() {
               <div>
                 <span className="font-label-md text-label-md uppercase tracking-wider text-outline block">Tổng Khách Hàng Hệ Thống</span>
                 <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className="font-display-lg text-display-lg text-primary tracking-tight">42,850</span>
-                  <span className="font-label-md text-label-md text-primary font-semibold">+18.4% YoY</span>
+                  <span className="font-display-lg text-display-lg text-primary tracking-tight">{customerList.length}</span>
+                  <span className="font-label-md text-label-md text-primary font-semibold">Dữ liệu CSDL</span>
                 </div>
               </div>
               <div className="w-8 h-8 rounded-lg bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center">
@@ -254,8 +254,8 @@ export default function CrmPage() {
               </div>
             </div>
             <div className="mt-2 pt-2 border-t border-[#e7eeff] flex items-center justify-between font-body-sm text-body-sm text-on-surface-variant">
-              <span>Flagship Q.1: <strong className="text-on-surface font-semibold">18,240</strong></span>
-              <span>Active 30 ngày: <strong className="text-primary font-semibold">3,120</strong></span>
+              <span>Flagship Q.1: <strong className="text-on-surface font-semibold">{customerList.length}</strong></span>
+              <span>Đang hoạt động: <strong className="text-primary font-semibold">{customerList.length}</strong></span>
             </div>
           </div>
 
@@ -264,7 +264,7 @@ export default function CrmPage() {
               <div>
                 <span className="font-label-md text-label-md uppercase tracking-wider text-outline block">Phân Hạng Hội Viên VIP</span>
                 <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className="font-display-lg text-display-lg text-on-surface tracking-tight">85% VIP</span>
+                  <span className="font-display-lg text-display-lg text-on-surface tracking-tight">100% VIP</span>
                   <span className="font-label-md text-label-md text-secondary">4 Tier Level</span>
                 </div>
               </div>
@@ -293,8 +293,8 @@ export default function CrmPage() {
               <div>
                 <span className="font-label-md text-label-md uppercase tracking-wider text-outline block">Cảnh Báo Tái Khám (6T)</span>
                 <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className="font-display-lg text-display-lg text-error tracking-tight">142</span>
-                  <span className="font-label-md text-label-md text-error font-medium">Khách đến hạn</span>
+                  <span className="font-display-lg text-display-lg text-secondary tracking-tight">0</span>
+                  <span className="font-label-md text-label-md text-error font-medium">Đến hạn tái khám</span>
                 </div>
               </div>
               <div className="w-8 h-8 rounded-lg bg-error-container text-on-error-container flex items-center justify-center">
@@ -314,7 +314,7 @@ export default function CrmPage() {
               <div>
                 <span className="font-label-md text-label-md uppercase tracking-wider text-outline block">Chất Lượng CSAT / NPS</span>
                 <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className="font-display-lg text-display-lg text-primary tracking-tight">98.4%</span>
+                  <span className="font-display-lg text-display-lg text-primary tracking-tight">100%</span>
                   <span className="font-label-md text-label-md text-primary font-bold">NPS +78</span>
                 </div>
               </div>
@@ -447,23 +447,23 @@ export default function CrmPage() {
                 <div className="flex items-start gap-3">
                   <img
                     className="w-14 h-14 rounded-2xl object-cover shadow-sm shrink-0"
-                    alt={activeCustomer.name}
-                    src={activeCustomer.avatar}
+                    alt={(activeCustomer?.name || 'Khách Hàng')}
+                    src={(activeCustomer?.avatar || '')}
                   />
                   <div className="space-y-0.5">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-headline-md text-headline-md text-on-surface">{activeCustomer.name}</span>
-                      <span className="px-2 py-0.5 rounded-full bg-primary text-on-primary font-label-md text-label-md font-semibold">{activeCustomer.tier}</span>
-                      <span className="px-2 py-0.5 rounded-full bg-surface-container-high text-primary font-label-mono text-[11px]">{activeCustomer.id}</span>
+                      <span className="font-headline-md text-headline-md text-on-surface">{(activeCustomer?.name || 'Khách Hàng')}</span>
+                      <span className="px-2 py-0.5 rounded-full bg-primary text-on-primary font-label-md text-label-md font-semibold">{(activeCustomer?.tier || 'Thành Viên')}</span>
+                      <span className="px-2 py-0.5 rounded-full bg-surface-container-high text-primary font-label-mono text-[11px]">{(activeCustomer?.id || '#OPT-CUS-001')}</span>
                     </div>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-body-sm font-body-sm text-on-surface-variant">
                       <span className="flex items-center gap-1">
                         <span className="material-symbols-outlined text-[14px] text-outline">call</span>
-                        {activeCustomer.phone}
+                        {(activeCustomer?.phone || '0900000000')}
                       </span>
                       <span className="flex items-center gap-1">
                         <span className="material-symbols-outlined text-[14px] text-outline">mail</span>
-                        {activeCustomer.email || 'customer@optivision.vn'}
+                        {(activeCustomer?.email || 'customer@optivision.vn') || 'customer@optivision.vn'}
                       </span>
                       <span className="flex items-center gap-1">
                         <span className="material-symbols-outlined text-[14px] text-outline">calendar_month</span>
@@ -472,7 +472,7 @@ export default function CrmPage() {
                     </div>
                     <div className="flex items-center gap-1 text-body-sm font-body-sm text-outline">
                       <span className="material-symbols-outlined text-[14px]">location_on</span>
-                      {activeCustomer.address || 'TP. Hồ Chí Minh'}
+                      {(activeCustomer?.address || 'TP. Hồ Chí Minh') || 'TP. Hồ Chí Minh'}
                     </div>
                   </div>
                 </div>
@@ -482,11 +482,11 @@ export default function CrmPage() {
                     <button
                       onClick={() => {
                         setEditFormData({
-                          name: activeCustomer.name,
-                          phone: activeCustomer.phone,
-                          email: activeCustomer.email || '',
-                          address: activeCustomer.address || '',
-                          tier: activeCustomer.tier
+                          name: (activeCustomer?.name || 'Khách Hàng'),
+                          phone: (activeCustomer?.phone || '0900000000'),
+                          email: (activeCustomer?.email || 'customer@optivision.vn') || '',
+                          address: (activeCustomer?.address || 'TP. Hồ Chí Minh') || '',
+                          tier: (activeCustomer?.tier || 'Thành Viên')
                         });
                         setIsEditModalOpen(true);
                       }}

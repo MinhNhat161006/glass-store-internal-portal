@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { productApi } from '../../api/productApi';
 import { message } from 'antd';
 
@@ -18,7 +18,8 @@ export default function StockTransferPage() {
   const [destWarehouse, setDestWarehouse] = useState('CN Tràng Tiền (HN)');
   const [transferReason, setTransferReason] = useState('Bổ sung tồn thiếu cho đơn đặt trước');
 
-  const transferList = [
+  const [transferList, setTransferList] = useState([]); // Clean empty transfers
+  const [oldTransfers] = useState([
     {
       id: '#TRF-2026-042',
       from: 'Flagship Q.1 (HCM)',
@@ -67,7 +68,7 @@ export default function StockTransferPage() {
       eta: 'Xong lúc 09:10',
       timeCreated: '08:00'
     }
-  ];
+  ]);
 
   const handleAction = (msg) => {
     message.success(msg);

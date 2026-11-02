@@ -150,7 +150,7 @@ export default function WarrantyPage() {
               <div>
                 <span className="font-label-md text-label-md text-outline uppercase tracking-wider block">Tổng Yêu Cầu Tháng</span>
                 <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className="font-display-lg text-display-lg text-primary tracking-tight">128</span>
+                  <span className="font-display-lg text-display-lg text-primary tracking-tight">{warranties.length}</span>
                   <span className="font-label-md text-label-md text-on-surface-variant font-medium">phiếu</span>
                 </div>
               </div>
@@ -171,7 +171,7 @@ export default function WarrantyPage() {
               <div>
                 <span className="font-label-md text-label-md text-outline uppercase tracking-wider block">Đang Xử Lý Lab/Kho</span>
                 <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className="font-display-lg text-display-lg text-secondary tracking-tight">14</span>
+                  <span className="font-display-lg text-display-lg text-secondary tracking-tight">0</span>
                   <span className="font-label-md text-label-md text-on-surface-variant font-medium">chờ xử lý</span>
                 </div>
               </div>
@@ -191,7 +191,7 @@ export default function WarrantyPage() {
               <div>
                 <span className="font-label-md text-label-md text-outline uppercase tracking-wider block">Đủ ĐK Đổi Mới (Pass)</span>
                 <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className="font-display-lg text-display-lg text-tertiary-container tracking-tight">06</span>
+                  <span className="font-display-lg text-display-lg text-tertiary-container tracking-tight">0</span>
                   <span className="font-label-md text-label-md text-on-surface-variant font-medium">phiếu 100%</span>
                 </div>
               </div>
@@ -210,7 +210,7 @@ export default function WarrantyPage() {
               <div>
                 <span className="font-label-md text-label-md text-outline uppercase tracking-wider block">Tỷ Lệ Bồi Hoàn / Lỗi</span>
                 <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className="font-display-lg text-display-lg text-on-surface tracking-tight">0.8%</span>
+                  <span className="font-display-lg text-display-lg text-on-surface tracking-tight">0%</span>
                   <span className="font-label-md text-label-md text-outline font-medium">&lt; hạn mức 1.5%</span>
                 </div>
               </div>

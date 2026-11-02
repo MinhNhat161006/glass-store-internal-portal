@@ -62,7 +62,8 @@ function AdminDashboardView({ timeframe, setTimeframe, navigate }) {
       }
     }).catch(e => console.warn('Dashboard appt sync note:', e));
   }, []);
-  const [labQueue] = useState([
+  const [labQueue] = useState([]); // Clean
+  const [oldLabQueue] = useState([
     {
       id: '#LAB-1092',
       customer: 'Trần H. Nam',
@@ -101,7 +102,8 @@ function AdminDashboardView({ timeframe, setTimeframe, navigate }) {
     }
   ]);
 
-  const [eyeQueue] = useState([
+  const [eyeQueue] = useState([]); // Clean
+  const [oldEyeQueue] = useState([
     { id: 1, time: '14:30', tag: 'Ưu tiên', tagStyle: 'bg-[#c6e7ff]/60 text-[#004967]', customer: 'Hoàng Đình Trọng', phone: '0912•••554', service: 'Đo cận loạn học đường' },
     { id: 2, time: '15:00', tag: 'Chờ khám', tagStyle: 'bg-[#e7eeff] text-[#40484e]', customer: 'Vũ Thị Mai Hoa', phone: '0973•••109', service: 'Khám đa tròng PAL' },
     { id: 3, time: '15:30', tag: 'Lịch hẹn', tagStyle: 'bg-[#e7eeff] text-[#40484e]', customer: 'Đỗ Quang Dũng', phone: '0903•••667', service: 'Kiểm tra lại kính cũ' }
@@ -372,7 +374,8 @@ function AdminDashboardView({ timeframe, setTimeframe, navigate }) {
    2. LAB WORKSTATION VIEW: Chỉ tập trung mài lắp, QC, thông số tròng, máy móc (ẨN DOANH THU)
    ========================================================================================= */
 function LabDashboardView({ navigate }) {
-  const [labJobs, setLabJobs] = useState([
+  const [labJobs, setLabJobs] = useState([]); // Clean
+  const [oldLabJobs] = useState([
     { id: '#LAB-2088', orderId: '#OPT-8842-SG', customer: 'Nguyễn Hoàng Nam', frame: 'Bolon BJ3120 Classic', lens: 'Essilor Crizal Rock 1.67 Blue UV', od: '-3.25 / -0.50 x 175°', os: '-2.75 / -0.75 x 05°', pd: '63.0 mm', sh: '21.5 mm', machine: 'Essilor Delta 200', status: 'Đang mài tự động', progress: 65, priority: 'Hỏa tốc 2H' },
     { id: '#LAB-2087', orderId: '#OPT-8835-HN', customer: 'Phạm Thị Bích Ngọc', frame: 'Charmant ZT2233 Titan', lens: 'Varilux Comfort Max Đa Tròng PAL', od: '+1.50 / -0.50 x 90°', os: '+1.25 / -0.25 x 85°', pd: '61.5 mm', sh: '19.5 mm', machine: 'Nidek Me 1200', status: 'Chờ kiểm định QC', progress: 90, priority: 'Khách VIP' },
     { id: '#LAB-2085', orderId: '#OPT-8839-WEB', customer: 'Trịnh Minh Quang', frame: 'Molsion MO5089', lens: 'Tròng Siêu Mỏng 1.74 Freeform', od: '-7.50 / -2.50 x 165°', os: '-7.00 / -2.25 x 15°', pd: '69.0 mm', sh: '23.0 mm', machine: 'Chờ phân công', status: 'Chờ duyệt toa OD/OS', progress: 20, priority: 'Độ cao' }
@@ -541,7 +544,8 @@ function LabDashboardView({ navigate }) {
    3. OPTOMETRY CLINICAL VIEW: Hàng đợi khám đo mắt, toa y khoa, bệnh án (ẨN DOANH THU)
    ========================================================================================= */
 function OptometryDashboardView({ navigate }) {
-  const [patients] = useState([
+  const [patients] = useState([]); // Clean
+  const [oldPatients] = useState([
     { id: 1, stt: '01', time: '14:30', name: 'Hoàng Đình Trọng', age: 16, phone: '0912•••554', type: 'Đo cận loạn học đường', status: 'Đang đo khúc xạ', room: 'Phòng 01 (ARK-1s)' },
     { id: 2, stt: '02', time: '15:00', name: 'Vũ Thị Mai Hoa', age: 48, phone: '0973•••109', type: 'Khám đa tròng PAL & Đo Visioffice', status: 'Chờ vào khám', room: 'Phòng 02 (Phoropter)' },
     { id: 3, stt: '03', time: '15:30', name: 'Đỗ Quang Dũng', age: 32, phone: '0903•••667', type: 'Kiểm tra mỏi mắt & Ánh sáng xanh', status: 'Đã check-in', room: 'Ghế chờ A2' }

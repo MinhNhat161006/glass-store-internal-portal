@@ -90,7 +90,7 @@ export default function LabQcPage() {
               </div>
             </div>
             <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="font-display-lg text-display-lg text-on-surface font-bold">18</span>
+              <span className="font-display-lg text-display-lg text-on-surface font-bold">{qcQueue.length}</span>
               <span className="font-label-md text-label-md text-outline">cặp</span>
             </div>
             <div className="mt-1 pt-1.5 border-t border-[#e7eeff] text-body-sm text-[11px] text-outline">
@@ -106,8 +106,8 @@ export default function LabQcPage() {
               </div>
             </div>
             <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="font-display-lg text-display-lg text-primary font-bold">17</span>
-              <span className="font-label-md text-label-md text-primary font-semibold">tỷ lệ 94.4%</span>
+              <span className="font-display-lg text-display-lg text-primary font-bold">{qcQueue.length}</span>
+              <span className="font-label-md text-label-md text-primary font-semibold">tỷ lệ 100%</span>
             </div>
             <div className="mt-1 pt-1.5 border-t border-[#e7eeff] text-body-sm text-[11px] text-outline">
               Chuẩn ANSI Z80.1 quốc tế
@@ -122,7 +122,7 @@ export default function LabQcPage() {
               </div>
             </div>
             <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="font-display-lg text-display-lg text-error font-bold">01</span>
+              <span className="font-display-lg text-display-lg text-error font-bold">0</span>
               <span className="font-label-md text-label-md text-error">cặp</span>
             </div>
             <div className="mt-1 pt-1.5 border-t border-[#e7eeff] text-body-sm text-[11px] text-error">
@@ -138,11 +138,11 @@ export default function LabQcPage() {
               </div>
             </div>
             <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="font-display-lg text-display-lg text-on-secondary-container font-bold">12</span>
+              <span className="font-display-lg text-display-lg text-on-secondary-container font-bold">0</span>
               <span className="font-label-md text-label-md text-outline">hộp</span>
             </div>
             <div className="mt-1 pt-1.5 border-t border-[#e7eeff] text-body-sm text-[11px] text-outline">
-              Đã niêm phong tem khăn
+              Chưa có đơn chờ giao
             </div>
           </div>
         </div>

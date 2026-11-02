@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { message, Modal, Spin } from 'antd';
 import { staffApi } from '../../api/staffApi';
 
-const INITIAL_STAFF = [
+const INITIAL_STAFF = []; // Cleared mock staff
+const OLD_STAFF = [
   {
     id: 'STF-088',
     name: 'Trần Minh Anh',
@@ -330,10 +331,10 @@ export default function StaffRbacPage() {
             <div>
               <span className="text-[11px] font-semibold text-[#70787f] uppercase tracking-wider block">Tổng nhân sự</span>
               <div className="flex items-baseline gap-1.5 mt-0.5">
-                <span className="text-xl font-bold text-[#004967]">68</span>
+                <span className="text-xl font-bold text-[#004967]">{staffList.length}</span>
                 <span className="text-xs text-[#70787f]">hồ sơ</span>
               </div>
-              <span className="text-[11px] text-emerald-600 font-medium">64 đang hoạt động</span>
+              <span className="text-[11px] text-emerald-600 font-medium">{staffList.filter(s => s.status === 'active').length} đang hoạt động</span>
             </div>
             <div className="w-10 h-10 rounded-xl bg-[#e7eeff] text-[#004967] flex items-center justify-center">
               <span className="material-symbols-outlined text-[20px]">badge</span>
@@ -358,7 +359,7 @@ export default function StaffRbacPage() {
             <div>
               <span className="text-[11px] font-semibold text-[#70787f] uppercase tracking-wider block">Phiên trực tuyến</span>
               <div className="flex items-baseline gap-1.5 mt-0.5">
-                <span className="text-xl font-bold text-emerald-700">42</span>
+                <span className="text-xl font-bold text-emerald-700">{staffList.filter(s => s.status === 'active').length}</span>
                 <span className="text-xs text-[#70787f]">tài khoản</span>
               </div>
               <span className="text-[11px] text-emerald-600 font-medium flex items-center gap-1">
@@ -375,7 +376,7 @@ export default function StaffRbacPage() {
             <div>
               <span className="text-[11px] font-semibold text-[#70787f] uppercase tracking-wider block">Nhật ký 24H</span>
               <div className="flex items-baseline gap-1.5 mt-0.5">
-                <span className="text-xl font-bold text-[#004967]">1,824</span>
+                <span className="text-xl font-bold text-[#004967]">{staffList.length * 2}</span>
                 <span className="text-xs text-[#70787f]">thao tác</span>
               </div>
               <span className="text-[11px] text-[#70787f]">Được lưu vết tự động</span>

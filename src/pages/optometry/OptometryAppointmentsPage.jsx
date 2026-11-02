@@ -111,14 +111,14 @@ export default function OptometryAppointmentsPage() {
     ticketCode: 'EP-9921',
     customerName: 'Nguyễn Hoàng Duy',
     customerTier: 'VIP Silver',
-    optometristName: 'BS. Vũ Anh Tuấn',
+    optometristName: 'BS. Lê Thị Ánh Tuyết',
     examStep: 'Đang thử kính mẫu & Cân bằng thị giác hai mắt (Binocular Balance)',
     waitMinutes: 14
   };
 
   const nextWaiting = appointments.find(a => a.status === 'WAITING') || {
     ticketCode: 'EP-9925',
-    customerName: 'Võ Thị Mai Lan',
+    customerName: 'Chưa có bệnh nhân chờ',
     customerTier: 'VIP Gold',
     scheduledTime: '09:15',
     waitMinutes: 6
@@ -299,7 +299,7 @@ export default function OptometryAppointmentsPage() {
                       <h2 className="font-headline-sm text-headline-sm text-primary">Phòng Đo Mắt 01</h2>
                       <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-md text-[10px] font-semibold flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-error animate-pulse"></span>
-                        ĐANG KHÁM
+                        SẴN SÀNG
                       </span>
                     </div>
                     <p className="font-body-sm text-body-sm text-on-surface-variant">Topcon KR-800 • Kính thử phoropter CV-5000</p>
@@ -408,7 +408,7 @@ export default function OptometryAppointmentsPage() {
                   <div className="flex items-center gap-2">
                     <div className="w-7 h-7 rounded-full bg-secondary text-on-secondary flex items-center justify-center font-bold text-[10px]">KTV</div>
                     <div>
-                      <span className="font-title-md text-title-md text-on-surface block font-semibold leading-tight">Lâm Hoàng Phúc</span>
+                      <span className="font-title-md text-title-md text-on-surface block font-semibold leading-tight">Sẵn sàng đón bệnh nhân</span>
                       <span className="font-body-sm text-outline text-[11px]">KTV Khúc Xạ Chính [STF-102]</span>
                     </div>
                   </div>

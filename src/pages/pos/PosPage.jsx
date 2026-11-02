@@ -533,7 +533,7 @@ export default function PosPage() {
                   : 'bg-white text-[#40484e] hover:bg-[#e7eeff]'
               }`}
             >
-              Tất cả (184)
+              Tất cả ({catalogProducts.length})
             </button>
             <button
               type="button"

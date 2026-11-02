@@ -591,7 +591,7 @@ export default function OrdersOmsPage() {
             </span>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-[36px] font-bold text-[#111c2d] tracking-tight leading-none">128</span>
+            <span className="text-[36px] font-bold text-[#111c2d] tracking-tight leading-none">{orders.length}</span>
             <span className="text-[12px] text-[#004967] font-semibold flex items-center">
               <span className="material-symbols-outlined text-[16px]">trending_up</span> +14.8%
             </span>
@@ -613,7 +613,7 @@ export default function OrdersOmsPage() {
             </span>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-[36px] font-bold text-[#ba1a1a] tracking-tight leading-none">14</span>
+            <span className="text-[36px] font-bold text-[#ba1a1a] tracking-tight leading-none">{orders.filter(o => o.status === 'Chờ xác nhận').length}</span>
             <span className="text-[12px] font-semibold px-2 py-0.5 rounded-full bg-[#ffdad6] text-[#93000a]">Cần KTV duyệt</span>
           </div>
           <div className="mt-3 pt-2.5 bg-[#f0f3ff] px-3 py-1.5 rounded-lg flex items-center justify-between text-[13px] font-semibold text-[#40484e]">
@@ -633,7 +633,7 @@ export default function OrdersOmsPage() {
             </span>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-[36px] font-bold text-[#004967] tracking-tight leading-none">18</span>
+            <span className="text-[36px] font-bold text-[#004967] tracking-tight leading-none">{orders.filter(o => o.status === 'Đang mài').length}</span>
             <span className="text-[12px] text-[#19648f] font-semibold">Tự động Essilor Delta 200</span>
           </div>
           <div className="mt-3 pt-2.5 bg-[#f0f3ff] px-3 py-1.5 rounded-lg flex items-center justify-between text-[13px] font-semibold text-[#40484e]">
@@ -775,7 +775,7 @@ export default function OrdersOmsPage() {
                 : 'bg-[#f0f3ff] hover:bg-[#e7eeff] text-[#40484e]'
             }`}
           >
-            Tất cả (128)
+            Tất cả ({orders.length})
           </button>
           <button
             onClick={() => setStatusFilter('pending_payment')}
@@ -795,7 +795,7 @@ export default function OrdersOmsPage() {
                 : 'bg-[#f0f3ff] hover:bg-[#e7eeff] text-[#40484e]'
             }`}
           >
-            Đã thanh toán (32)
+            Đã thanh toán ({orders.filter(o => o.status === 'Đã thanh toán').length})
           </button>
           <button
             onClick={() => setStatusFilter('waiting_rx')}
@@ -806,7 +806,7 @@ export default function OrdersOmsPage() {
             }`}
           >
             <span className="w-1.5 h-1.5 rounded-full bg-[#ba1a1a] animate-ping" />
-            Chờ duyệt toa kính (14)
+            Chờ duyệt ({orders.filter(o => o.status === 'Chờ duyệt').length})
           </button>
           <button
             onClick={() => setStatusFilter('lab_processing')}
@@ -816,7 +816,7 @@ export default function OrdersOmsPage() {
                 : 'bg-[#cae6ff] text-[#001e30] hover:bg-[#cae6ff]/80'
             }`}
           >
-            Đang gia công Lab (18)
+            Đang gia công ({orders.filter(o => o.status === 'Đang gia công').length})
           </button>
           <button
             onClick={() => setStatusFilter('qc_packaging')}
@@ -826,7 +826,7 @@ export default function OrdersOmsPage() {
                 : 'bg-[#f0f3ff] hover:bg-[#e7eeff] text-[#40484e]'
             }`}
           >
-            Chờ đóng gói QC (11)
+            Chờ QC (0)
           </button>
           <button
             onClick={() => setStatusFilter('delivering_2h')}
@@ -836,7 +836,7 @@ export default function OrdersOmsPage() {
                 : 'bg-[#f0f3ff] hover:bg-[#e7eeff] text-[#40484e]'
             }`}
           >
-            Đang giao hỏa tốc 2H (12)
+            Đang giao (0)
           </button>
           <button
             onClick={() => setStatusFilter('completed')}
@@ -846,7 +846,7 @@ export default function OrdersOmsPage() {
                 : 'bg-[#f0f3ff] hover:bg-[#e7eeff] text-[#40484e]'
             }`}
           >
-            Hoàn thành (41)
+            Hoàn thành (0)
           </button>
           <button
             onClick={() => setStatusFilter('cancelled')}
@@ -856,7 +856,7 @@ export default function OrdersOmsPage() {
                 : 'bg-[#f0f3ff] hover:bg-[#e7eeff] text-[#70787f]'
             }`}
           >
-            Đã hủy/Hoàn tiền (4)
+            Đã hủy (0)
           </button>
         </div>
       </div>
