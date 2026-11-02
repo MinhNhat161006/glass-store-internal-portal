@@ -94,7 +94,7 @@ export default function PosPage() {
   }, []);
 
   // Product catalog list
-  const catalogProducts = [
+  const [catalogProducts, setCatalogProducts] = useState([
     {
       sku: 'BL-BJ3120-C10',
       shortSku: 'BL-BJ3120',
@@ -183,7 +183,41 @@ export default function PosPage() {
       image:
         'https://images.unsplash.com/photo-1583947215259-38e31be8751f?auto=format&fit=crop&w=500&q=80'
     }
-  ];
+  ]);
+
+  useEffect(() => {
+    const fetchLiveCatalog = async () => {
+      try {
+        const res = await productApi.getAllProducts();
+        const products = res?.data || res;
+        if (Array.isArray(products) && products.length > 0) {
+          const list = [];
+          products.forEach(p => {
+            if (p.variants && p.variants.length > 0) {
+              p.variants.forEach(v => {
+                list.push({
+                  sku: v.sku || ('SKU-' + v.id),
+                  shortSku: (v.sku || '').split('-').pop() || 'SKU',
+                  name: (p.name + ' - ' + (v.name || v.color || '')).trim(),
+                  brand: p.brandName || 'OptiVision',
+                  category: p.productType === 'FRAME' ? 'TITAN' : p.productType === 'LENS' ? 'LENS_CRIZAL' : 'ACCESSORY',
+                  price: Number(v.price || 1500000),
+                  stock: (v.stockQuantity != null ? v.stockQuantity : 10) + ' cái',
+                  image: v.imageUrl || 'https://images.unsplash.com/photo-1591076482161-42ce6da69f67?auto=format&fit=crop&w=500&q=80'
+                });
+              });
+            }
+          });
+          if (list.length > 0) {
+            setCatalogProducts(list);
+          }
+        }
+      } catch (err) {
+        console.warn('Lỗi lấy catalog POS:', err.message);
+      }
+    };
+    fetchLiveCatalog();
+  }, []);
 
   // Prescriptions available for linking
   const availablePrescriptions = [

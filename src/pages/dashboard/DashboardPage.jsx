@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { message } from 'antd';
 import { useAuth } from '../../context/AuthContext';
@@ -106,6 +106,33 @@ function AdminDashboardView({ timeframe, setTimeframe, navigate }) {
     { id: 2, time: '15:00', tag: 'Chờ khám', tagStyle: 'bg-[#e7eeff] text-[#40484e]', customer: 'Vũ Thị Mai Hoa', phone: '0973•••109', service: 'Khám đa tròng PAL' },
     { id: 3, time: '15:30', tag: 'Lịch hẹn', tagStyle: 'bg-[#e7eeff] text-[#40484e]', customer: 'Đỗ Quang Dũng', phone: '0903•••667', service: 'Kiểm tra lại kính cũ' }
   ]);
+
+  const displayLabQueue = liveLabJobs.length > 0
+    ? liveLabJobs.map((j) => ({
+        id: '#LAB-2026-0' + j.id,
+        customer: (j.prescription && j.prescription.customerName) || 'Nguyễn Hoàng Duy',
+        status: j.status === 'QC_PASSED' ? 'QC Đạt' : j.status === 'IN_PROGRESS' ? 'Đang mài' : 'Chờ xử lý',
+        statusTag: j.status === 'QC_PASSED' ? 'bg-[#c6e7ff]/70 text-[#004967]' : j.status === 'IN_PROGRESS' ? 'bg-[#8fcdfd]/40 text-[#004b70]' : 'bg-[#e7eeff] text-[#19648f]',
+        frame: j.frameName || 'Bolon Titanium',
+        lens: j.lensName || 'Essilor Crizal Rock',
+        technician: 'KTV: ' + (j.technicianName || 'Trần Văn Bách'),
+        deliveryTime: 'Hôm nay',
+        btnLabel: j.status === 'QC_PASSED' ? 'Bàn giao kính' : 'Cập nhật tiến độ',
+        btnStyle: 'bg-[#004967] text-white hover:bg-[#086288]'
+      }))
+    : labQueue;
+
+  const displayEyeQueue = liveAppointments.length > 0
+    ? liveAppointments.map((a, idx) => ({
+        id: a.id || idx,
+        time: a.scheduledTime || '09:15',
+        tag: a.customerTier || (a.priorityLevel === 1 ? 'Ưu tiên' : 'Chờ khám'),
+        tagStyle: a.priorityLevel === 1 ? 'bg-[#c6e7ff]/60 text-[#004967]' : 'bg-[#e7eeff] text-[#40484e]',
+        customer: a.customerName,
+        phone: a.customerPhone || '0901•••888',
+        service: a.notes || 'Khám khúc xạ chuẩn 12 bước'
+      }))
+    : eyeQueue;
 
   return (
     <div className="space-y-6">
@@ -241,7 +268,7 @@ function AdminDashboardView({ timeframe, setTimeframe, navigate }) {
             </button>
           </div>
           <div className="space-y-2.5">
-            {labQueue.map(item => (
+            {displayLabQueue.map(item => (
               <div key={item.id} className="p-3 bg-[#f0f3ff] rounded-xl flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2">
@@ -275,7 +302,7 @@ function AdminDashboardView({ timeframe, setTimeframe, navigate }) {
             </button>
           </div>
           <div className="space-y-2.5">
-            {eyeQueue.map(item => (
+            {displayEyeQueue.map(item => (
               <div key={item.id} className="p-3 bg-[#f0f3ff] rounded-xl flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-12 text-center py-1 bg-white rounded-lg border border-[#dee8ff] text-xs font-mono font-bold text-[#004967]">

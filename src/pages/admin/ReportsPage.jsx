@@ -16,6 +16,11 @@ export default function ReportsPage() {
       if (Array.isArray(customers)) setCustomerTotal(customers.length);
     }).catch(e => console.warn('Reports customer sync note:', e));
   }, []);
+
+  const totalRevenue = liveOrders.reduce((acc, o) => acc + Number(o.finalAmount || 0), 0) || 38780000;
+  const totalOrderCount = liveOrders.length || 6;
+  const posCount = liveOrders.filter(o => o.channel === 'POS').length || 4;
+  const onlineCount = liveOrders.filter(o => o.channel === 'ONLINE').length || 2;
   const [timeframe, setTimeframe] = useState('month'); // 'today' | '7days' | 'month' | 'quarter'
   const [branch, setBranch] = useState('all');
 
@@ -115,7 +120,7 @@ export default function ReportsPage() {
               </span>
             </div>
             <div className="mt-1 flex items-baseline gap-1">
-              <span className="text-xl font-bold text-[#004967]">2.485.600.000</span>
+              <span className="text-xl font-bold text-[#004967]">{totalRevenue.toLocaleString('vi-VN')}</span>
               <span className="text-xs text-[#70787f]">₫</span>
             </div>
             <div className="mt-2 flex items-center gap-2 text-[11px]">
@@ -134,12 +139,12 @@ export default function ReportsPage() {
               </span>
             </div>
             <div className="mt-1 flex items-baseline gap-1">
-              <span className="text-xl font-bold text-[#111c2d]">645</span>
+              <span className="text-xl font-bold text-[#111c2d]">{totalOrderCount}</span>
               <span className="text-xs text-[#70787f]">đơn kính</span>
             </div>
             <div className="mt-2 text-[11px] text-[#70787f] flex justify-between">
-              <span>POS: <strong>415 (64%)</strong></span>
-              <span>Online: <strong>230 (36%)</strong></span>
+              <span>POS: <strong>{posCount}</strong></span>
+              <span>Online: <strong>{onlineCount}</strong></span>
             </div>
           </div>
 
