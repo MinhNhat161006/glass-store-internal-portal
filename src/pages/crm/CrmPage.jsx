@@ -363,8 +363,14 @@ export default function CrmPage() {
             </div>
 
             {/* Customer List items */}
-            <div className="flex flex-col gap-2 max-h-[720px] overflow-y-auto pr-0.5">
-              {customerList.map((item) => {
+<div className="flex flex-col gap-2 max-h-[720px] overflow-y-auto pr-0.5">
+  {customerList.length === 0 ? (
+    <div className="p-8 text-center bg-surface-container-lowest rounded-xl border border-dashed border-[#d8e3fb]">
+      <span className="material-symbols-outlined text-3xl text-slate-300 mb-1">person_search</span>
+      <p className="text-xs text-outline font-medium">Chua c� kh�ch h�ng n�o trong h? th?ng</p>
+    </div>
+  ) : (
+    customerList.map((item) => {
                 const isSelected = selectedCustomerId === item.id;
                 return (
                   <div
@@ -434,12 +440,20 @@ export default function CrmPage() {
                     </div>
                   </div>
                 );
-              })}
+                })
+              )}
             </div>
           </div>
 
           {/* Right Column (8/12): Customer 360 Full Profile */}
-          <div className="col-span-12 xl:col-span-8 flex flex-col gap-3.5">
+{customerList.length === 0 ? (
+  <div className="col-span-12 xl:col-span-8 p-12 text-center bg-surface-container-lowest rounded-xl border border-dashed border-[#d8e3fb] flex flex-col items-center justify-center">
+    <span className="material-symbols-outlined text-4xl text-slate-300 mb-2">contacts</span>
+    <h3 className="font-title-md text-on-surface font-semibold">Chua c� h? so kh�ch h�ng</h3>
+    <p className="text-xs text-outline max-w-sm mt-1">B?m "T?o Kh�ch M?i" d? th�m h? so kh�ch h�ng v�o co s? d? li?u.</p>
+  </div>
+) : (
+  <div className="col-span-12 xl:col-span-8 flex flex-col gap-3.5">
 
             {/* Profile Overview Card */}
             <div className="p-3.5 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 flex flex-col gap-3 relative overflow-hidden">
@@ -773,10 +787,11 @@ export default function CrmPage() {
             </div>
 
           </div>
-
+        )}
         </div>
 
       </div>
     </div>
   );
 }
+

@@ -5,13 +5,13 @@ import { useAuth } from '../../context/AuthContext';
 
 export default function OptometryPage() {
   const { user } = useAuth();
-  const [odSph, setOdSph] = useState(-3.25);
-  const [odCyl, setOdCyl] = useState(-0.75);
+  const [odSph, setOdSph] = useState(0.00);
+  const [odCyl, setOdCyl] = useState(0.00);
   const [odAxis, setOdAxis] = useState(180);
 
-  const [osSph, setOsSph] = useState(-2.75);
-  const [osCyl, setOsCyl] = useState(-0.50);
-  const [osAxis, setOsAxis] = useState(175);
+  const [osSph, setOsSph] = useState(0.00);
+  const [osCyl, setOsCyl] = useState(0.00);
+  const [osAxis, setOsAxis] = useState(180);
   const [livePrescription, setLivePrescription] = useState(null);
 
   useEffect(() => {
@@ -38,10 +38,10 @@ export default function OptometryPage() {
   const handleSignAndPush = async () => {
     try {
       await prescriptionApi.createPrescription({
-        customerId: 10,
-        customerName: 'Nguyễn Hoàng Duy',
-        optometristId: 6,
-        optometristName: user?.staffName || 'BS. Lê Thị Ánh Tuyết',
+        customerId: livePrescription?.customerId || 1,
+        customerName: livePrescription?.customerName || 'Khách Hàng Khám Mới',
+        optometristId: user?.id || 1,
+        optometristName: user?.staffName || 'BS. Khúc Xạ OptiVision',
         odSph: odSph,
         odCyl: odCyl,
         odAxis: odAxis,
@@ -61,6 +61,8 @@ export default function OptometryPage() {
     message.success(msg);
   };
 
+  const hasRx = Boolean(livePrescription);
+
   return (
     <div className="w-full min-h-screen bg-[#f9f9ff]">
       <div className="max-w-[1600px] mx-auto p-3.5 sm:p-5 flex flex-col gap-3.5">
@@ -71,24 +73,32 @@ export default function OptometryPage() {
             <div className="flex items-center gap-2.5">
               <div className="relative">
                 <div className="w-11 h-11 rounded-full bg-secondary-fixed flex items-center justify-center text-primary font-bold text-sm">
-                  HD
+                  {hasRx ? (livePrescription.customerName || 'KH').slice(0, 2).toUpperCase() : 'KH'}
                 </div>
-                <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-primary-container ring-2 ring-surface-container-lowest"></span>
+                <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full ${hasRx ? 'bg-primary-container' : 'bg-outline'} ring-2 ring-surface-container-lowest`}></span>
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="font-headline-md text-headline-md text-on-surface tracking-tight">Nguyễn Hoàng Duy</h1>
-                  <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-md text-[10px] font-semibold">#OPT-CUS-9842</span>
-                  <span className="px-2 py-0.2 rounded-full bg-surface-container-highest text-primary font-label-md text-[10px] font-semibold">VIP 3 Silver</span>
+                  <h1 className="font-headline-md text-headline-md text-on-surface tracking-tight">
+                    {hasRx ? livePrescription.customerName : 'Chưa Chọn Bệnh Nhân'}
+                  </h1>
+                  <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-md text-[10px] font-semibold">
+                    {hasRx ? `#OPT-CUS-${livePrescription.customerId || '01'}` : 'Chưa có hồ sơ'}
+                  </span>
+                  <span className="px-2 py-0.2 rounded-full bg-surface-container-highest text-primary font-label-md text-[10px] font-semibold">
+                    {hasRx ? 'Bệnh Nhân Đang Khám' : 'Sẵn Sàng'}
+                  </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-on-surface-variant font-body-sm text-body-sm mt-0.5">
-                  <span>32 tuổi (1994)</span>
-                  <span>•</span>
-                  <span>Nam</span>
-                  <span>•</span>
-                  <span className="font-label-mono text-on-surface">0918 732 998</span>
-                  <span>•</span>
-                  <span className="text-outline">Tiền sử: Cận loạn 8 năm, mỏi mắt kỹ thuật số</span>
+                  {hasRx ? (
+                    <>
+                      <span>{livePrescription.customerPhone || '0901 000 888'}</span>
+                      <span>•</span>
+                      <span className="text-outline">{livePrescription.notes || 'Quy trình khám khúc xạ tiêu chuẩn'}</span>
+                    </>
+                  ) : (
+                    <span className="text-outline">Vui lòng tiếp nhận hoặc phát số bệnh nhân từ màn hình Hàng Đợi Đo Mắt (FR-EYE)</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -98,12 +108,14 @@ export default function OptometryPage() {
             <div className="bg-surface-container-low px-3 py-1.5 rounded-xl flex items-center gap-3 border border-[#d8e3fb]/40">
               <div>
                 <span className="block font-label-md text-label-md text-outline uppercase tracking-wider">Mã Toa</span>
-                <span className="font-label-mono text-primary font-bold text-xs">#RX-2026-889</span>
+                <span className="font-label-mono text-primary font-bold text-xs">
+                  {hasRx ? `#RX-2026-0${livePrescription.id}` : 'Chưa tạo'}
+                </span>
               </div>
               <div className="h-5 w-px bg-surface-dim"></div>
               <div>
                 <span className="block font-label-md text-label-md text-outline uppercase tracking-wider">Thời Gian</span>
-                <span className="font-body-sm text-on-surface text-xs">10:15 Hôm nay</span>
+                <span className="font-body-sm text-on-surface text-xs">Hôm nay</span>
               </div>
               <div className="h-5 w-px bg-surface-dim"></div>
               <div>
@@ -114,11 +126,11 @@ export default function OptometryPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <button onClick={() => handleAction('Mở lịch sử 3 lần đo khúc xạ trước')} className="px-3 py-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface font-label-md text-label-md flex items-center gap-1 transition-colors cursor-pointer">
+            <button onClick={() => handleAction('Lịch sử đo khám thị lực')} className="px-3 py-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface font-label-md text-label-md flex items-center gap-1 transition-colors cursor-pointer">
               <span className="material-symbols-outlined text-[15px]">history</span>
-              <span>Lịch Sử Đo (3)</span>
+              <span>Lịch Sử Đo</span>
             </button>
-            <button onClick={() => handleAction('Đã đặt lại dữ liệu form')} className="px-3 py-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface font-label-md text-label-md flex items-center gap-1 transition-colors cursor-pointer">
+            <button onClick={() => { setOdSph(0); setOdCyl(0); setOdAxis(180); setOsSph(0); setOsCyl(0); setOsAxis(180); handleAction('Đã đặt lại dữ liệu form'); }} className="px-3 py-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface font-label-md text-label-md flex items-center gap-1 transition-colors cursor-pointer">
               <span className="material-symbols-outlined text-[15px]">restart_alt</span>
               <span>Nhập Lại</span>
             </button>
@@ -140,54 +152,70 @@ export default function OptometryPage() {
           <div className="bg-surface-container-lowest rounded-xl p-3 shadow-xs border border-[#d8e3fb]/40 flex flex-col justify-between">
             <div className="flex items-center justify-between mb-2">
               <span className="font-label-md text-label-md uppercase tracking-wider text-outline font-semibold">Thị Lực Trần (Không Kính)</span>
-              <span className="px-2 py-0.2 rounded-full bg-surface-container-highest text-on-surface-variant font-label-md text-[10px]">10:18</span>
+              <span className="px-2 py-0.2 rounded-full bg-surface-container-highest text-on-surface-variant font-label-md text-[10px]">
+                {hasRx ? 'Đã đo' : 'Chưa đo'}
+              </span>
             </div>
-            <div className="grid grid-cols-2 gap-2.5">
-              <div className="bg-surface-container-low rounded-lg p-2.5 border border-[#d8e3fb]/30">
-                <span className="font-label-md text-label-md text-primary block font-semibold">MẮT PHẢI (OD)</span>
-                <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className="font-headline-lg text-headline-lg text-on-surface">2/10</span>
-                  <span className="font-body-sm text-body-sm text-error font-medium">(LogMAR 0.70)</span>
+            {hasRx ? (
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="bg-surface-container-low rounded-lg p-2.5 border border-[#d8e3fb]/30">
+                  <span className="font-label-md text-label-md text-primary block font-semibold">MẮT PHẢI (OD)</span>
+                  <div className="flex items-baseline gap-1.5 mt-0.5">
+                    <span className="font-headline-lg text-headline-lg text-on-surface">2/10</span>
+                    <span className="font-body-sm text-body-sm text-error font-medium">(LogMAR 0.70)</span>
+                  </div>
+                  <span className="text-outline font-body-sm text-[11px] block mt-0.5">Nhìn mờ xa &gt; 3m</span>
                 </div>
-                <span className="text-outline font-body-sm text-[11px] block mt-0.5">Nhìn mờ xa &gt; 3m</span>
-              </div>
-              <div className="bg-surface-container-low rounded-lg p-2.5 border border-[#d8e3fb]/30">
-                <span className="font-label-md text-label-md text-secondary block font-semibold">MẮT TRÁI (OS)</span>
-                <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className="font-headline-lg text-headline-lg text-on-surface">3/10</span>
-                  <span className="font-body-sm text-body-sm text-error font-medium">(LogMAR 0.52)</span>
+                <div className="bg-surface-container-low rounded-lg p-2.5 border border-[#d8e3fb]/30">
+                  <span className="font-label-md text-label-md text-secondary block font-semibold">MẮT TRÁI (OS)</span>
+                  <div className="flex items-baseline gap-1.5 mt-0.5">
+                    <span className="font-headline-lg text-headline-lg text-on-surface">3/10</span>
+                    <span className="font-body-sm text-body-sm text-error font-medium">(LogMAR 0.52)</span>
+                  </div>
+                  <span className="text-outline font-body-sm text-[11px] block mt-0.5">Nhìn mờ chữ bảng</span>
                 </div>
-                <span className="text-outline font-body-sm text-[11px] block mt-0.5">Nhìn mờ chữ bảng</span>
               </div>
-            </div>
+            ) : (
+              <div className="py-6 text-center text-outline text-xs bg-surface-container-low rounded-lg">
+                Chưa có dữ liệu thị lực trần. Tiếp nhận bệnh nhân để kiểm tra trên bảng thị lực SC-1600.
+              </div>
+            )}
           </div>
 
-          {/* Card 2: Old Rx (03/2025) */}
+          {/* Card 2: Old Rx */}
           <div className="bg-surface-container-lowest rounded-xl p-3 shadow-xs border border-[#d8e3fb]/40 flex flex-col justify-between">
             <div className="flex items-center justify-between mb-2">
-              <span className="font-label-md text-label-md uppercase tracking-wider text-outline font-semibold">Toa Kính Cũ (Tháng 03/2025)</span>
-              <span className="px-2 py-0.2 rounded-full bg-surface-container-high text-on-surface-variant font-label-md text-[10px]">11 tháng trước</span>
+              <span className="font-label-md text-label-md uppercase tracking-wider text-outline font-semibold">Toa Kính Cũ</span>
+              <span className="px-2 py-0.2 rounded-full bg-surface-container-high text-on-surface-variant font-label-md text-[10px]">
+                {hasRx ? 'Hồ sơ cũ' : 'Chưa có'}
+              </span>
             </div>
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between bg-surface-container-low rounded-lg px-2.5 py-1.5 border border-[#d8e3fb]/30">
-                <span className="font-label-md text-label-md text-primary font-semibold w-10">OD (R)</span>
-                <div className="flex gap-2.5 font-label-mono text-body-sm text-on-surface">
-                  <span>SPH: <strong>-3.00</strong></span>
-                  <span>CYL: <strong>-0.50</strong></span>
-                  <span>AX: <strong>180°</strong></span>
+            {hasRx ? (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between bg-surface-container-low rounded-lg px-2.5 py-1.5 border border-[#d8e3fb]/30">
+                  <span className="font-label-md text-label-md text-primary font-semibold w-10">OD (R)</span>
+                  <div className="flex gap-2.5 font-label-mono text-body-sm text-on-surface">
+                    <span>SPH: <strong>{odSph.toFixed(2)}</strong></span>
+                    <span>CYL: <strong>{odCyl.toFixed(2)}</strong></span>
+                    <span>AX: <strong>{odAxis}°</strong></span>
+                  </div>
+                  <span className="font-label-md text-label-md text-outline">VA: 10/10</span>
                 </div>
-                <span className="font-label-md text-label-md text-outline">VA: 10/10</span>
-              </div>
-              <div className="flex items-center justify-between bg-surface-container-low rounded-lg px-2.5 py-1.5 border border-[#d8e3fb]/30">
-                <span className="font-label-md text-label-md text-secondary font-semibold w-10">OS (L)</span>
-                <div className="flex gap-2.5 font-label-mono text-body-sm text-on-surface">
-                  <span>SPH: <strong>-2.50</strong></span>
-                  <span>CYL: <strong>-0.50</strong></span>
-                  <span>AX: <strong>175°</strong></span>
+                <div className="flex items-center justify-between bg-surface-container-low rounded-lg px-2.5 py-1.5 border border-[#d8e3fb]/30">
+                  <span className="font-label-md text-label-md text-secondary font-semibold w-10">OS (L)</span>
+                  <div className="flex gap-2.5 font-label-mono text-body-sm text-on-surface">
+                    <span>SPH: <strong>{osSph.toFixed(2)}</strong></span>
+                    <span>CYL: <strong>{osCyl.toFixed(2)}</strong></span>
+                    <span>AX: <strong>{osAxis}°</strong></span>
+                  </div>
+                  <span className="font-label-md text-label-md text-outline">VA: 10/10</span>
                 </div>
-                <span className="font-label-md text-label-md text-outline">VA: 10/10</span>
               </div>
-            </div>
+            ) : (
+              <div className="py-6 text-center text-outline text-xs bg-surface-container-low rounded-lg">
+                Chưa ghi nhận toa kính cũ. Bệnh nhân khám lần đầu tại hệ thống OptiVision.
+              </div>
+            )}
           </div>
 
           {/* Card 3: Binocular Analysis */}
@@ -196,21 +224,29 @@ export default function OptometryPage() {
               <span className="font-label-md text-label-md uppercase tracking-wider text-primary font-semibold">Phân Tích Khúc Xạ Hai Mắt</span>
               <span className="material-symbols-outlined text-primary text-[18px]">troubleshoot</span>
             </div>
-            <div className="space-y-1 bg-surface-container-low p-2 rounded-lg border border-[#d8e3fb]/30 text-body-sm">
-              <div className="flex justify-between items-center">
-                <span className="text-on-surface-variant">Chênh lệch SPH:</span>
-                <span className="font-label-mono font-bold text-on-surface">Δ 0.50 D (Bình thường)</span>
+            {hasRx ? (
+              <>
+                <div className="space-y-1 bg-surface-container-low p-2 rounded-lg border border-[#d8e3fb]/30 text-body-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="text-on-surface-variant">Chênh lệch SPH:</span>
+                    <span className="font-label-mono font-bold text-on-surface">Δ {Math.abs(odSph - osSph).toFixed(2)} D (Bình thường)</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-on-surface-variant">Trục loạn:</span>
+                    <span className="font-label-mono font-bold text-on-surface">OD {odAxis}° / OS {osAxis}°</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-on-surface-variant">Chỉ định:</span>
+                    <span className="px-1.5 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-md text-[10px]">Đơn tròng kỹ thuật số</span>
+                  </div>
+                </div>
+                <span className="text-outline font-body-sm text-[11px] block mt-1">Không có hiện tượng lệch ảnh nghiêm trọng (Aniseikonia).</span>
+              </>
+            ) : (
+              <div className="py-6 text-center text-outline text-xs bg-surface-container-low rounded-lg">
+                Chờ kết quả đo khúc xạ hai mắt để tự động phân tích độ tương thích thị giác hai mắt.
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-on-surface-variant">Trục loạn đối xứng:</span>
-                <span className="font-label-mono font-bold text-on-surface">Thuận (WTR 180°/175°)</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-on-surface-variant">Chỉ định:</span>
-                <span className="px-1.5 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-md text-[10px]">Đơn tròng kỹ thuật số</span>
-              </div>
-            </div>
-            <span className="text-outline font-body-sm text-[11px] block mt-1">Không có hiện tượng lệch ảnh nghiêm trọng (Aniseikonia).</span>
+            )}
           </div>
 
         </div>
@@ -249,113 +285,58 @@ export default function OptometryPage() {
                         <span className="font-label-md text-outline text-[10px]">Oculus Dexter</span>
                       </div>
                     </div>
-                    <span className="px-2 py-0.2 rounded-full bg-primary-fixed text-on-primary-fixed font-label-md text-[10px]">Ưu thế nhìn xa</span>
+                    <span className="px-2 py-0.5 rounded-full bg-surface-container-high text-primary font-label-md text-[10px] font-semibold">Ưu thế nhìn xa</span>
                   </div>
 
-                  {/* SPH Stepper */}
-                  <div>
-                    <div className="flex justify-between items-center mb-0.5">
-                      <label className="font-label-md text-label-md text-on-surface-variant font-medium">Độ Cầu (SPH / Sphere)</label>
-                      <span className="text-[10px] text-outline">Dải: -15.00 đến +10.00</span>
+                  <div className="space-y-2">
+                    <div>
+                      <div className="flex justify-between items-center text-body-sm mb-1">
+                        <span className="font-label-md text-label-md text-on-surface font-medium">Độ Cầu (SPH / Sphere)</span>
+                        <span className="font-label-mono text-outline text-[11px]">Dải: -15.00 đến +10.00</span>
+                      </div>
+                      <div className="flex items-center bg-surface-container-lowest rounded-xl p-1 border border-[#d8e3fb]/40 shadow-xs">
+                        <button onClick={() => setOdSph(prev => Number((prev - 0.25).toFixed(2)))} className="w-8 h-8 rounded-lg bg-surface-container hover:bg-surface-container-high flex items-center justify-center font-bold text-base text-primary transition-colors cursor-pointer">−</button>
+                        <span className="flex-1 text-center font-label-mono text-title-md font-bold text-on-surface">{odSph.toFixed(2)}</span>
+                        <button onClick={() => setOdSph(prev => Number((prev + 0.25).toFixed(2)))} className="w-8 h-8 rounded-lg bg-surface-container hover:bg-surface-container-high flex items-center justify-center font-bold text-base text-primary transition-colors cursor-pointer">+</button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5 bg-surface-container-lowest rounded-xl p-1 shadow-xs border border-[#d8e3fb]/40">
-                      <button
-                        onClick={() => setOdSph((v) => Number((v - 0.25).toFixed(2)))}
-                        className="w-8 h-8 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary flex items-center justify-center font-bold text-base active:scale-95 transition-transform cursor-pointer"
-                        type="button"
-                      >
-                        -
-                      </button>
-                      <input
-                        className="w-full text-center font-headline-sm text-headline-sm text-on-surface font-label-mono bg-transparent outline-none"
-                        value={odSph.toFixed(2)}
-                        readOnly
-                      />
-                      <button
-                        onClick={() => setOdSph((v) => Number((v + 0.25).toFixed(2)))}
-                        className="w-8 h-8 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary flex items-center justify-center font-bold text-base active:scale-95 transition-transform cursor-pointer"
-                        type="button"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
 
-                  {/* CYL Stepper */}
-                  <div>
-                    <div className="flex justify-between items-center mb-0.5">
-                      <label className="font-label-md text-label-md text-on-surface-variant font-medium">Độ Trụ (CYL / Cylinder)</label>
-                      <span className="text-[10px] text-outline">Quy ước dấu âm (-)</span>
+                    <div>
+                      <div className="flex justify-between items-center text-body-sm mb-1">
+                        <span className="font-label-md text-label-md text-on-surface font-medium">Độ Trụ (CYL / Cylinder)</span>
+                        <span className="font-label-mono text-outline text-[11px]">Quy ước dấu âm (−)</span>
+                      </div>
+                      <div className="flex items-center bg-surface-container-lowest rounded-xl p-1 border border-[#d8e3fb]/40 shadow-xs">
+                        <button onClick={() => setOdCyl(prev => Number((prev - 0.25).toFixed(2)))} className="w-8 h-8 rounded-lg bg-surface-container hover:bg-surface-container-high flex items-center justify-center font-bold text-base text-secondary transition-colors cursor-pointer">−</button>
+                        <span className="flex-1 text-center font-label-mono text-title-md font-bold text-on-surface">{odCyl.toFixed(2)}</span>
+                        <button onClick={() => setOdCyl(prev => Number((prev + 0.25).toFixed(2)))} className="w-8 h-8 rounded-lg bg-surface-container hover:bg-surface-container-high flex items-center justify-center font-bold text-base text-secondary transition-colors cursor-pointer">+</button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5 bg-surface-container-lowest rounded-xl p-1 shadow-xs border border-[#d8e3fb]/40">
-                      <button
-                        onClick={() => setOdCyl((v) => Number((v - 0.25).toFixed(2)))}
-                        className="w-8 h-8 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary flex items-center justify-center font-bold text-base active:scale-95 transition-transform cursor-pointer"
-                        type="button"
-                      >
-                        -
-                      </button>
-                      <input
-                        className="w-full text-center font-headline-sm text-headline-sm text-on-surface font-label-mono bg-transparent outline-none"
-                        value={odCyl.toFixed(2)}
-                        readOnly
-                      />
-                      <button
-                        onClick={() => setOdCyl((v) => Number((v + 0.25).toFixed(2)))}
-                        className="w-8 h-8 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary flex items-center justify-center font-bold text-base active:scale-95 transition-transform cursor-pointer"
-                        type="button"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
 
-                  {/* AXIS Slider */}
-                  <div>
-                    <div className="flex justify-between items-center mb-0.5">
-                      <label className="font-label-md text-label-md text-on-surface-variant font-medium">Trục Loạn (AXIS)</label>
-                      <span className="font-label-mono text-primary font-bold text-xs">{odAxis}°</span>
-                    </div>
-                    <div className="bg-surface-container-lowest rounded-xl p-2 shadow-xs border border-[#d8e3fb]/40 flex items-center gap-2">
+                    <div>
+                      <div className="flex justify-between items-center text-body-sm mb-1">
+                        <span className="font-label-md text-label-md text-on-surface font-medium">Trục Loạn (AXIS)</span>
+                        <span className="font-label-mono font-bold text-primary text-xs">{odAxis}°</span>
+                      </div>
                       <input
-                        className="w-full accent-primary cursor-pointer h-1.5"
-                        max="180"
-                        min="0"
-                        step="1"
                         type="range"
+                        min="0"
+                        max="180"
+                        step="1"
                         value={odAxis}
                         onChange={(e) => setOdAxis(Number(e.target.value))}
+                        className="w-full accent-primary h-1.5 bg-surface-container-highest rounded-lg cursor-pointer"
                       />
-                      <span className="font-label-mono font-bold text-on-surface w-10 text-right text-xs">{odAxis}°</span>
                     </div>
-                  </div>
 
-                  {/* Mini Parameter Grid */}
-                  <div className="grid grid-cols-2 gap-2 pt-1">
-                    <div className="bg-surface-container-lowest rounded-xl p-2 shadow-xs border border-[#d8e3fb]/30">
-                      <label className="font-label-md text-outline block text-[10px]">Độ Cộng (ADD)</label>
-                      <input className="font-label-mono text-title-md text-on-surface bg-transparent outline-none w-full" defaultValue="+0.00" />
-                      <span className="text-[10px] text-outline">Đơn tròng</span>
-                    </div>
-                    <div className="bg-surface-container-lowest rounded-xl p-2 shadow-xs border border-[#d8e3fb]/30">
-                      <label className="font-label-md text-outline block text-[10px]">PD Đơn (OD)</label>
-                      <div className="flex items-baseline gap-1">
-                        <input className="font-label-mono text-title-md text-on-surface bg-transparent outline-none w-12" defaultValue="32.0" />
-                        <span className="text-[10px] text-outline">mm</span>
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <div className="p-2 bg-surface-container-lowest rounded-lg border border-[#d8e3fb]/30">
+                        <span className="font-label-md text-outline block text-[10px]">Độ Cộng (ADD)</span>
+                        <span className="font-label-mono font-bold text-on-surface text-xs">+0.00</span>
                       </div>
-                    </div>
-                    <div className="bg-surface-container-lowest rounded-xl p-2 shadow-xs border border-[#d8e3fb]/30">
-                      <label className="font-label-md text-outline block text-[10px]">Tâm Chiều Cao (SH)</label>
-                      <div className="flex items-baseline gap-1">
-                        <input className="font-label-mono text-title-md text-on-surface bg-transparent outline-none w-12" defaultValue="21.5" />
-                        <span className="text-[10px] text-outline">mm</span>
-                      </div>
-                    </div>
-                    <div className="bg-surface-container-lowest rounded-xl p-2 shadow-xs border border-[#d8e3fb]/30">
-                      <label className="font-label-md text-outline block text-[10px]">Thị Lực Tối Ưu</label>
-                      <div className="flex items-baseline gap-1">
-                        <span className="font-label-mono text-title-md text-primary font-bold">10/10</span>
-                        <span className="text-[10px] text-outline">(Snellen)</span>
+                      <div className="p-2 bg-surface-container-lowest rounded-lg border border-[#d8e3fb]/30">
+                        <span className="font-label-md text-outline block text-[10px]">PD Đơn (OD)</span>
+                        <span className="font-label-mono font-bold text-on-surface text-xs">32.0 mm</span>
                       </div>
                     </div>
                   </div>
@@ -371,113 +352,58 @@ export default function OptometryPage() {
                         <span className="font-label-md text-outline text-[10px]">Oculus Sinister</span>
                       </div>
                     </div>
-                    <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-md text-[10px]">Mắt điều tiết bù</span>
+                    <span className="px-2 py-0.5 rounded-full bg-surface-container-high text-secondary font-label-md text-[10px] font-semibold">Mắt điều tiết bù</span>
                   </div>
 
-                  {/* SPH Stepper */}
-                  <div>
-                    <div className="flex justify-between items-center mb-0.5">
-                      <label className="font-label-md text-label-md text-on-surface-variant font-medium">Độ Cầu (SPH / Sphere)</label>
-                      <span className="text-[10px] text-outline">Dải: -15.00 đến +10.00</span>
+                  <div className="space-y-2">
+                    <div>
+                      <div className="flex justify-between items-center text-body-sm mb-1">
+                        <span className="font-label-md text-label-md text-on-surface font-medium">Độ Cầu (SPH / Sphere)</span>
+                        <span className="font-label-mono text-outline text-[11px]">Dải: -15.00 đến +10.00</span>
+                      </div>
+                      <div className="flex items-center bg-surface-container-lowest rounded-xl p-1 border border-[#d8e3fb]/40 shadow-xs">
+                        <button onClick={() => setOsSph(prev => Number((prev - 0.25).toFixed(2)))} className="w-8 h-8 rounded-lg bg-surface-container hover:bg-surface-container-high flex items-center justify-center font-bold text-base text-primary transition-colors cursor-pointer">−</button>
+                        <span className="flex-1 text-center font-label-mono text-title-md font-bold text-on-surface">{osSph.toFixed(2)}</span>
+                        <button onClick={() => setOsSph(prev => Number((prev + 0.25).toFixed(2)))} className="w-8 h-8 rounded-lg bg-surface-container hover:bg-surface-container-high flex items-center justify-center font-bold text-base text-primary transition-colors cursor-pointer">+</button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5 bg-surface-container-lowest rounded-xl p-1 shadow-xs border border-[#d8e3fb]/40">
-                      <button
-                        onClick={() => setOsSph((v) => Number((v - 0.25).toFixed(2)))}
-                        className="w-8 h-8 rounded-lg bg-surface-container hover:bg-surface-container-high text-secondary flex items-center justify-center font-bold text-base active:scale-95 transition-transform cursor-pointer"
-                        type="button"
-                      >
-                        -
-                      </button>
-                      <input
-                        className="w-full text-center font-headline-sm text-headline-sm text-on-surface font-label-mono bg-transparent outline-none"
-                        value={osSph.toFixed(2)}
-                        readOnly
-                      />
-                      <button
-                        onClick={() => setOsSph((v) => Number((v + 0.25).toFixed(2)))}
-                        className="w-8 h-8 rounded-lg bg-surface-container hover:bg-surface-container-high text-secondary flex items-center justify-center font-bold text-base active:scale-95 transition-transform cursor-pointer"
-                        type="button"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
 
-                  {/* CYL Stepper */}
-                  <div>
-                    <div className="flex justify-between items-center mb-0.5">
-                      <label className="font-label-md text-label-md text-on-surface-variant font-medium">Độ Trụ (CYL / Cylinder)</label>
-                      <span className="text-[10px] text-outline">Quy ước dấu âm (-)</span>
+                    <div>
+                      <div className="flex justify-between items-center text-body-sm mb-1">
+                        <span className="font-label-md text-label-md text-on-surface font-medium">Độ Trụ (CYL / Cylinder)</span>
+                        <span className="font-label-mono text-outline text-[11px]">Quy ước dấu âm (−)</span>
+                      </div>
+                      <div className="flex items-center bg-surface-container-lowest rounded-xl p-1 border border-[#d8e3fb]/40 shadow-xs">
+                        <button onClick={() => setOsCyl(prev => Number((prev - 0.25).toFixed(2)))} className="w-8 h-8 rounded-lg bg-surface-container hover:bg-surface-container-high flex items-center justify-center font-bold text-base text-secondary transition-colors cursor-pointer">−</button>
+                        <span className="flex-1 text-center font-label-mono text-title-md font-bold text-on-surface">{osCyl.toFixed(2)}</span>
+                        <button onClick={() => setOsCyl(prev => Number((prev + 0.25).toFixed(2)))} className="w-8 h-8 rounded-lg bg-surface-container hover:bg-surface-container-high flex items-center justify-center font-bold text-base text-secondary transition-colors cursor-pointer">+</button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5 bg-surface-container-lowest rounded-xl p-1 shadow-xs border border-[#d8e3fb]/40">
-                      <button
-                        onClick={() => setOsCyl((v) => Number((v - 0.25).toFixed(2)))}
-                        className="w-8 h-8 rounded-lg bg-surface-container hover:bg-surface-container-high text-secondary flex items-center justify-center font-bold text-base active:scale-95 transition-transform cursor-pointer"
-                        type="button"
-                      >
-                        -
-                      </button>
-                      <input
-                        className="w-full text-center font-headline-sm text-headline-sm text-on-surface font-label-mono bg-transparent outline-none"
-                        value={osCyl.toFixed(2)}
-                        readOnly
-                      />
-                      <button
-                        onClick={() => setOsCyl((v) => Number((v + 0.25).toFixed(2)))}
-                        className="w-8 h-8 rounded-lg bg-surface-container hover:bg-surface-container-high text-secondary flex items-center justify-center font-bold text-base active:scale-95 transition-transform cursor-pointer"
-                        type="button"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
 
-                  {/* AXIS Slider */}
-                  <div>
-                    <div className="flex justify-between items-center mb-0.5">
-                      <label className="font-label-md text-label-md text-on-surface-variant font-medium">Trục Loạn (AXIS)</label>
-                      <span className="font-label-mono text-secondary font-bold text-xs">{osAxis}°</span>
-                    </div>
-                    <div className="bg-surface-container-lowest rounded-xl p-2 shadow-xs border border-[#d8e3fb]/40 flex items-center gap-2">
+                    <div>
+                      <div className="flex justify-between items-center text-body-sm mb-1">
+                        <span className="font-label-md text-label-md text-on-surface font-medium">Trục Loạn (AXIS)</span>
+                        <span className="font-label-mono font-bold text-secondary text-xs">{osAxis}°</span>
+                      </div>
                       <input
-                        className="w-full accent-secondary cursor-pointer h-1.5"
-                        max="180"
-                        min="0"
-                        step="1"
                         type="range"
+                        min="0"
+                        max="180"
+                        step="1"
                         value={osAxis}
                         onChange={(e) => setOsAxis(Number(e.target.value))}
+                        className="w-full accent-secondary h-1.5 bg-surface-container-highest rounded-lg cursor-pointer"
                       />
-                      <span className="font-label-mono font-bold text-on-surface w-10 text-right text-xs">{osAxis}°</span>
                     </div>
-                  </div>
 
-                  {/* Mini Parameter Grid */}
-                  <div className="grid grid-cols-2 gap-2 pt-1">
-                    <div className="bg-surface-container-lowest rounded-xl p-2 shadow-xs border border-[#d8e3fb]/30">
-                      <label className="font-label-md text-outline block text-[10px]">Độ Cộng (ADD)</label>
-                      <input className="font-label-mono text-title-md text-on-surface bg-transparent outline-none w-full" defaultValue="+0.00" />
-                      <span className="text-[10px] text-outline">Đơn tròng</span>
-                    </div>
-                    <div className="bg-surface-container-lowest rounded-xl p-2 shadow-xs border border-[#d8e3fb]/30">
-                      <label className="font-label-md text-outline block text-[10px]">PD Đơn (OS)</label>
-                      <div className="flex items-baseline gap-1">
-                        <input className="font-label-mono text-title-md text-on-surface bg-transparent outline-none w-12" defaultValue="32.0" />
-                        <span className="text-[10px] text-outline">mm</span>
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <div className="p-2 bg-surface-container-lowest rounded-lg border border-[#d8e3fb]/30">
+                        <span className="font-label-md text-outline block text-[10px]">Độ Cộng (ADD)</span>
+                        <span className="font-label-mono font-bold text-on-surface text-xs">+0.00</span>
                       </div>
-                    </div>
-                    <div className="bg-surface-container-lowest rounded-xl p-2 shadow-xs border border-[#d8e3fb]/30">
-                      <label className="font-label-md text-outline block text-[10px]">Tâm Chiều Cao (SH)</label>
-                      <div className="flex items-baseline gap-1">
-                        <input className="font-label-mono text-title-md text-on-surface bg-transparent outline-none w-12" defaultValue="21.5" />
-                        <span className="text-[10px] text-outline">mm</span>
-                      </div>
-                    </div>
-                    <div className="bg-surface-container-lowest rounded-xl p-2 shadow-xs border border-[#d8e3fb]/30">
-                      <label className="font-label-md text-outline block text-[10px]">Thị Lực Tối Ưu</label>
-                      <div className="flex items-baseline gap-1">
-                        <span className="font-label-mono text-title-md text-secondary font-bold">10/10</span>
-                        <span className="text-[10px] text-outline">(Snellen)</span>
+                      <div className="p-2 bg-surface-container-lowest rounded-lg border border-[#d8e3fb]/30">
+                        <span className="font-label-md text-outline block text-[10px]">PD Đơn (OS)</span>
+                        <span className="font-label-mono font-bold text-on-surface text-xs">32.0 mm</span>
                       </div>
                     </div>
                   </div>
@@ -485,15 +411,12 @@ export default function OptometryPage() {
 
               </div>
 
-              {/* Total PD & Ergonomics Strip */}
-              <div className="mt-3 p-2.5 rounded-xl bg-surface-container flex flex-wrap items-center justify-between gap-2.5 border border-[#d8e3fb]/40">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary text-[18px]">straighten</span>
-                    <div>
-                      <span className="font-label-md text-outline block text-[10px]">Total PD</span>
-                      <span className="font-headline-sm text-headline-sm text-primary font-label-mono font-bold">64.0 mm</span>
-                    </div>
+              {/* Fitting Parameters */}
+              <div className="mt-3 p-2.5 rounded-xl bg-surface-container-low flex flex-wrap items-center justify-between gap-3 border border-[#d8e3fb]/40">
+                <div className="flex items-center gap-4">
+                  <div>
+                    <span className="font-label-md text-outline block text-[10px]">Total PD</span>
+                    <span className="font-label-mono font-bold text-primary text-xs">64.0 mm</span>
                   </div>
                   <div className="h-6 w-px bg-surface-variant"></div>
                   <div>
@@ -533,9 +456,11 @@ export default function OptometryPage() {
                 <div className="space-y-2">
                   <div className="bg-surface-container-low rounded-xl p-2.5 border border-[#d8e3fb]/30">
                     <span className="font-label-md text-label-md text-outline uppercase tracking-wider block mb-0.5 font-semibold">Chẩn Đoán Khúc Xạ</span>
-                    <p className="font-title-md text-title-md text-on-surface font-semibold mb-1">Cận - Loạn Thị Hai Mắt (OD/OS)</p>
+                    <p className="font-title-md text-title-md text-on-surface font-semibold mb-1">
+                      {hasRx ? 'Khúc Xạ Hai Mắt (OD/OS)' : 'Chưa có chẩn đoán'}
+                    </p>
                     <p className="font-body-md text-body-md text-on-surface-variant leading-snug">
-                      Chênh lệch khúc xạ hai mắt nhẹ (Anisometropia 0.50D). Khuyến nghị phôi tròng thiết kế phi cầu (Aspheric Lens) nhằm triệt tiêu tối đa quang sai biên rìa và giảm độ dày vành kính.
+                      {hasRx ? (livePrescription.notes || 'Quy trình đo khúc xạ tiêu chuẩn.') : 'Hoàn tất đo 12 bước để bác sĩ đưa ra kết luận lâm sàng phù hợp.'}
                     </p>
                   </div>
 
@@ -543,10 +468,10 @@ export default function OptometryPage() {
                     <span className="font-label-md text-label-md text-primary uppercase tracking-wider block mb-1 font-semibold">Gợi Ý Tròng Kính Đề Xuất</span>
                     <div className="flex items-center gap-2.5 bg-surface-container-lowest p-2 rounded-lg border border-[#d8e3fb]/40">
                       <div className="w-9 h-9 rounded-lg bg-surface-container flex items-center justify-center text-primary font-bold text-xs shrink-0">
-                        1.67
+                        1.60
                       </div>
                       <div>
-                        <h3 className="font-title-md text-title-md text-on-surface font-semibold">Essilor Crizal Sapphire HR 1.67</h3>
+                        <h3 className="font-title-md text-title-md text-on-surface font-semibold">Essilor Crizal Rock 1.60</h3>
                         <p className="font-body-sm text-[11px] text-outline leading-tight">Chống trầy xước gấp 3, lọc UV400, chống chói 360°, nano kỵ nước.</p>
                       </div>
                     </div>
@@ -555,25 +480,21 @@ export default function OptometryPage() {
 
                 <div className="bg-surface-container-low rounded-xl p-2.5 flex flex-col justify-between border border-[#d8e3fb]/30">
                   <div className="space-y-1.5">
-                    <span className="font-label-md text-label-md text-error uppercase tracking-wider block font-bold">Ghi Chú Kỹ Thuật Cho Xưởng Mài (Lab)</span>
+                    <span className="font-label-md text-label-md text-primary uppercase tracking-wider block font-bold">Ghi Chú Kỹ Thuật Cho Xưởng Mài (Lab)</span>
                     <div className="bg-surface-container-lowest rounded-lg p-2 space-y-1 text-body-sm text-on-surface border border-[#d8e3fb]/40">
                       <div className="flex items-start gap-1.5">
                         <span className="material-symbols-outlined text-primary text-[15px] mt-0.5">check_box</span>
-                        <span>Khách sống mũi thấp: Bắt buộc chọn gọng có ve đệm silicon rời.</span>
+                        <span>Mài tâm chuẩn: Sai số tâm kính &lt; 0.5mm theo chuẩn quốc tế.</span>
                       </div>
                       <div className="flex items-start gap-1.5">
                         <span className="material-symbols-outlined text-primary text-[15px] mt-0.5">check_box</span>
-                        <span>Mài tâm chuẩn: <strong>OD SH = 21.5mm | OS SH = 21.5mm</strong> (Sai số ±0.5mm).</span>
-                      </div>
-                      <div className="flex items-start gap-1.5">
-                        <span className="material-symbols-outlined text-primary text-[15px] mt-0.5">check_box</span>
-                        <span>Kiểu vát cạnh: Vát rãnh chữ V ẩn (Mini Bevel 110°) tối ưu mép gọng titan mỏng.</span>
+                        <span>Kiểm tra độ cong đáy (Base Curve) phù hợp với gọng đã chọn.</span>
                       </div>
                     </div>
                   </div>
                   <div className="pt-2 flex items-center justify-between text-body-sm border-t border-[#d8e3fb]/30 mt-1">
-                    <span className="text-outline text-[11px]">Độ ưu tiên: <strong className="text-on-surface">Giao 45 phút</strong></span>
-                    <span className="px-2 py-0.2 rounded-full bg-surface-container-high text-on-surface font-label-md text-[10px]">Đã duyệt gọng</span>
+                    <span className="text-outline text-[11px]">Độ ưu tiên: <strong className="text-on-surface">Tiêu chuẩn</strong></span>
+                    <span className="px-2 py-0.2 rounded-full bg-surface-container-high text-on-surface font-label-md text-[10px]">Sẵn sàng</span>
                   </div>
                 </div>
               </div>
@@ -596,11 +517,9 @@ export default function OptometryPage() {
 
               <div className="bg-surface-container-low rounded-xl p-2.5 space-y-2 border border-[#d8e3fb]/30">
                 <div className="flex items-center gap-2.5">
-                  <img
-                    className="w-10 h-10 rounded-full object-cover shadow-xs shrink-0"
-                    alt={user?.staffName || 'BS. Lê Thị Ánh Tuyết'}
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuC4arHRQz0jAHrGF5AEIOrvev07ZsaN9nl5gswaoU8KROBSQwIDLaZstjAsgTmofKCle-ezX8vliBcoLCxKy7qy6Hp_l9x4qdTDchrd-jygzC1nzBrKlnHHRNqNFu4izbXRz2X7Oju7oYgbqigvK9VFgBe88fkQTsN39cMQ5J-MaP-ys0g816wJrcveIblzuYIMxgZ_C0yCxKwYCLwnZ8CzGHX23EzKKH1I1W5VJsM"
-                  />
+                  <div className="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold text-sm shrink-0">
+                    BS
+                  </div>
                   <div>
                     <span className="font-title-md text-title-md text-on-surface block font-semibold leading-tight">{user?.staffName || 'BS. Lê Thị Ánh Tuyết'}</span>
                     <span className="text-[11px] text-outline block">Bác sĩ Chuyên khoa Khúc xạ Mắt</span>
@@ -612,7 +531,7 @@ export default function OptometryPage() {
                   <div>
                     <span className="font-label-md text-outline block text-[10px]">Chữ Ký Số:</span>
                     <span className="font-label-mono text-primary font-semibold text-xs">{user?.email || 'bs.tuyet@optivision.vn'}</span>
-                    <span className="text-outline text-[10px] block">Đã đóng dấu điện tử • 10:28:44</span>
+                    <span className="text-outline text-[10px] block">Xác thực hệ thống nội bộ</span>
                   </div>
                   <div className="w-8 h-8 rounded-full bg-secondary-fixed flex items-center justify-center text-primary">
                     <span className="material-symbols-outlined text-[18px]">verified</span>
@@ -626,7 +545,7 @@ export default function OptometryPage() {
                   className="w-full bg-surface-container-low rounded-xl p-2 text-body-sm text-on-surface outline-none resize-none border border-[#d8e3fb]/30 leading-snug"
                   placeholder="Lời dặn tái khám..."
                   rows="2"
-                  defaultValue="Tái khám sau 6 tháng. Áp dụng quy tắc 20-20-20 khi làm việc với máy tính để giảm căng cơ mi."
+                  defaultValue="Tái khám định kỳ sau 6 tháng. Áp dụng quy tắc 20-20-20 khi làm việc với máy tính để bảo vệ mắt."
                 />
               </div>
             </div>
@@ -650,18 +569,22 @@ export default function OptometryPage() {
                     </div>
                     <div className="text-right">
                       <span className="font-label-mono font-bold text-on-surface block text-[11px]">PHIẾU TOA KÍNH</span>
-                      <span className="font-label-mono text-[10px] text-outline block">#RX-2026-889</span>
+                      <span className="font-label-mono text-[10px] text-outline block">
+                        {hasRx ? `#RX-2026-0${livePrescription.id}` : '#RX-CHUA-CO'}
+                      </span>
                     </div>
                   </div>
 
                   <div className="bg-surface-container-low p-1.5 rounded text-[11px] space-y-0.5">
                     <div className="flex justify-between">
                       <span className="text-outline">Họ tên:</span>
-                      <span className="font-semibold text-on-surface">Nguyễn Hoàng Duy</span>
+                      <span className="font-semibold text-on-surface">
+                        {hasRx ? livePrescription.customerName : 'Chưa có bệnh nhân'}
+                      </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-outline">Tuổi / Phái:</span>
-                      <span>32t / Nam</span>
+                      <span className="text-outline">Thời gian:</span>
+                      <span>Hôm nay</span>
                     </div>
                   </div>
 
@@ -696,11 +619,10 @@ export default function OptometryPage() {
                   <div className="flex justify-between items-end pt-1 border-t border-[#e7eeff]">
                     <div className="text-[10px] text-outline">
                       <div>Total PD: 64mm</div>
-                      <div>Tròng: Crizal 1.67</div>
                     </div>
                     <div className="text-right">
                       <span className="text-[10px] text-outline block">Bác sĩ khúc xạ</span>
-                      <span className="font-label-mono text-[10px] font-bold text-primary block">BS. VŨ ANH TUẤN</span>
+                      <span className="font-label-mono text-[10px] font-bold text-primary block">{user?.staffName || 'BS. LÊ THỊ ÁNH TUYẾT'}</span>
                     </div>
                   </div>
                 </div>

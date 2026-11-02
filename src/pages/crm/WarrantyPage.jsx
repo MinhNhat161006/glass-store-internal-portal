@@ -4,7 +4,7 @@ import { warrantyApi } from '../../api/warrantyApi';
 
 export default function WarrantyPage() {
   const [activeTab, setActiveTab] = useState('all');
-  const [selectedWarrantyId, setSelectedWarrantyId] = useState('#WAR-2026-089');
+  const [selectedWarrantyId, setSelectedWarrantyId] = useState('');
   const [warranties, setWarranties] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -30,28 +30,9 @@ export default function WarrantyPage() {
     fetchWarranties();
   }, []);
 
-  const selectedItem = warranties.find(w => w.warrantyCode === selectedWarrantyId) || warranties[0] || {
-    warrantyCode: '#WAR-2026-089',
-    originalOrderCode: '#OPT-8842-SG',
-    customerName: 'Nguyễn Hoàng Duy',
-    customerPhone: '0918 732 998',
-    customerTier: 'VIP SILVER',
-    productName: 'Gọng Kính Bolon Graceful BJ3120 Titanium',
-    productSku: 'BLN-BJ3120-RG52',
-    productDetails: 'Màu: Rose Gold C30 | Size: 52-18-145 | B-Titanium siêu nhẹ',
-    issueDescription: 'Ốc bản lề càng kính trái bị lỏng khiến càng bị rơ; hai đệm ve mũi silicon bị ngả vàng sau 11 tháng sử dụng.',
-    claimType: 'Thay Linh Kiện Miễn Phí Tại Quầy',
-    policyRef: 'Lỗi hao mòn cơ học (BR-35)',
-    techNote: 'Khung titan còn nguyên vẹn, không có vết nứt gãy. Tiến hành tháo ốc ren cũ, tra keo chống trôi ren Loctite Optic, thay ốc titan Bolon M1.2 mới. Thay thế cặp ve mũi Air-Silicone. Cân chỉnh 4 điểm Bench Alignment.',
-    cost: '0 VNĐ',
-    techName: 'KTV Trần Văn Bách',
-    status: 'PROCESSING_COUNTER',
-    statusLabel: 'Đang xử lý tại quầy',
-    statusColor: 'bg-secondary-fixed text-on-secondary-fixed',
-    timeLabel: '10:45 Hôm nay'
-  };
+  const selectedItem = warranties.find(w => w.warrantyCode === selectedWarrantyId) || warranties[0] || null;
 
-  const filteredList = warranties.filter(item => {
+const filteredList = warranties.filter(item => {
     if (activeTab === 'pending' && item.status !== 'WAITING_PROCESS' && item.status !== 'PROCESSING_COUNTER') return false;
     if (activeTab === 'lab' && item.status !== 'LAB_APPROVED') return false;
     if (activeTab === 'done' && item.status !== 'COMPLETED' && item.status !== 'WAITING_CUSTOMER') return false;
@@ -306,7 +287,13 @@ export default function WarrantyPage() {
               </div>
             ) : (
               <div className="flex flex-col gap-2">
-                {filteredList.map((item) => {
+  {filteredList.length === 0 ? (
+    <div className="p-8 text-center bg-surface-container-lowest rounded-xl border border-dashed border-[#d8e3fb]">
+      <span className="material-symbols-outlined text-3xl text-slate-300 mb-1">security</span>
+      <p className="text-xs text-outline font-medium">Hi?n chua c� phi?u b?o h�nh ho?c d?i tr? n�o</p>
+    </div>
+  ) : (
+    filteredList.map((item) => {
                   const isSelected = selectedWarrantyId === item.warrantyCode;
                   return (
                     <div
@@ -344,7 +331,8 @@ export default function WarrantyPage() {
                       </div>
                     </div>
                   );
-                })}
+                })
+              )}
               </div>
             )}
 
@@ -364,7 +352,14 @@ export default function WarrantyPage() {
           </div>
 
           {/* Right Column (7/12): Active Warranty Detail */}
-          <div className="lg:col-span-7 flex flex-col gap-3.5">
+{!selectedItem ? (
+  <div className="lg:col-span-7 p-12 text-center bg-surface-container-lowest rounded-xl border border-dashed border-[#d8e3fb] flex flex-col items-center justify-center">
+    <span className="material-symbols-outlined text-4xl text-slate-300 mb-2">verified_user</span>
+    <h3 className="font-title-md text-on-surface font-semibold">Chua ch?n phi?u b?o h�nh</h3>
+    <p className="text-xs text-outline max-w-sm mt-1">Ch?n m?t phi?u b?o h�nh t? danh s�ch b�n tr�i ho?c t?o y�u c?u b?o h�nh m?i cho kh�ch h�ng.</p>
+  </div>
+) : (
+  <div className="lg:col-span-7 flex flex-col gap-3.5">
             <div className="bg-surface-container-lowest rounded-xl shadow-xs border border-[#d8e3fb]/40 p-4 flex flex-col gap-3.5 relative overflow-hidden">
 
               {/* Detail Header Banner */}
@@ -382,7 +377,7 @@ export default function WarrantyPage() {
                   <div className="flex items-center gap-2 text-body-sm font-body-sm text-on-surface-variant mt-0.5">
                     <span>HĐ gốc:</span>
                     <span className="font-label-mono text-primary font-semibold flex items-center gap-0.5">
-                      {selectedItem.originalOrderCode || '#OPT-8842-SG'}
+                      {selectedItem.originalOrderCode || 'Chua li�n k?t don'}
                       <span className="material-symbols-outlined text-[12px]">open_in_new</span>
                     </span>
                     <span className="text-outline">|</span>
@@ -552,7 +547,7 @@ export default function WarrantyPage() {
                 <div className="p-2.5 rounded-xl bg-surface-container-low flex flex-col justify-between">
                   <div className="flex items-center justify-between">
                     <span className="font-label-md text-label-md text-outline uppercase tracking-wider">KTV Thẩm Định (QC Pass)</span>
-                    <span className="font-label-mono text-label-mono text-primary font-semibold">STF-021</span>
+                    <span className="font-label-mono text-label-mono text-primary font-semibold">{selectedItem.techCode || 'KTV-OPT-01'}</span>
                   </div>
                   <div className="py-2 text-center">
                     <div className="font-headline-sm text-headline-sm text-primary italic font-serif opacity-80 select-none">
@@ -654,12 +649,12 @@ export default function WarrantyPage() {
                 </div>
               </div>
             </div>
-
           </div>
-
+        )}
         </div>
-
       </div>
     </div>
   );
 }
+
+

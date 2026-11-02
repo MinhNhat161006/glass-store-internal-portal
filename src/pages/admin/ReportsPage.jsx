@@ -1,11 +1,11 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { orderApi } from '../../api/orderApi';
 import { customerApi } from '../../api/customerApi';
 import { message } from 'antd';
 
 export default function ReportsPage() {
   const [liveOrders, setLiveOrders] = useState([]);
-  const [customerTotal, setCustomerTotal] = useState(14);
+  const [customerTotal, setCustomerTotal] = useState(0);
 
   useEffect(() => {
     orderApi.getAllOrders().then(orders => {
@@ -25,9 +25,9 @@ export default function ReportsPage() {
   const [branch, setBranch] = useState('all');
 
   const handleExportExcel = () => {
-    message.loading({ content: 'Đang trích xuất báo cáo doanh thu tài chính...', key: 'rep', duration: 1 });
+    message.loading({ content: '�ang tr�ch xu?t b�o c�o doanh thu t�i ch�nh...', key: 'rep', duration: 1 });
     setTimeout(() => {
-      message.success({ content: 'Xuất báo cáo OptiVision_Revenue_Report.xlsx thành công!', key: 'rep' });
+      message.success({ content: 'Xu?t b�o c�o OptiVision_Revenue_Report.xlsx th�nh c�ng!', key: 'rep' });
     }, 1000);
   };
 
@@ -42,13 +42,13 @@ export default function ReportsPage() {
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-[#d8e3fb]/40 shadow-sm">
           <div>
             <div className="flex items-center gap-1.5 text-xs text-[#70787f]">
-              <span>Quản Trị</span>
+              <span>Qu?n Tr?</span>
               <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-              <span>Báo Cáo &amp; Phân Tích</span>
+              <span>B�o C�o &amp; Ph�n T�ch</span>
               <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-              <span className="text-[#004967] font-semibold">Doanh Thu &amp; Vận Hành</span>
+              <span className="text-[#004967] font-semibold">Doanh Thu &amp; V?n H�nh</span>
             </div>
-            <h1 className="text-lg font-bold text-[#111c2d] mt-1">Báo Cáo Doanh Thu Đa Kênh &amp; Hiệu Quả Chuỗi</h1>
+            <h1 className="text-lg font-bold text-[#111c2d] mt-1">B�o C�o Doanh Thu �a K�nh &amp; Hi?u Qu? Chu?i</h1>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -58,25 +58,25 @@ export default function ReportsPage() {
                 onClick={() => setTimeframe('today')}
                 className={`px-3 py-1.5 rounded-lg transition-all ${timeframe === 'today' ? 'bg-[#004967] text-white shadow-sm' : 'text-[#70787f] hover:text-[#111c2d]'}`}
               >
-                Hôm Nay
+                H�m Nay
               </button>
               <button
                 onClick={() => setTimeframe('7days')}
                 className={`px-3 py-1.5 rounded-lg transition-all ${timeframe === '7days' ? 'bg-[#004967] text-white shadow-sm' : 'text-[#70787f] hover:text-[#111c2d]'}`}
               >
-                7 Ngày
+                7 Ng�y
               </button>
               <button
                 onClick={() => setTimeframe('month')}
                 className={`px-3 py-1.5 rounded-lg transition-all ${timeframe === 'month' ? 'bg-[#004967] text-white shadow-sm' : 'text-[#70787f] hover:text-[#111c2d]'}`}
               >
-                Tháng Này
+                Th�ng N�y
               </button>
               <button
                 onClick={() => setTimeframe('quarter')}
                 className={`px-3 py-1.5 rounded-lg transition-all ${timeframe === 'quarter' ? 'bg-[#004967] text-white shadow-sm' : 'text-[#70787f] hover:text-[#111c2d]'}`}
               >
-                Quý Này
+                Qu� N�y
               </button>
             </div>
 
@@ -86,10 +86,10 @@ export default function ReportsPage() {
               onChange={(e) => setBranch(e.target.value)}
               className="px-3 py-1.5 rounded-xl bg-white border border-[#d8e3fb] text-xs font-semibold text-[#111c2d] focus:outline-none"
             >
-              <option value="all">Tất cả chi nhánh (4)</option>
+              <option value="all">T?t c? chi nh�nh (4)</option>
               <option value="q1">Flagship Q.1 (TP.HCM)</option>
-              <option value="hn">Tràng Tiền Plaza (HN)</option>
-              <option value="q2">Thảo Điền Store (Q.2)</option>
+              <option value="hn">Tr�ng Ti?n Plaza (HN)</option>
+              <option value="q2">Th?o �i?n Store (Q.2)</option>
               <option value="ecom">Hub E-Com Online</option>
             </select>
 
@@ -98,7 +98,7 @@ export default function ReportsPage() {
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#f0f3ff] hover:bg-[#e7eeff] text-[#004967] text-xs font-semibold transition-all border border-[#d8e3fb]"
             >
               <span className="material-symbols-outlined text-[16px]">table_view</span>
-              <span>Xuất Excel</span>
+              <span>Xu?t Excel</span>
             </button>
             <button
               onClick={handlePrint}
@@ -114,33 +114,33 @@ export default function ReportsPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="bg-white p-4 rounded-xl border border-[#d8e3fb]/40 shadow-sm">
             <div className="flex items-center justify-between text-[#70787f] text-[11px] font-semibold uppercase">
-              <span>Doanh Thu Thuần</span>
+              <span>Doanh Thu Thu?n</span>
               <span className="p-1.5 rounded-lg bg-[#e7eeff] text-[#004967]">
                 <span className="material-symbols-outlined text-[18px]">payments</span>
               </span>
             </div>
             <div className="mt-1 flex items-baseline gap-1">
               <span className="text-xl font-bold text-[#004967]">{totalRevenue.toLocaleString('vi-VN')}</span>
-              <span className="text-xs text-[#70787f]">₫</span>
+              <span className="text-xs text-[#70787f]">?</span>
             </div>
             <div className="mt-2 flex items-center gap-2 text-[11px]">
               <span className="text-emerald-600 font-bold flex items-center">
                 <span className="material-symbols-outlined text-[14px]">trending_up</span> +14.8%
               </span>
-              <span className="text-[#70787f]">Đạt 94% KPI tháng</span>
+              <span className="text-[#70787f]">�?t 94% KPI th�ng</span>
             </div>
           </div>
 
           <div className="bg-white p-4 rounded-xl border border-[#d8e3fb]/40 shadow-sm">
             <div className="flex items-center justify-between text-[#70787f] text-[11px] font-semibold uppercase">
-              <span>Đơn Hàng Hoàn Tất</span>
+              <span>�on H�ng Ho�n T?t</span>
               <span className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700">
                 <span className="material-symbols-outlined text-[18px]">task_alt</span>
               </span>
             </div>
             <div className="mt-1 flex items-baseline gap-1">
               <span className="text-xl font-bold text-[#111c2d]">{totalOrderCount}</span>
-              <span className="text-xs text-[#70787f]">đơn kính</span>
+              <span className="text-xs text-[#70787f]">don k�nh</span>
             </div>
             <div className="mt-2 text-[11px] text-[#70787f] flex justify-between">
               <span>POS: <strong>{posCount}</strong></span>
@@ -150,36 +150,36 @@ export default function ReportsPage() {
 
           <div className="bg-white p-4 rounded-xl border border-[#d8e3fb]/40 shadow-sm">
             <div className="flex items-center justify-between text-[#70787f] text-[11px] font-semibold uppercase">
-              <span>Giá Trị Trung Bình (AOV)</span>
+              <span>Gi� Tr? Trung B�nh (AOV)</span>
               <span className="p-1.5 rounded-lg bg-[#e7eeff] text-[#004967]">
                 <span className="material-symbols-outlined text-[18px]">shopping_cart</span>
               </span>
             </div>
             <div className="mt-1 flex items-baseline gap-1">
-              <span className="text-xl font-bold text-[#004967]">3.850.000</span>
-              <span className="text-xs text-[#70787f]">₫</span>
+              <span className="text-xl font-bold text-[#004967]">{totalOrderCount > 0 ? Math.round(totalRevenue / totalOrderCount).toLocaleString('vi-VN') : 0}</span>
+              <span className="text-xs text-[#70787f]">?</span>
             </div>
             <div className="mt-2 flex items-center gap-2 text-[11px]">
               <span className="text-emerald-600 font-bold flex items-center">
                 <span className="material-symbols-outlined text-[14px]">trending_up</span> +6.2%
               </span>
-              <span className="text-[#70787f]">Tăng nhờ combo tròng cao cấp</span>
+              <span className="text-[#70787f]">Tang nh? combo tr�ng cao c?p</span>
             </div>
           </div>
 
           <div className="bg-white p-4 rounded-xl border border-[#d8e3fb]/40 shadow-sm">
             <div className="flex items-center justify-between text-[#70787f] text-[11px] font-semibold uppercase">
-              <span>Tỷ Lệ Đạt Chuẩn QC</span>
+              <span>T? L? �?t Chu?n QC</span>
               <span className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700">
                 <span className="material-symbols-outlined text-[18px]">verified</span>
               </span>
             </div>
             <div className="mt-1 flex items-baseline gap-1">
               <span className="text-xl font-bold text-emerald-700">98.8%</span>
-              <span className="text-xs text-[#70787f]">chuẩn ANSI Z80.1</span>
+              <span className="text-xs text-[#70787f]">chu?n ANSI Z80.1</span>
             </div>
             <div className="mt-2 text-[11px] text-[#70787f]">
-              Tỷ lệ đổi trả &amp; mài lại: <strong className="text-rose-600">1.2%</strong> (&lt; 2.0%)
+              T? l? d?i tr? &amp; m�i l?i: <strong className="text-rose-600">1.2%</strong> (&lt; 2.0%)
             </div>
           </div>
         </div>
@@ -190,13 +190,13 @@ export default function ReportsPage() {
           <div className="lg:col-span-7 bg-white p-4 rounded-xl border border-[#d8e3fb]/40 shadow-sm flex flex-col justify-between">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
               <div>
-                <h3 className="text-sm font-bold text-[#111c2d]">Xu Hướng Doanh Thu Theo Ngày</h3>
-                <p className="text-xs text-[#70787f]">Đối chiếu giữa kênh bán lẻ POS tại cửa hàng và đơn hàng trực tuyến OMS</p>
+                <h3 className="text-sm font-bold text-[#111c2d]">Xu Hu?ng Doanh Thu Theo Ng�y</h3>
+                <p className="text-xs text-[#70787f]">�?i chi?u gi?a k�nh b�n l? POS t?i c?a h�ng v� don h�ng tr?c tuy?n OMS</p>
               </div>
               <div className="flex items-center gap-3 text-xs">
                 <div className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#004967]"></span>
-                  <span className="text-[#40484e] font-medium">POS Cửa Hàng</span>
+                  <span className="text-[#40484e] font-medium">POS C?a H�ng</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-sky-500"></span>
@@ -243,7 +243,7 @@ export default function ReportsPage() {
                 <span>07/03</span>
                 <span className="text-[#004967] font-bold">15/03 (Peak)</span>
                 <span>21/03</span>
-                <span className="text-[#004967] font-bold">28/03 (Cuối tuần)</span>
+                <span className="text-[#004967] font-bold">28/03 (Cu?i tu?n)</span>
                 <span>31/03</span>
               </div>
             </div>
@@ -252,7 +252,7 @@ export default function ReportsPage() {
             <div className="mt-3 p-3 bg-[#f0f3ff] rounded-xl flex items-center gap-2.5">
               <span className="material-symbols-outlined text-[#004967] text-[20px] flex-shrink-0">auto_awesome</span>
               <p className="text-xs text-[#40484e]">
-                Doanh thu đỉnh điểm vào các ngày cuối tuần (T7, CN) với mức thu trung bình <strong>135 triệu ₫/ngày</strong>, cao hơn 45% so với ngày thường nhờ dịch vụ đo khám khúc xạ tại chỗ.
+                Doanh thu d?nh di?m v�o c�c ng�y cu?i tu?n (T7, CN) v?i m?c thu trung b�nh <strong>135 tri?u ?/ng�y</strong>, cao hon 45% so v?i ng�y thu?ng nh? d?ch v? do kh�m kh�c x? t?i ch?.
               </p>
             </div>
           </div>
@@ -261,17 +261,17 @@ export default function ReportsPage() {
           <div className="lg:col-span-5 bg-white p-4 rounded-xl border border-[#d8e3fb]/40 shadow-sm flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-1">
-                <h3 className="text-sm font-bold text-[#111c2d]">Cơ Cấu Doanh Thu Sản Phẩm</h3>
+                <h3 className="text-sm font-bold text-[#111c2d]">Co C?u Doanh Thu S?n Ph?m</h3>
                 <span className="text-xs text-[#70787f]">Q1/2026</span>
               </div>
-              <p className="text-xs text-[#70787f]">Tỷ trọng đóng góp theo nhóm hàng quang học</p>
+              <p className="text-xs text-[#70787f]">T? tr?ng d�ng g�p theo nh�m h�ng quang h?c</p>
 
               {/* Progress bar composite */}
               <div className="w-full h-3 rounded-full bg-[#f0f3ff] flex overflow-hidden mt-3">
-                <div style={{ width: '46%' }} className="bg-[#004967]" title="Tròng kính: 46%" />
-                <div style={{ width: '38%' }} className="bg-sky-600" title="Gọng kính: 38%" />
-                <div style={{ width: '12%' }} className="bg-amber-500" title="Kính râm: 12%" />
-                <div style={{ width: '4%' }} className="bg-emerald-500" title="Phụ kiện: 4%" />
+                <div style={{ width: '46%' }} className="bg-[#004967]" title="Tr�ng k�nh: 46%" />
+                <div style={{ width: '38%' }} className="bg-sky-600" title="G?ng k�nh: 38%" />
+                <div style={{ width: '12%' }} className="bg-amber-500" title="K�nh r�m: 12%" />
+                <div style={{ width: '4%' }} className="bg-emerald-500" title="Ph? ki?n: 4%" />
               </div>
 
               {/* List details */}
@@ -279,10 +279,10 @@ export default function ReportsPage() {
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-[#004967]"></span>
-                    <span className="font-medium text-[#111c2d]">Tròng kính khúc xạ (Essilor, Zeiss, Chemi)</span>
+                    <span className="font-medium text-[#111c2d]">Tr�ng k�nh kh�c x? (Essilor, Zeiss, Chemi)</span>
                   </div>
                   <div className="text-right font-mono">
-                    <span className="font-bold text-[#004967]">1.143.376.000 ₫</span>
+                    <span className="font-bold text-[#004967]">{liveOrders.length > 0 ? Math.round(totalRevenue * 0.5).toLocaleString('vi-VN') + ' ?' : '0 ?'}</span>
                     <span className="text-[#70787f] ml-1">(46%)</span>
                   </div>
                 </div>
@@ -290,10 +290,10 @@ export default function ReportsPage() {
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-sky-600"></span>
-                    <span className="font-medium text-[#111c2d]">Gọng kính thời trang (Titanium, Acetate)</span>
+                    <span className="font-medium text-[#111c2d]">G?ng k�nh th?i trang (Titanium, Acetate)</span>
                   </div>
                   <div className="text-right font-mono">
-                    <span className="font-bold text-[#111c2d]">944.528.000 ₫</span>
+                    <span className="font-bold text-[#111c2d]">{liveOrders.length > 0 ? Math.round(totalRevenue * 0.35).toLocaleString('vi-VN') + ' ?' : '0 ?'}</span>
                     <span className="text-[#70787f] ml-1">(38%)</span>
                   </div>
                 </div>
@@ -301,10 +301,10 @@ export default function ReportsPage() {
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-                    <span className="font-medium text-[#111c2d]">Kính râm &amp; Chống lóa phân cực (Polarized)</span>
+                    <span className="font-medium text-[#111c2d]">K�nh r�m &amp; Ch?ng l�a ph�n c?c (Polarized)</span>
                   </div>
                   <div className="text-right font-mono">
-                    <span className="font-bold text-[#111c2d]">298.272.000 ₫</span>
+                    <span className="font-bold text-[#111c2d]">{liveOrders.length > 0 ? Math.round(totalRevenue * 0.1).toLocaleString('vi-VN') + ' ?' : '0 ?'}</span>
                     <span className="text-[#70787f] ml-1">(12%)</span>
                   </div>
                 </div>
@@ -312,10 +312,10 @@ export default function ReportsPage() {
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-                    <span className="font-medium text-[#111c2d]">Nước lau kính, ve mũi &amp; Hộp đựng</span>
+                    <span className="font-medium text-[#111c2d]">Nu?c lau k�nh, ve mui &amp; H?p d?ng</span>
                   </div>
                   <div className="text-right font-mono">
-                    <span className="font-bold text-[#111c2d]">99.424.000 ₫</span>
+                    <span className="font-bold text-[#111c2d]">{liveOrders.length > 0 ? Math.round(totalRevenue * 0.05).toLocaleString('vi-VN') + ' ?' : '0 ?'}</span>
                     <span className="text-[#70787f] ml-1">(4%)</span>
                   </div>
                 </div>
@@ -323,7 +323,7 @@ export default function ReportsPage() {
             </div>
 
             <div className="mt-4 pt-3 border-t border-[#e7eeff] flex items-center justify-between text-xs">
-              <span className="text-[#70787f]">Tỷ suất lợi nhuận gộp danh mục tròng:</span>
+              <span className="text-[#70787f]">T? su?t l?i nhu?n g?p danh m?c tr�ng:</span>
               <span className="font-bold text-emerald-700">62.4%</span>
             </div>
           </div>
@@ -333,70 +333,51 @@ export default function ReportsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           {/* Top 5 Best Sellers */}
           <div className="lg:col-span-7 bg-white p-4 rounded-xl border border-[#d8e3fb]/40 shadow-sm">
-            <h3 className="text-sm font-bold text-[#111c2d] mb-3">Top 5 Sản Phẩm Bán Chạy Nhất</h3>
+            <h3 className="text-sm font-bold text-[#111c2d] mb-3">Top 5 S?n Ph?m B�n Ch?y Nh?t</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse min-w-[500px]">
                 <thead>
                   <tr className="bg-[#dee8ff]/30 text-[#70787f] uppercase text-[11px] font-bold border-b border-[#e7eeff]">
-                    <th className="py-2.5 px-3">Sản phẩm</th>
-                    <th className="py-2.5 px-3 text-center">Đã bán</th>
+                    <th className="py-2.5 px-3">S?n ph?m</th>
+                    <th className="py-2.5 px-3 text-center">�� b�n</th>
                     <th className="py-2.5 px-3 text-right">Doanh thu</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#e7eeff] text-xs text-[#111c2d]">
-                  <tr className="hover:bg-[#f0f3ff]/50">
-                    <td className="py-2.5 px-3">
-                      <div className="font-semibold text-[#004967]">Tròng Essilor Crizal Rock 1.67 Blue UV</div>
-                      <div className="text-[11px] text-[#70787f]">Tròng chiết suất cao chống trầy xước</div>
-                    </td>
-                    <td className="py-2.5 px-3 text-center font-bold">142 cặp</td>
-                    <td className="py-2.5 px-3 text-right font-mono font-bold text-[#004967]">380.560.000 ₫</td>
-                  </tr>
-                  <tr className="hover:bg-[#f0f3ff]/50">
-                    <td className="py-2.5 px-3">
-                      <div className="font-semibold text-[#004967]">Gọng Bolon Vintage Classic BJ3120</div>
-                      <div className="text-[11px] text-[#70787f]">Khung B-Titanium siêu nhẹ</div>
-                    </td>
-                    <td className="py-2.5 px-3 text-center font-bold">98 cây</td>
-                    <td className="py-2.5 px-3 text-right font-mono font-bold text-[#004967]">341.040.000 ₫</td>
-                  </tr>
-                  <tr className="hover:bg-[#f0f3ff]/50">
-                    <td className="py-2.5 px-3">
-                      <div className="font-semibold text-[#004967]">Tròng Zeiss ClearView 1.60 BlueGuard</div>
-                      <div className="text-[11px] text-[#70787f]">Tròng phẳng Freeform công nghệ Đức</div>
-                    </td>
-                    <td className="py-2.5 px-3 text-center font-bold">85 cặp</td>
-                    <td className="py-2.5 px-3 text-right font-mono font-bold text-[#004967]">253.300.000 ₫</td>
-                  </tr>
-                  <tr className="hover:bg-[#f0f3ff]/50">
-                    <td className="py-2.5 px-3">
-                      <div className="font-semibold text-[#004967]">Gọng Charmant Titanium Z ZT2233</div>
-                      <div className="text-[11px] text-[#70787f]">Gọng khoan cao cấp Nhật Bản</div>
-                    </td>
-                    <td className="py-2.5 px-3 text-center font-bold">42 cây</td>
-                    <td className="py-2.5 px-3 text-right font-mono font-bold text-[#004967]">260.400.000 ₫</td>
-                  </tr>
-                  <tr className="hover:bg-[#f0f3ff]/50">
-                    <td className="py-2.5 px-3">
-                      <div className="font-semibold text-[#004967]">Kính Mát Oakley Holbrook Matte Black</div>
-                      <div className="text-[11px] text-[#70787f]">Tròng Prizm Sapphire thể thao</div>
-                    </td>
-                    <td className="py-2.5 px-3 text-center font-bold">64 cây</td>
-                    <td className="py-2.5 px-3 text-right font-mono font-bold text-[#004967]">252.800.000 ₫</td>
-                  </tr>
-                </tbody>
+  {liveOrders.length === 0 ? (
+    <tr>
+      <td colSpan={3} className="py-8 text-center text-[#70787f]">
+        <div className="flex flex-col items-center justify-center">
+          <span className="material-symbols-outlined text-3xl text-slate-300 mb-1">analytics</span>
+          <span className="text-xs text-outline font-medium">Chua c� d? li?u b�n h�ng trong k? b�o c�o</span>
+        </div>
+      </td>
+    </tr>
+  ) : (
+    liveOrders.slice(0, 5).map((o, idx) => (
+      <tr key={o.id || idx} className="hover:bg-[#f0f3ff]/50">
+        <td className="py-2.5 px-3">
+          <div className="font-semibold text-[#004967]">�on h�ng {o.orderCode || o.id}</div>
+          <div className="text-[11px] text-[#70787f]">Kh�ch h�ng: {o.customerName}</div>
+        </td>
+        <td className="py-2.5 px-3 text-center font-bold">1 don</td>
+        <td className="py-2.5 px-3 text-right font-mono font-bold text-[#004967]">{Number(o.finalAmount || 0).toLocaleString('vi-VN')} ?</td>
+      </tr>
+    ))
+  )}
+</tbody>
               </table>
             </div>
           </div>
 
           {/* Branch Performance Comparison */}
           <div className="lg:col-span-5 bg-white p-4 rounded-xl border border-[#d8e3fb]/40 shadow-sm">
-            <h3 className="text-sm font-bold text-[#111c2d] mb-3">Doanh Số Theo Chi Nhánh</h3>
+            <h3 className="text-sm font-bold text-[#111c2d] mb-3">Doanh S? Theo Chi Nh�nh</h3>
             <div className="space-y-3.5">
               <div>
                 <div className="flex justify-between text-xs font-semibold mb-1">
                   <span className="text-[#111c2d]">1. Flagship Q.1 (TP.HCM)</span>
-                  <span className="font-mono text-[#004967]">1.250.000.000 ₫ (50.3%)</span>
+                  <span className="font-mono text-[#004967]">{liveOrders.length > 0 ? totalRevenue.toLocaleString('vi-VN') + ' ? (100%)' : '0 ? (0%)'}</span>
                 </div>
                 <div className="w-full h-2 rounded-full bg-[#f0f3ff]">
                   <div className="h-full rounded-full bg-[#004967]" style={{ width: '50.3%' }} />
@@ -405,8 +386,8 @@ export default function ReportsPage() {
 
               <div>
                 <div className="flex justify-between text-xs font-semibold mb-1">
-                  <span className="text-[#111c2d]">2. Tràng Tiền Plaza (Hà Nội)</span>
-                  <span className="font-mono text-[#004967]">680.000.000 ₫ (27.4%)</span>
+                  <span className="text-[#111c2d]">2. Tr�ng Ti?n Plaza (H� N?i)</span>
+                  <span className="font-mono text-[#004967]">0 ? (0%)</span>
                 </div>
                 <div className="w-full h-2 rounded-full bg-[#f0f3ff]">
                   <div className="h-full rounded-full bg-sky-600" style={{ width: '27.4%' }} />
@@ -415,8 +396,8 @@ export default function ReportsPage() {
 
               <div>
                 <div className="flex justify-between text-xs font-semibold mb-1">
-                  <span className="text-[#111c2d]">3. Thảo Điền Store (Q.2)</span>
-                  <span className="font-mono text-[#004967]">320.000.000 ₫ (12.9%)</span>
+                  <span className="text-[#111c2d]">3. Th?o �i?n Store (Q.2)</span>
+                  <span className="font-mono text-[#004967]">0 ? (0%)</span>
                 </div>
                 <div className="w-full h-2 rounded-full bg-[#f0f3ff]">
                   <div className="h-full rounded-full bg-amber-500" style={{ width: '12.9%' }} />
@@ -426,7 +407,7 @@ export default function ReportsPage() {
               <div>
                 <div className="flex justify-between text-xs font-semibold mb-1">
                   <span className="text-[#111c2d]">4. Hub E-Com Online</span>
-                  <span className="font-mono text-[#004967]">235.600.000 ₫ (9.4%)</span>
+                  <span className="font-mono text-[#004967]">0 ? (0%)</span>
                 </div>
                 <div className="w-full h-2 rounded-full bg-[#f0f3ff]">
                   <div className="h-full rounded-full bg-emerald-500" style={{ width: '9.4%' }} />
@@ -439,3 +420,4 @@ export default function ReportsPage() {
     </div>
   );
 }
+

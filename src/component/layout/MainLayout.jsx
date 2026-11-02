@@ -325,7 +325,7 @@ export default function MainLayout() {
               className="relative p-2 rounded-xl text-[#40484e] hover:bg-[#e7eeff] hover:text-[#111c2d] transition-colors cursor-pointer"
             >
               <span className="material-symbols-outlined text-[22px]">notifications</span>
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#ba1a1a]" />
+              
             </button>
 
             <div className="h-6 w-px bg-[#dee8ff]" />
@@ -359,3 +359,6 @@ export default function MainLayout() {
     </div>
   );
 }
+
+
+
