@@ -13,6 +13,7 @@ export default function MainLayout() {
   const currentRole = user?.role || ROLES.ADMIN;
 
   const [selectedBranch, setSelectedBranch] = useState('Chi nhánh 01 - Lê Thánh Tôn');
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
   const branches = [
     'Chi nhánh 01 - Lê Thánh Tôn',
@@ -330,23 +331,55 @@ export default function MainLayout() {
 
             <div className="h-6 w-px bg-[#dee8ff]" />
 
-            {/* User Profile */}
-            <div
-              className="flex items-center gap-3 cursor-pointer select-none"
-              onClick={handleLogout}
-              title="Nhấn để đăng xuất"
-            >
-              <div className="w-8 h-8 rounded-full bg-[#004967] text-white flex items-center justify-center shadow-sm">
-                <span className="material-symbols-outlined text-[18px]">person</span>
-              </div>
-              <div className="flex flex-col text-left">
-                <span className="text-xs text-[#111c2d] font-bold leading-tight">
-                  {user?.staffName || 'Nhân sự OptiVision'}
+            {/* User Profile Dropdown Menu */}
+            <div className="relative">
+              <div
+                className="flex items-center gap-2.5 cursor-pointer select-none p-1 rounded-xl hover:bg-[#f0f3ff] transition-colors"
+                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+              >
+                <div className="w-8 h-8 rounded-full bg-[#004967] text-white flex items-center justify-center shadow-sm">
+                  <span className="material-symbols-outlined text-[18px]">person</span>
+                </div>
+                <div className="flex flex-col text-left">
+                  <span className="text-xs text-[#111c2d] font-bold leading-tight">
+                    {user?.staffName || 'Nhân sự OptiVision'}
+                  </span>
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-[#8fcdfd]/30 text-[#005881] text-[10px] font-bold w-fit leading-tight mt-0.5">
+                    {user?.roleLabel || 'Nhân viên'}
+                  </span>
+                </div>
+                <span className="material-symbols-outlined text-[16px] text-[#70787f]">
+                  {isUserMenuOpen ? 'expand_less' : 'expand_more'}
                 </span>
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-[#8fcdfd]/30 text-[#005881] text-[10px] font-bold w-fit leading-tight mt-0.5">
-                  {user?.roleLabel || 'Nhân viên'}
-                </span>
               </div>
+
+              {/* Dropdown Box */}
+              {isUserMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsUserMenuOpen(false)} />
+                  <div className="absolute right-0 top-12 mt-1 w-64 bg-white rounded-xl shadow-lg border border-slate-100 z-50 p-2 text-xs">
+                    <div className="p-2 border-b border-slate-100 mb-1">
+                      <div className="font-bold text-[#111c2d]">{user?.staffName || 'Nhân sự'}</div>
+                      <div className="text-[11px] text-[#70787f]">{user?.email || 'nhansu@optivision.vn'}</div>
+                      <div className="text-[10px] font-mono text-[#004967] mt-0.5">
+                        Mã định danh: {user?.employeeCode || 'NV-OPT-2026'}
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        handleLogout();
+                      }}
+                      className="w-full flex items-center gap-2 p-2 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors font-semibold cursor-pointer text-left"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">logout</span>
+                      <span>Đăng Xuất Tài Khoản</span>
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </header>
