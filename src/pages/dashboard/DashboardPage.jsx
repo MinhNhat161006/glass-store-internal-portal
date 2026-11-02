@@ -15,8 +15,8 @@ export default function DashboardPage() {
   const [timeframe, setTimeframe] = useState('today');
 
   return (
-    <main className="relative bg-[#f9f9ff] w-full px-4 sm:px-6 lg:px-8 py-5 min-h-screen">
-      <div className="flex flex-col w-full space-y-5 pb-12 max-w-[1920px] mx-auto">
+    <main className="relative bg-[#f9f9ff] w-full p-3.5 sm:p-5 min-h-screen">
+      <div className="flex flex-col w-full space-y-3.5 pb-12 max-w-[1600px] mx-auto">
         {/* ================= STRICT CONDITIONAL DASHBOARD RENDERING BASED ON USER'S ROLE ================= */}
         {currentRole === ROLES.ADMIN && (
           <AdminDashboardView timeframe={timeframe} setTimeframe={setTimeframe} navigate={navigate} />

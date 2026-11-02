@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { ROLES } from '../../routes/rolesConfig';
-import { Modal } from 'antd';
+
 
 export default function MainLayout() {
   const { user, logout } = useAuth();
@@ -22,17 +22,8 @@ export default function MainLayout() {
   ];
 
   const handleLogout = () => {
-    Modal.confirm({
-      title: 'Đăng xuất ca làm việc?',
-      content: 'Bạn có chắc chắn muốn kết thúc ca làm việc và bảo vệ phiên đăng nhập hiện tại?',
-      okText: 'Đăng xuất',
-      cancelText: 'Hủy',
-      okButtonProps: { danger: true },
-      onOk: () => {
-        logout();
-        navigate('/login');
-      }
-    });
+    logout();
+    navigate('/login');
   };
 
   // Master definition of all navigation categories with strict RBAC access control

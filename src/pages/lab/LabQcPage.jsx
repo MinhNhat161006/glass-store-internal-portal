@@ -4,7 +4,7 @@ import { message } from 'antd';
 export default function LabQcPage() {
   return (
     <div className="w-full min-h-screen bg-[#f9f9ff]">
-      <div className="flex flex-col w-full px-space-lg py-space-md gap-space-lg">
+      <div className="flex flex-col w-full max-w-[1600px] mx-auto p-3.5 sm:p-5 gap-3.5">
 
 <div className="flex flex-col gap-space-sm">
 <div className="flex items-center justify-between">

@@ -4,8 +4,7 @@ import { message } from 'antd';
 export default function StockTransferPage() {
   return (
     <div className="w-full min-h-screen bg-[#f9f9ff]">
-      <div className="flex flex-col w-full">
-<div className="w-full px-space-lg py-space-md space-y-space-md bg-background">
+      <div className="flex flex-col w-full max-w-[1600px] mx-auto p-3.5 sm:p-5 gap-3.5">
 
 <div className="flex flex-col md:flex-row md:items-center justify-between gap-space-sm pb-space-xs">
 <nav className="flex items-center gap-2 font-label-md text-label-md text-outline">
@@ -726,7 +725,6 @@ export default function StockTransferPage() {
 <span className="w-2 h-2 rounded-full bg-primary animate-ping"></span>
               Đang di chuyển qua Cầu Sài Gòn
             </span>
-</div>
 </div>
 </div>
 </div>

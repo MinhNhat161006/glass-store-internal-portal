@@ -486,7 +486,7 @@ export default function OrdersOmsPage() {
   };
 
   return (
-    <div className="p-4 lg:p-6 max-w-[1920px] mx-auto w-full space-y-4">
+    <div className="p-3.5 sm:p-5 max-w-[1600px] mx-auto w-full space-y-3.5">
       {/* ---------------- 1. KPI BANNER / METRIC RIBBON (4 Operational Metrics) ---------------- */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {/* KPI 1: Tổng đơn hôm nay */}

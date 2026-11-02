@@ -4,7 +4,7 @@ import { message } from 'antd';
 export default function ReportsPage() {
   return (
     <div className="w-full min-h-screen bg-[#f9f9ff]">
-      <div className="flex flex-col w-full px-space-lg py-space-md space-y-space-lg text-on-surface">
+      <div className="flex flex-col w-full max-w-[1600px] mx-auto p-3.5 sm:p-5 gap-3.5 text-on-surface">
 
 <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-space-md bg-surface-container-lowest p-space-lg rounded-xl shadow-sm">
 <div className="flex flex-col space-y-1">

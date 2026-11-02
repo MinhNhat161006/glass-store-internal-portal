@@ -4,7 +4,7 @@ import { message } from 'antd';
 export default function StaffRbacPage() {
   return (
     <div className="w-full min-h-screen bg-[#f9f9ff]">
-      <div className="flex flex-col w-full">
+      <div className="flex flex-col w-full max-w-[1600px] mx-auto p-3.5 sm:p-5 gap-3.5">
 
 <div className="w-full bg-surface-container-lowest px-space-xl py-space-lg shadow-sm">
 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md">

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { notification } from 'antd';
+import { message } from 'antd';
 import { ROLES, ROLE_INFO } from '../routes/rolesConfig';
 
 const AuthContext = createContext(null);
@@ -46,26 +46,16 @@ export function AuthProvider({ children }) {
 
     setUser(enhancedUser);
 
-    notification.success({
-      message: 'Xác thực thành công!',
-      description: `Chào mừng ${enhancedUser.staffName} (${enhancedUser.roleLabel}). Phiên làm việc mã hóa SHA-256 + 2FA đã được kích hoạt.`,
-      placement: 'topRight'
-    });
+    message.success('Đăng nhập thành công');
 
     return enhancedUser.defaultRoute;
   };
 
   // Logout action
   const logout = () => {
-    const name = user ? user.staffName : 'Nhân sự';
     setUser(null);
     localStorage.removeItem(STORAGE_KEY);
-
-    notification.info({
-      message: 'Đã kết thúc ca làm việc',
-      description: `Phiên làm việc của [${name}] đã được khóa an toàn. Vui lòng đăng nhập lại khi vào ca.`,
-      placement: 'topRight'
-    });
+    message.success('Đăng xuất thành công');
   };
 
   // Check if current user has permission for given roles
@@ -96,4 +86,3 @@ export function useAuth() {
   }
   return context;
 }
-
