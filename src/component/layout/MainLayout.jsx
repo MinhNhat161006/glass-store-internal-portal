@@ -53,7 +53,7 @@ export default function MainLayout() {
         },
         {
           key: '/orders',
-          label: 'Đơn hàng Đa Kênh (FR-COM)',
+          label: 'Quản Lý Đơn Hàng OMS',
           icon: 'receipt_long'
         }
       ]
@@ -137,10 +137,8 @@ export default function MainLayout() {
 
   const handleNavClick = (key) => {
     // If route exists, navigate to it; otherwise map fallback
-    if (key === '/dashboard' || key === '/pos' || key === '/optometry' || key === '/lab') {
+    if (key === '/dashboard' || key === '/pos' || key === '/orders' || key === '/optometry' || key === '/lab') {
       navigate(key);
-    } else if (key === '/orders') {
-      navigate('/pos');
     } else if (key === '/optometry-appointments') {
       navigate('/optometry');
     } else if (key === '/lab-qc') {
