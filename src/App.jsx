@@ -92,7 +92,7 @@ export default function App() {
               <Route
                 path="/dashboard"
                 element={
-                  <RoleGuard allowedRoles={[ROLES.ADMIN]}>
+                  <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.POS, ROLES.OPTOMETRY, ROLES.LAB]}>
                     <DashboardPage />
                   </RoleGuard>
                 }
