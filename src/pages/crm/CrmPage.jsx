@@ -6,68 +6,7 @@ export default function CrmPage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState('#OPT-CUS-9842');
   const [activeTab, setActiveTab] = useState('rx');
 
-  const [customerList, setCustomerList] = useState([
-    {
-      id: '#OPT-CUS-9842',
-      name: 'Nguyễn Hoàng Duy',
-      tier: 'VIP 3 Silver',
-      tierClass: 'bg-surface-container-high text-on-surface',
-      age: 32,
-      gender: 'Nam',
-      pts: '450 pts',
-      rx: 'OD: -3.25 | OS: -2.75',
-      lastOrder: 'Hôm nay 10:15 (Kính Râm)',
-      phone: '0918 732 998',
-      email: 'duy.nguyen@example.com',
-      address: '120 Hai Bà Trưng, P. Đa Kao, Q.1, TP. Hồ Chí Minh',
-      avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCN6A5Zry9WqS2KKpur9_SXR7FEsNxIv5u70kYDDHcPfSzRI8xZ3BNDMJqGm8H5O-ApKUVZclmL5YPyteetztlhOBmVmDpeCX85t2ltbbOcuntTv1zyjpPMlt3CutGb7_GLwegBHqUFA4EmVKsu-7LadvgLmnk1yp1uM93_PMI56natfovynZGSkxCp9DfQ6JYBBVYfyT2vEqeXSAwoijbAi3SWiRvlEhe0nFGIdTM'
-    },
-    {
-      id: '#OPT-CUS-7714',
-      name: 'Lê Thúy Kiều',
-      tier: 'VIP Gold',
-      tierClass: 'bg-secondary-fixed text-on-secondary-fixed',
-      age: 28,
-      gender: 'Nữ',
-      pts: '1,200 pts',
-      rx: 'OD: -2.00 | OS: -1.75',
-      lastOrder: 'Tái khám: 15 ngày',
-      phone: '0903 881 229',
-      email: 'thuykieu.le@gmail.com',
-      address: '45 Lê Duẩn, P. Bến Nghé, Q.1, TP. Hồ Chí Minh',
-      avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA7p9c_umMS8JlFzUMDtlfI55LOFh-EgPAVx_fowj68SVdXXGW8oL_cR8h0XnIMj-8xk2bbPQrYRlpD7xeXd1xeKibNIh0ZeBpcnuMdE-TzQG_FSr9J0xFqKqfSj2kOYqdY-FfxLVMgjSheXidJJcc_Yv6WhRxXEv5AEns5AiDkeYja6QKP2qJIXBI406Wc4M_XP-qb8cdAEUXf0345vEYfPRYooS3xQJmB34xtMu8'
-    },
-    {
-      id: '#OPT-CUS-5120',
-      name: 'Trịnh Minh Quang',
-      tier: 'Thành Viên',
-      tierClass: 'bg-surface-container text-on-surface',
-      age: 41,
-      gender: 'Nam',
-      pts: 'Đa tròng (ADD)',
-      rx: 'OD: -7.50 | OS: -7.00',
-      lastOrder: '12 ngày trước',
-      phone: '0988 123 456',
-      email: 'quang.trinh@gmail.com',
-      address: '88 Nguyễn Đình Chiểu, Q.3, TP. Hồ Chí Minh',
-      avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD1A6W3DcNV1YNQnxh4m5zHa-hd_zfP2voqBo4eeuIfzQp6F5sJSr8ecncr8HBMDeH7q7oITPTqQYGFZo2pVcgPEsxvCS1nBz0PX_RFkOmAAhjAdMmgllgyyqHZgHqJeSPwu9fVbIIL_33Smz2TSXt0WOc3MAwKu2XrfW9RVXNx1dExeGdqswNSnYU-zdb-5tHWdZZ5bHL3jGPJ1-S0vMEyKGBEluo1XyNk3N5b_4Q'
-    },
-    {
-      id: '#OPT-CUS-4409',
-      name: 'Phạm Thị Bích Ngọc',
-      tier: 'Platinum',
-      tierClass: 'bg-primary-fixed text-on-primary-fixed',
-      age: 35,
-      gender: 'Nữ',
-      pts: '3,850 pts',
-      rx: 'Viễn +1.50 / Add +2.00',
-      lastOrder: 'Gọng Charmant Titan',
-      phone: '0912 667 890',
-      email: 'bichngoc.pham@gmail.com',
-      address: '15 Mai Lão Bạng, P.13, Tân Bình, TP. Hồ Chí Minh',
-      avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDxZLxAp7hHJVQ4ycIvGLm-4LR4V3mFbhpd_5UIBgAGKMCZtKQRboA_CyV2j1c496O1v8-KERE-FpD-itrk4t73SLl4xhOssktjAKRma_vW_nQeDRKhfRuG2HQj1iinAmTSqviG-njb4tKyxvA4Kg6Dv46XQHa9rDekAh4H2Th_wVN_-XaxxqfETn8_KPhV0BxznGAksDH6umbXETYoTs35-fEW4itci4Snry30aQ4'
-    }
-  ]);
+  const [customerList, setCustomerList] = useState([]);
 
   const [loading, setLoading] = useState(false);
 

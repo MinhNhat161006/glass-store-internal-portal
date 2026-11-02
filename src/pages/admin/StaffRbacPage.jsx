@@ -156,7 +156,7 @@ const RBAC_MODULES = [
 
 export default function StaffRbacPage() {
   const [activeTab, setActiveTab] = useState('staff'); // 'staff' | 'matrix'
-  const [staffList, setStaffList] = useState(INITIAL_STAFF);
+  const [staffList, setStaffList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');

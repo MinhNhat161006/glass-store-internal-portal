@@ -17,10 +17,10 @@ export default function ReportsPage() {
     }).catch(e => console.warn('Reports customer sync note:', e));
   }, []);
 
-  const totalRevenue = liveOrders.reduce((acc, o) => acc + Number(o.finalAmount || 0), 0) || 38780000;
-  const totalOrderCount = liveOrders.length || 6;
-  const posCount = liveOrders.filter(o => o.channel === 'POS').length || 4;
-  const onlineCount = liveOrders.filter(o => o.channel === 'ONLINE').length || 2;
+  const totalRevenue = liveOrders.reduce((acc, o) => acc + Number(o.finalAmount || 0), 0);
+  const totalOrderCount = liveOrders.length;
+  const posCount = liveOrders.filter(o => o.channel === 'POS').length;
+  const onlineCount = liveOrders.filter(o => o.channel === 'ONLINE').length;
   const [timeframe, setTimeframe] = useState('month'); // 'today' | '7days' | 'month' | 'quarter'
   const [branch, setBranch] = useState('all');
 

@@ -152,7 +152,7 @@ export default function OptometryAppointmentsPage() {
                 <span className="material-symbols-outlined text-[16px]">calendar_today</span>
               </div>
               <div className="mt-0.5 flex items-baseline gap-1">
-                <span className="font-headline-sm text-headline-sm text-on-surface font-bold">{appointments.length || 28}</span>
+                <span className="font-headline-sm text-headline-sm text-on-surface font-bold">{appointments.length}</span>
                 <span className="font-body-sm text-body-sm text-outline">ca</span>
               </div>
               <div className="mt-0.5 font-body-sm text-[11px] text-on-surface-variant">
@@ -181,7 +181,7 @@ export default function OptometryAppointmentsPage() {
               </div>
               <div className="mt-0.5 flex items-baseline gap-1">
                 <span className="font-headline-sm text-headline-sm text-on-primary font-bold">
-                  {appointments.filter(a => a.status === 'IN_EXAM').length || '01'}
+                  {appointments.filter(a => a.status === 'IN_EXAM').length}
                 </span>
                 <span className="font-body-sm text-body-sm text-on-primary/80">/ 02 p.</span>
               </div>

@@ -343,20 +343,21 @@ const INITIAL_ORDERS = [
 ];
 
 export default function OrdersOmsPage() {
-  const [orders, setOrders] = useState(INITIAL_ORDERS);
-  const [selectedOrderId, setSelectedOrderId] = useState('#OPT-8842-SG');
+  const [orders, setOrders] = useState([]);
+  const [selectedOrderId, setSelectedOrderId] = useState('');
   const [isDrawerOpen, setIsDrawerOpen] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
   const [channelFilter, setChannelFilter] = useState('all');
   const [timeFilter, setTimeFilter] = useState('today');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedIds, setSelectedIds] = useState(['#OPT-8842-SG']);
+  const [selectedIds, setSelectedIds] = useState([]);
 
   useEffect(() => {
     const fetchOrders = async () => {
       try {
         const liveOrders = await orderApi.getAllOrders();
-        if (Array.isArray(liveOrders) && liveOrders.length > 0) {
+        if (Array.isArray(liveOrders)) {
+          if (liveOrders.length === 0) { setOrders([]); setSelectedOrderId(''); return; }
           const mapped = liveOrders.map((bo, idx) => {
             const firstItem = (bo.items && bo.items[0]) || {};
             const secondItem = (bo.items && bo.items[1]) || {};
@@ -869,7 +870,7 @@ export default function OrdersOmsPage() {
             <div className="flex items-center gap-3">
               <span className="text-[15px] font-bold text-[#111c2d]">Danh sách đơn hàng OMS</span>
               <span className="px-2.5 py-0.5 rounded-full bg-[#d8e3fb] text-[12px] font-bold text-[#004967]">
-                Hiển thị {filteredOrders.length} của 128 đơn
+                Hiển thị {filteredOrders.length} đơn
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -909,7 +910,15 @@ export default function OrdersOmsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e7eeff] text-sm text-[#111c2d]">
-                {filteredOrders.map(order => {
+                {filteredOrders.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-12 text-center text-slate-400">
+                      <span className="material-symbols-outlined text-[40px] block mb-2 text-slate-300">receipt_long</span>
+                      Chưa có đơn hàng nào trong hệ thống. Hãy vào màn hình POS để tạo đơn bán hàng thật.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredOrders.map(order => {
                   const isSelected = order.id === selectedOrderId;
                   const isChecked = selectedIds.includes(order.id);
                   const isAlert = order.statusCode === 'waiting_rx';
@@ -1068,7 +1077,7 @@ export default function OrdersOmsPage() {
                       </td>
                     </tr>
                   );
-                })}
+                }))}
               </tbody>
             </table>
           </div>
@@ -1076,7 +1085,7 @@ export default function OrdersOmsPage() {
           {/* Table Footer / Pagination */}
           <div className="px-4 py-3 bg-[#f0f3ff] flex items-center justify-between border-t border-[#e7eeff]">
             <div className="text-xs text-[#70787f]">
-              Tổng cộng: <strong className="text-[#111c2d] font-semibold">128 đơn</strong> trong khoảng lọc
+              Tổng cộng: <strong className="text-[#111c2d] font-semibold">{filteredOrders.length} đơn</strong> trong khoảng lọc
             </div>
             <div className="flex items-center gap-1.5">
               <button className="px-2.5 py-1 rounded-lg bg-white text-[#70787f] hover:text-[#111c2d] text-xs font-semibold shadow-sm disabled:opacity-50">
