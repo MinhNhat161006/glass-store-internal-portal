@@ -453,36 +453,52 @@ export default function PosPage() {
           </div>
 
           {/* Bar 3: Prescription Quick Banner */}
-          <div className="bg-white rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs border border-slate-100">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-[#e7eeff] text-[#004967] flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined text-[20px]">clinical_notes</span>
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-[#111c2d] font-bold">
-                    Toa kính khúc xạ vừa đo: {linkedRx.code}
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full bg-[#e7eeff] text-[#40484e] text-[10px] font-semibold">
-                    {linkedRx.doctor}
-                  </span>
+          {linkedRx ? (
+            <div className="bg-white rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs border border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-[#e7eeff] text-[#004967] flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-[20px]">clinical_notes</span>
                 </div>
-                <p className="text-[11px] text-[#40484e] mt-0.5 leading-tight">
-                  Khách: <strong className="text-[#111c2d]">{linkedRx.customer}</strong> | OD: {linkedRx.od} | OS:{' '}
-                  {linkedRx.os} | PD: {linkedRx.pd}
-                </p>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-[#111c2d] font-bold">
+                      Toa kính khúc xạ vừa đo: {linkedRx.code}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-[#e7eeff] text-[#40484e] text-[10px] font-semibold">
+                      {linkedRx.doctor}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#40484e] mt-0.5 leading-tight">
+                    Khách: <strong className="text-[#111c2d]">{linkedRx.customer}</strong> | OD: {linkedRx.od} | OS:{' '}
+                    {linkedRx.os} | PD: {linkedRx.pd}
+                  </p>
+                </div>
               </div>
-            </div>
 
-            <button
-              type="button"
-              onClick={handleInsertRxCombo}
-              className="px-3 py-1.5 rounded-lg bg-[#004967] hover:bg-[#086288] text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 shrink-0 cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[16px]">add_task</span>
-              <span>Nạp Combo Toa Này</span>
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={handleInsertRxCombo}
+                className="px-3 py-1.5 rounded-lg bg-[#004967] hover:bg-[#086288] text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 shrink-0 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[16px]">add_task</span>
+                <span>Nạp Combo Toa Này</span>
+              </button>
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl p-3 flex items-center justify-between shadow-xs border border-slate-100">
+              <div className="flex items-center gap-2 text-xs text-[#70787f]">
+                <span className="material-symbols-outlined text-[#004967] text-[18px]">info</span>
+                <span>Chưa liên kết toa khám khúc xạ. Bấm "Liên kết Toa Khám (OD/OS)" bên trên để chọn toa.</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsRxModalOpen(true)}
+                className="px-2.5 py-1 rounded-lg bg-[#e7eeff] text-[#004967] text-xs font-semibold hover:bg-[#dee8ff] transition-colors cursor-pointer"
+              >
+                Chọn Toa Khám
+              </button>
+            </div>
+          )}
 
           {/* Grid of Products */}
           <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 overflow-y-auto max-h-[calc(100vh-21rem)] pr-1">
