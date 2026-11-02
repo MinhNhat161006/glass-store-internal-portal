@@ -797,7 +797,7 @@ export default function OrdersOmsPage() {
 
           {/* Table Responsive Scroller */}
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse min-w-[1080px]">
               <thead>
                 <tr className="bg-[#dee8ff]/40 text-[#70787f] uppercase text-[11px] font-bold tracking-wider border-b border-[#e7eeff]">
                   <th className="py-3 px-3 w-10 text-center">
@@ -808,13 +808,13 @@ export default function OrdersOmsPage() {
                       className="rounded text-[#004967] focus:ring-0 cursor-pointer"
                     />
                   </th>
-                  <th className="py-3 px-3">Mã đơn &amp; Kênh</th>
-                  <th className="py-3 px-3">Thời gian / Nhân viên</th>
-                  <th className="py-3 px-3">Khách hàng</th>
+                  <th className="py-3 px-3 whitespace-nowrap min-w-[130px]">Mã đơn &amp; Kênh</th>
+                  <th className="py-3 px-3 whitespace-nowrap min-w-[145px]">Thời gian / Nhân viên</th>
+                  <th className="py-3 px-3 whitespace-nowrap min-w-[160px]">Khách hàng</th>
                   <th className="py-3 px-4 min-w-[280px]">Sản phẩm &amp; Toa kính y khoa</th>
-                  <th className="py-3 px-3">Thanh toán</th>
-                  <th className="py-3 px-3">Tiến độ kỹ thuật</th>
-                  <th className="py-3 px-3 text-right">Tác vụ</th>
+                  <th className="py-3 px-3 whitespace-nowrap min-w-[140px]">Thanh toán</th>
+                  <th className="py-3 px-3 whitespace-nowrap min-w-[170px]">Tiến độ kỹ thuật</th>
+                  <th className="py-3 px-3 whitespace-nowrap min-w-[90px] text-right">Tác vụ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e7eeff] text-sm text-[#111c2d]">
@@ -846,23 +846,24 @@ export default function OrdersOmsPage() {
                       </td>
 
                       {/* Mã đơn & Kênh */}
-                      <td className="py-3 px-3">
+                      <td className="py-3 px-3 whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <span className="text-[13px] font-mono text-[#004967] font-bold">{order.id}</span>
                           {isSelected && <span className="w-2 h-2 rounded-full bg-[#004967]" title="Đang xem chi tiết" />}
                         </div>
                         <div className="mt-1 flex items-center gap-1">
-                          <span className={`px-2 py-0.5 rounded-full ${order.channelBadgeBg} ${order.channelBadgeText} text-[11px] font-semibold flex items-center gap-1`}>
-                            <span className="material-symbols-outlined text-[13px]">{order.channelIcon}</span> {order.channelLabel}
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full ${order.channelBadgeBg} ${order.channelBadgeText} text-[11px] font-semibold whitespace-nowrap`}>
+                            <span className="material-symbols-outlined text-[13px]">{order.channelIcon}</span>
+                            <span>{order.channelLabel}</span>
                           </span>
                         </div>
                       </td>
 
                       {/* Thời gian / Nhân viên */}
-                      <td className="py-3 px-3">
+                      <td className="py-3 px-3 whitespace-nowrap">
                         <div className="text-[13px] font-mono text-[#111c2d]">{order.time}</div>
                         <div className="text-xs text-[#70787f]">{order.date}</div>
-                        <div className="text-xs text-[#70787f] flex items-center gap-0.5 mt-0.5">
+                        <div className="text-xs text-[#70787f] flex items-center gap-0.5 mt-0.5 whitespace-nowrap">
                           <span className="material-symbols-outlined text-[14px]">
                             {order.staff.includes('Bot') ? 'robot' : order.staff.includes('Khách') ? 'person' : order.staff.includes('Telesales') ? 'call' : 'badge'}
                           </span>
@@ -871,15 +872,15 @@ export default function OrdersOmsPage() {
                       </td>
 
                       {/* Khách hàng */}
-                      <td className="py-3 px-3">
-                        <div className="text-sm font-semibold text-[#111c2d] flex items-center gap-1.5">
+                      <td className="py-3 px-3 whitespace-nowrap">
+                        <div className="text-sm font-semibold text-[#111c2d] flex items-center gap-1.5 whitespace-nowrap">
                           {order.customer.name}
                           <span className={`px-1.5 py-0.5 rounded ${order.customer.tierBg} ${order.customer.tierText} text-[10px] font-semibold`}>
                             {order.customer.tier}
                           </span>
                         </div>
-                        <div className="text-[12px] font-mono text-[#70787f]">{order.customer.phone}</div>
-                        <div className="text-xs text-[#70787f] flex items-center gap-0.5">
+                        <div className="text-[12px] font-mono text-[#70787f] whitespace-nowrap">{order.customer.phone}</div>
+                        <div className="text-xs text-[#70787f] flex items-center gap-0.5 whitespace-nowrap">
                           {order.customer.history.includes('đơn') && (
                             <span className="material-symbols-outlined text-[13px]">history</span>
                           )}
@@ -909,27 +910,27 @@ export default function OrdersOmsPage() {
                       </td>
 
                       {/* Thanh toán */}
-                      <td className="py-3 px-3">
-                        <div className="text-[13px] font-mono font-bold text-[#004967]">
+                      <td className="py-3 px-3 whitespace-nowrap">
+                        <div className="text-[13px] font-mono font-bold text-[#004967] whitespace-nowrap">
                           {order.payment.finalTotal.toLocaleString('vi-VN')} đ
                         </div>
                         <div className="mt-1">
-                          <span className={`px-2 py-0.5 rounded-full ${order.payment.methodBadgeBg} ${order.payment.methodBadgeText} text-[11px] font-semibold inline-flex items-center gap-1`}>
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full ${order.payment.methodBadgeBg} ${order.payment.methodBadgeText} text-[11px] font-semibold whitespace-nowrap`}>
                             <span className="material-symbols-outlined text-[13px]">
                               {order.payment.method.includes('QR') ? 'check_circle' : order.payment.method.includes('Apple') ? 'check_circle' : order.payment.method.includes('POS') ? 'credit_card' : 'schedule'}
                             </span>
-                            {order.payment.method}
+                            <span>{order.payment.method}</span>
                           </span>
                         </div>
                       </td>
 
                       {/* Tiến độ kỹ thuật */}
-                      <td className="py-3 px-3">
-                        <span className={`px-2.5 py-1 rounded-full ${order.techStatus.badgeBg} ${order.techStatus.badgeText} text-xs font-semibold inline-flex items-center gap-1`}>
-                          <span className={`material-symbols-outlined text-[14px] ${order.techStatus.spin ? 'animate-spin' : ''}`}>
+                      <td className="py-3 px-3 whitespace-nowrap">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full ${order.techStatus.badgeBg} ${order.techStatus.badgeText} text-[11px] font-semibold whitespace-nowrap`}>
+                          <span className={`material-symbols-outlined text-[13px] ${order.techStatus.spin ? 'animate-spin' : ''}`}>
                             {order.techStatus.icon}
                           </span>
-                          {order.techStatus.label}
+                          <span>{order.techStatus.label}</span>
                         </span>
                         <div className={`text-xs mt-1 ${order.statusCode === 'waiting_rx' ? 'text-[#ba1a1a] font-semibold' : 'text-[#70787f]'}`}>
                           {order.techStatus.eta}
