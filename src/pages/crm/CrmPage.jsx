@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { message } from 'antd';
+import { message, Modal } from 'antd';
 
 export default function CrmPage() {
-  const [selectedCustomer, setSelectedCustomer] = useState('#OPT-CUS-9842');
+  const [selectedCustomerId, setSelectedCustomerId] = useState('#OPT-CUS-9842');
   const [activeTab, setActiveTab] = useState('rx');
 
-  const customerList = [
+  const [customerList, setCustomerList] = useState([
     {
       id: '#OPT-CUS-9842',
       name: 'Nguyễn Hoàng Duy',
@@ -17,6 +17,8 @@ export default function CrmPage() {
       rx: 'OD: -3.25 | OS: -2.75',
       lastOrder: 'Hôm nay 10:15 (Kính Râm)',
       phone: '0918 732 998',
+      email: 'duy.nguyen@example.com',
+      address: '120 Hai Bà Trưng, P. Đa Kao, Q.1, TP. Hồ Chí Minh',
       avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCN6A5Zry9WqS2KKpur9_SXR7FEsNxIv5u70kYDDHcPfSzRI8xZ3BNDMJqGm8H5O-ApKUVZclmL5YPyteetztlhOBmVmDpeCX85t2ltbbOcuntTv1zyjpPMlt3CutGb7_GLwegBHqUFA4EmVKsu-7LadvgLmnk1yp1uM93_PMI56natfovynZGSkxCp9DfQ6JYBBVYfyT2vEqeXSAwoijbAi3SWiRvlEhe0nFGIdTM'
     },
     {
@@ -30,6 +32,8 @@ export default function CrmPage() {
       rx: 'OD: -2.00 | OS: -1.75',
       lastOrder: 'Tái khám: 15 ngày',
       phone: '0903 881 229',
+      email: 'thuykieu.le@gmail.com',
+      address: '45 Lê Duẩn, P. Bến Nghé, Q.1, TP. Hồ Chí Minh',
       avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA7p9c_umMS8JlFzUMDtlfI55LOFh-EgPAVx_fowj68SVdXXGW8oL_cR8h0XnIMj-8xk2bbPQrYRlpD7xeXd1xeKibNIh0ZeBpcnuMdE-TzQG_FSr9J0xFqKqfSj2kOYqdY-FfxLVMgjSheXidJJcc_Yv6WhRxXEv5AEns5AiDkeYja6QKP2qJIXBI406Wc4M_XP-qb8cdAEUXf0345vEYfPRYooS3xQJmB34xtMu8'
     },
     {
@@ -43,6 +47,8 @@ export default function CrmPage() {
       rx: 'OD: -7.50 | OS: -7.00',
       lastOrder: '12 ngày trước',
       phone: '0988 123 456',
+      email: 'quang.trinh@gmail.com',
+      address: '88 Nguyễn Đình Chiểu, Q.3, TP. Hồ Chí Minh',
       avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD1A6W3DcNV1YNQnxh4m5zHa-hd_zfP2voqBo4eeuIfzQp6F5sJSr8ecncr8HBMDeH7q7oITPTqQYGFZo2pVcgPEsxvCS1nBz0PX_RFkOmAAhjAdMmgllgyyqHZgHqJeSPwu9fVbIIL_33Smz2TSXt0WOc3MAwKu2XrfW9RVXNx1dExeGdqswNSnYU-zdb-5tHWdZZ5bHL3jGPJ1-S0vMEyKGBEluo1XyNk3N5b_4Q'
     },
     {
@@ -56,12 +62,98 @@ export default function CrmPage() {
       rx: 'Viễn +1.50 / Add +2.00',
       lastOrder: 'Gọng Charmant Titan',
       phone: '0912 667 890',
+      email: 'bichngoc.pham@gmail.com',
+      address: '15 Mai Lão Bạng, P.13, Tân Bình, TP. Hồ Chí Minh',
       avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDxZLxAp7hHJVQ4ycIvGLm-4LR4V3mFbhpd_5UIBgAGKMCZtKQRboA_CyV2j1c496O1v8-KERE-FpD-itrk4t73SLl4xhOssktjAKRma_vW_nQeDRKhfRuG2HQj1iinAmTSqviG-njb4tKyxvA4Kg6Dv46XQHa9rDekAh4H2Th_wVN_-XaxxqfETn8_KPhV0BxznGAksDH6umbXETYoTs35-fEW4itci4Snry30aQ4'
     }
-  ];
+  ]);
+
+  // Modal States
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+
+  // Form states
+  const [newCustomer, setNewCustomer] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    gender: 'Nam',
+    tier: 'Thành Viên',
+    address: '',
+    rx: 'OD: 0.00 | OS: 0.00'
+  });
+
+  const activeCustomer = customerList.find(c => c.id === selectedCustomerId) || customerList[0];
+
+  const [editFormData, setEditFormData] = useState({
+    name: activeCustomer.name,
+    phone: activeCustomer.phone,
+    email: activeCustomer.email || '',
+    address: activeCustomer.address || '',
+    tier: activeCustomer.tier
+  });
+
+  const [bookingFormData, setBookingFormData] = useState({
+    date: '2026-11-05',
+    time: '10:00',
+    room: 'Phòng 01 - Bác Sĩ CKI Khúc Xạ',
+    note: 'Tái khám định kỳ 6 tháng & kiểm tra độ loạn'
+  });
 
   const handleAction = (msg) => {
     message.success(msg);
+  };
+
+  const handleCreateCustomerSubmit = () => {
+    if (!newCustomer.name.trim() || !newCustomer.phone.trim()) {
+      message.error('Vui lòng nhập họ tên và số điện thoại khách hàng');
+      return;
+    }
+    const newId = `#OPT-CUS-${Math.floor(1000 + Math.random() * 9000)}`;
+    const created = {
+      id: newId,
+      name: newCustomer.name,
+      phone: newCustomer.phone,
+      email: newCustomer.email || 'customer@optivision.vn',
+      tier: newCustomer.tier,
+      tierClass: newCustomer.tier.includes('VIP') ? 'bg-secondary-fixed text-on-secondary-fixed' : 'bg-surface-container text-on-surface',
+      age: 30,
+      gender: newCustomer.gender,
+      pts: '100 pts',
+      rx: newCustomer.rx,
+      lastOrder: 'Mới đăng ký',
+      address: newCustomer.address || 'TP. Hồ Chí Minh',
+      avatar: activeCustomer.avatar
+    };
+    setCustomerList([created, ...customerList]);
+    setSelectedCustomerId(newId);
+    setIsCreateModalOpen(false);
+    setNewCustomer({ name: '', phone: '', email: '', gender: 'Nam', tier: 'Thành Viên', address: '', rx: 'OD: 0.00 | OS: 0.00' });
+    message.success(`Đã tạo hồ sơ khách hàng mới: ${created.name} (${newId})!`);
+  };
+
+  const handleEditCustomerSubmit = () => {
+    setCustomerList(prev => prev.map(c => {
+      if (c.id === activeCustomer.id) {
+        return {
+          ...c,
+          name: editFormData.name,
+          phone: editFormData.phone,
+          email: editFormData.email,
+          address: editFormData.address,
+          tier: editFormData.tier
+        };
+      }
+      return c;
+    }));
+    setIsEditModalOpen(false);
+    message.success(`Đã cập nhật thông tin khách hàng ${editFormData.name} thành công!`);
+  };
+
+  const handleBookingSubmit = () => {
+    setIsBookingModalOpen(false);
+    message.success(`Đã lên lịch khám thành công cho ${activeCustomer.name} vào lúc ${bookingFormData.time} ngày ${bookingFormData.date}!`);
   };
 
   return (
@@ -81,26 +173,22 @@ export default function CrmPage() {
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-md text-label-md">
                 <span className="material-symbols-outlined text-[13px] text-primary">security</span>
-                BR-45: Audit Log On
-              </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-md text-label-md">
-                <span className="material-symbols-outlined text-[13px]">verified_user</span>
-                Bảo Mật Y Khoa NFR-SEC-04 (HL7/HIPAA)
+                Dữ Liệu Y Khoa Bảo Mật
               </span>
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-surface-container-high text-on-surface font-label-mono text-label-mono">
                 <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
-                Terminal Q1-POS3: Ready
+                Đồng Bộ Trực Tiếp POS
               </span>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <button onClick={() => handleAction('Mở form tạo hồ sơ khách hàng mới [F1]')} className="px-3 py-1.5 rounded-xl bg-primary text-on-primary font-label-lg text-label-lg flex items-center gap-1.5 shadow-xs hover:bg-primary-container transition-all cursor-pointer">
+            <button onClick={() => setIsCreateModalOpen(true)} className="px-3 py-1.5 rounded-xl bg-primary text-on-primary font-label-lg text-label-lg flex items-center gap-1.5 shadow-xs hover:bg-primary-container transition-all cursor-pointer">
               <span className="material-symbols-outlined text-[16px]">person_add</span>
               <span>Tạo Khách Mới</span>
               <span className="px-1.5 py-0.2 rounded bg-on-primary/20 text-on-primary font-label-mono text-[10px]">F1</span>
             </button>
-            <button onClick={() => handleAction('Mở lịch hẹn đo khúc xạ [F2]')} className="px-3 py-1.5 rounded-xl bg-surface-container text-on-surface hover:bg-surface-container-high font-label-lg text-label-lg flex items-center gap-1.5 transition-all cursor-pointer">
+            <button onClick={() => setIsBookingModalOpen(true)} className="px-3 py-1.5 rounded-xl bg-surface-container text-on-surface hover:bg-surface-container-high font-label-lg text-label-lg flex items-center gap-1.5 transition-all cursor-pointer">
               <span className="material-symbols-outlined text-[16px] text-primary">event</span>
               <span>Đặt Lịch Đo</span>
               <span className="px-1.5 py-0.2 rounded bg-surface-container-highest font-label-mono text-[10px]">F2</span>
@@ -247,11 +335,20 @@ export default function CrmPage() {
             {/* Customer List items */}
             <div className="flex flex-col gap-2 max-h-[720px] overflow-y-auto pr-0.5">
               {customerList.map((item) => {
-                const isSelected = selectedCustomer === item.id;
+                const isSelected = selectedCustomerId === item.id;
                 return (
                   <div
                     key={item.id}
-                    onClick={() => setSelectedCustomer(item.id)}
+                    onClick={() => {
+                      setSelectedCustomerId(item.id);
+                      setEditFormData({
+                        name: item.name,
+                        phone: item.phone,
+                        email: item.email || '',
+                        address: item.address || '',
+                        tier: item.tier
+                      });
+                    }}
                     className={`p-3 rounded-xl transition-all cursor-pointer relative border ${
                       isSelected
                         ? 'bg-surface-container-lowest border-primary/30 shadow-sm ring-1 ring-primary/20'
@@ -320,47 +417,59 @@ export default function CrmPage() {
                 <div className="flex items-start gap-3">
                   <img
                     className="w-14 h-14 rounded-2xl object-cover shadow-sm shrink-0"
-                    alt="Nguyễn Hoàng Duy"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuDMKUT9ckCNBBi5zNG8zpOQnGpPufY9Pj-gxlxzqWGdC-b3y1iGzRPq1hOQfPbdK3JhEREtrxveX5XrZpUS0xOdUTK756IGZFQl7Ry_aRLCjF1w86DJkOK1JcuJV5vB8S4EtWLZe2gpDOgWZzt2fvwfloEJb_hkiY4g9Re3myuudINn-lIhhZfiP5DPTH_9TNnORE_T2DVsT4a0hddnGIG1XYPH8PX0m3WJPwCujjE"
+                    alt={activeCustomer.name}
+                    src={activeCustomer.avatar}
                   />
                   <div className="space-y-0.5">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-headline-md text-headline-md text-on-surface">Nguyễn Hoàng Duy</span>
-                      <span className="px-2 py-0.5 rounded-full bg-primary text-on-primary font-label-md text-label-md font-semibold">VIP 3 Silver</span>
-                      <span className="px-2 py-0.5 rounded-full bg-surface-container-high text-primary font-label-mono text-[11px]">#OPT-CUS-9842</span>
+                      <span className="font-headline-md text-headline-md text-on-surface">{activeCustomer.name}</span>
+                      <span className="px-2 py-0.5 rounded-full bg-primary text-on-primary font-label-md text-label-md font-semibold">{activeCustomer.tier}</span>
+                      <span className="px-2 py-0.5 rounded-full bg-surface-container-high text-primary font-label-mono text-[11px]">{activeCustomer.id}</span>
                     </div>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-body-sm font-body-sm text-on-surface-variant">
                       <span className="flex items-center gap-1">
                         <span className="material-symbols-outlined text-[14px] text-outline">call</span>
-                        0918 732 998
+                        {activeCustomer.phone}
                       </span>
                       <span className="flex items-center gap-1">
                         <span className="material-symbols-outlined text-[14px] text-outline">mail</span>
-                        duy.nguyen@example.com
+                        {activeCustomer.email || 'customer@optivision.vn'}
                       </span>
                       <span className="flex items-center gap-1">
                         <span className="material-symbols-outlined text-[14px] text-outline">calendar_month</span>
-                        Gắn bó 4 năm (14/03/2022)
+                        Hồ sơ thị lực lưu trữ
                       </span>
                     </div>
                     <div className="flex items-center gap-1 text-body-sm font-body-sm text-outline">
                       <span className="material-symbols-outlined text-[14px]">location_on</span>
-                      120 Hai Bà Trưng, P. Đa Kao, Q.1, TP. Hồ Chí Minh
+                      {activeCustomer.address || 'TP. Hồ Chí Minh'}
                     </div>
                   </div>
                 </div>
 
                 <div className="flex sm:flex-col items-end gap-1.5 shrink-0">
                   <div className="flex items-center gap-1.5">
-                    <button onClick={() => handleAction('Mở popup sửa thông tin khách hàng')} className="px-2.5 py-1 bg-surface-container text-primary hover:bg-secondary-fixed rounded-lg font-label-md text-label-md flex items-center gap-1 transition-colors cursor-pointer">
+                    <button
+                      onClick={() => {
+                        setEditFormData({
+                          name: activeCustomer.name,
+                          phone: activeCustomer.phone,
+                          email: activeCustomer.email || '',
+                          address: activeCustomer.address || '',
+                          tier: activeCustomer.tier
+                        });
+                        setIsEditModalOpen(true);
+                      }}
+                      className="px-2.5 py-1 bg-surface-container text-primary hover:bg-secondary-fixed rounded-lg font-label-md text-label-md flex items-center gap-1 transition-colors cursor-pointer"
+                    >
                       <span className="material-symbols-outlined text-[15px]">edit</span>
                       Sửa
                     </button>
-                    <button onClick={() => handleAction('Thêm bookmark / ghi chú CRM')} className="p-1 bg-surface-container hover:bg-surface-container-high text-on-surface-variant rounded-lg transition-colors cursor-pointer" title="Thêm ghi chú">
+                    <button onClick={() => handleAction('Đã lưu ghi chú chăm sóc khách hàng')} className="p-1 bg-surface-container hover:bg-surface-container-high text-on-surface-variant rounded-lg transition-colors cursor-pointer" title="Thêm ghi chú">
                       <span className="material-symbols-outlined text-[16px]">bookmark_add</span>
                     </button>
                   </div>
-                  <span className="font-label-mono text-[10px] text-outline">Cập nhật: BS. Vũ Anh Tuấn (10:15)</span>
+                  <span className="font-label-mono text-[10px] text-outline">Cập nhật bởi KTV Khúc Xạ</span>
                 </div>
               </div>
 
