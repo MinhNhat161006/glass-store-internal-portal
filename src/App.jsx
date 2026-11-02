@@ -6,11 +6,21 @@ import { ROLES } from './routes/rolesConfig';
 import { ProtectedRoute, RoleGuard, PublicOnlyRoute } from './routes/RouteGuard';
 import MainLayout from './component/layout/MainLayout';
 import AuthPage from './component/auth/AuthPage';
+
+// Pages
+import DashboardPage from './pages/dashboard/DashboardPage';
 import PosPage from './pages/pos/PosPage';
+import OrdersOmsPage from './pages/orders/OrdersOmsPage';
+import OptometryAppointmentsPage from './pages/optometry/OptometryAppointmentsPage';
 import OptometryPage from './pages/optometry/OptometryPage';
 import LabPage from './pages/lab/LabPage';
-import DashboardPage from './pages/dashboard/DashboardPage';
-import OrdersOmsPage from './pages/orders/OrdersOmsPage';
+import LabQcPage from './pages/lab/LabQcPage';
+import InventoryPage from './pages/inventory/InventoryPage';
+import StockTransferPage from './pages/inventory/StockTransferPage';
+import CrmPage from './pages/crm/CrmPage';
+import WarrantyPage from './pages/crm/WarrantyPage';
+import ReportsPage from './pages/admin/ReportsPage';
+import StaffRbacPage from './pages/admin/StaffRbacPage';
 import NotFound404 from './pages/common/NotFound404';
 
 // Component to handle root redirection based on user's auth status and role
@@ -19,7 +29,7 @@ function RootRedirect() {
   if (!isAuthenticated || !user) {
     return <Navigate to="/login" replace />;
   }
-  return <Navigate to={user.defaultRoute || '/pos'} replace />;
+  return <Navigate to={user.defaultRoute || '/dashboard'} replace />;
 }
 
 export default function App() {
@@ -59,17 +69,17 @@ export default function App() {
                 </ProtectedRoute>
               }
             >
-              {/* Omnichannel Order Management (OMS) */}
+              {/* 1. TỔNG QUAN: Bàn làm việc Overview */}
               <Route
-                path="/orders"
+                path="/dashboard"
                 element={
                   <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.POS, ROLES.OPTOMETRY, ROLES.LAB]}>
-                    <OrdersOmsPage />
+                    <DashboardPage />
                   </RoleGuard>
                 }
               />
 
-              {/* POS / Cashier Terminal: Allowed for Admin & POS */}
+              {/* 2. BÁN HÀNG & POS */}
               <Route
                 path="/pos"
                 element={
@@ -78,8 +88,24 @@ export default function App() {
                   </RoleGuard>
                 }
               />
+              <Route
+                path="/orders"
+                element={
+                  <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.POS]}>
+                    <OrdersOmsPage />
+                  </RoleGuard>
+                }
+              />
 
-              {/* Optometry Clinical Exam (OD/OS): Allowed for Admin & Optometry */}
+              {/* 3. KHÚC XẠ & LÂM SÀNG */}
+              <Route
+                path="/optometry-appointments"
+                element={
+                  <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.OPTOMETRY]}>
+                    <OptometryAppointmentsPage />
+                  </RoleGuard>
+                }
+              />
               <Route
                 path="/optometry"
                 element={
@@ -89,7 +115,7 @@ export default function App() {
                 }
               />
 
-              {/* Lab Lens Edging & QC: Allowed for Admin & Lab */}
+              {/* 4. LAB GIA CÔNG */}
               <Route
                 path="/lab"
                 element={
@@ -98,13 +124,65 @@ export default function App() {
                   </RoleGuard>
                 }
               />
-
-              {/* Central Chain & Inventory Dashboard: Allowed for Admin only */}
               <Route
-                path="/dashboard"
+                path="/lab-qc"
                 element={
-                  <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.POS, ROLES.OPTOMETRY, ROLES.LAB]}>
-                    <DashboardPage />
+                  <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.LAB]}>
+                    <LabQcPage />
+                  </RoleGuard>
+                }
+              />
+
+              {/* 5. KHO VẬN & VẬT TƯ */}
+              <Route
+                path="/inventory"
+                element={
+                  <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.LAB]}>
+                    <InventoryPage />
+                  </RoleGuard>
+                }
+              />
+              <Route
+                path="/stock-transfer"
+                element={
+                  <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.LAB]}>
+                    <StockTransferPage />
+                  </RoleGuard>
+                }
+              />
+
+              {/* 6. KHÁCH HÀNG & BẢO HÀNH */}
+              <Route
+                path="/crm"
+                element={
+                  <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.POS, ROLES.OPTOMETRY]}>
+                    <CrmPage />
+                  </RoleGuard>
+                }
+              />
+              <Route
+                path="/warranty"
+                element={
+                  <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.POS]}>
+                    <WarrantyPage />
+                  </RoleGuard>
+                }
+              />
+
+              {/* 7. QUẢN TRỊ & BÁO CÁO */}
+              <Route
+                path="/reports"
+                element={
+                  <RoleGuard allowedRoles={[ROLES.ADMIN]}>
+                    <ReportsPage />
+                  </RoleGuard>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <RoleGuard allowedRoles={[ROLES.ADMIN]}>
+                    <StaffRbacPage />
                   </RoleGuard>
                 }
               />

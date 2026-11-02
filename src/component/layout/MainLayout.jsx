@@ -169,16 +169,7 @@ export default function MainLayout() {
     .filter(section => section.items.length > 0);
 
   const handleNavClick = (key) => {
-    // If route exists, navigate to it; otherwise map fallback
-    if (key === '/dashboard' || key === '/pos' || key === '/orders' || key === '/optometry' || key === '/lab') {
-      navigate(key);
-    } else if (key === '/optometry-appointments') {
-      navigate('/optometry');
-    } else if (key === '/lab-qc') {
-      navigate('/lab');
-    } else {
-      navigate('/dashboard');
-    }
+    navigate(key);
   };
 
   return (
