@@ -141,7 +141,7 @@ export default function AuthPage({ onLoginSuccess }) {
   };
 
   // Submit Login
-  const handleStaffLogin = (e) => {
+  const handleStaffLogin = async (e) => {
     if (e) e.preventDefault();
 
     if (!staffId.trim()) {
@@ -161,28 +161,35 @@ export default function AuthPage({ onLoginSuccess }) {
     setIsSubmitting(true);
     setLoginFeedback(true);
 
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
       const conf = ROLE_CONFIGS[selectedRole];
       const branchObj = BRANCH_OPTIONS.find((b) => b.value === storeBranch);
 
       const userData = {
+        username: staffId.trim(),
+        password: password.trim(),
         role: selectedRole,
-        staffId: staffId,
+        staffId: staffId.trim(),
         staffName: conf ? conf.staffName : 'Nhân Sự OptiVision',
         branchName: branchObj ? branchObj.label : 'Chi nhánh 01 - Flagship Lê Thánh Tôn, Quận 1',
         defaultRoute: conf ? conf.defaultRoute : '/pos'
       };
 
-      const defaultRoute = login(userData);
+      const defaultRoute = await login(userData);
 
       if (onLoginSuccess) {
         onLoginSuccess(userData);
       }
 
-      const returnUrl = location.state?.from?.pathname || defaultRoute || conf.defaultRoute || '/pos';
+      const returnUrl = location.state?.from?.pathname || defaultRoute || conf?.defaultRoute || '/pos';
       navigate(returnUrl, { replace: true });
-    }, 900);
+    } catch (err) {
+      console.error('Login error:', err);
+      message.error(err.message || 'Mật khẩu không chính xác hoặc tài khoản không tồn tại!');
+    } finally {
+      setIsSubmitting(false);
+      setLoginFeedback(false);
+    }
   };
 
   // Submit Registration

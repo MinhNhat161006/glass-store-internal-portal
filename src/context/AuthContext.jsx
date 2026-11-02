@@ -38,30 +38,29 @@ export function AuthProvider({ children }) {
     return ROLES.POS;
   };
 
-  // Login action (supports real API credentials or structured profile)
+  // Login action (strictly authenticates against real backend API)
   const login = async (userData) => {
     let finalUserData = { ...userData };
 
     // If username and password provided, authenticate against backend
     if (userData.username && userData.password) {
-      try {
-        const authData = await authApi.login({
-          username: userData.username,
-          password: userData.password
-        });
-        if (authData) {
-          const frontRole = mapBackendRoleToFrontend(authData.roles);
-          finalUserData = {
-            staffId: authData.employeeCode || `STF-0${authData.id}`,
-            staffName: authData.fullName,
-            role: frontRole,
-            branchName: authData.branchName || 'Flagship Q.1 (TP.HCM)',
-            token: authData.token
-          };
-        }
-      } catch (err) {
-        console.warn('Backend login fallback to local session:', err.message);
+      const authData = await authApi.login({
+        username: userData.username,
+        password: userData.password
+      });
+
+      if (!authData) {
+        throw new Error('Không nhận được thông tin xác thực từ hệ thống.');
       }
+
+      const frontRole = mapBackendRoleToFrontend(authData.roles);
+      finalUserData = {
+        staffId: authData.employeeCode || `STF-0${authData.id}`,
+        staffName: authData.fullName,
+        role: frontRole,
+        branchName: authData.branchName || userData.branchName || 'Flagship Q.1 (TP.HCM)',
+        token: authData.token
+      };
     }
 
     const role = finalUserData.role || ROLES.POS;
