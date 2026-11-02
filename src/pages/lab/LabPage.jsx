@@ -46,76 +46,7 @@ export default function LabPage() {
     fetchLiveLabJobs();
   }, []);
 
-  const [queueOrders, setQueueOrders] = useState([
-    {
-      id: '#LAB-2026-088',
-      tray: 'Khay Xanh #04',
-      orderId: '#OPT-8842-SG',
-      customer: 'Nguyễn Hoàng Duy',
-      phone: '0918 732 998',
-      frame: 'Bolon Vintage Classic BJ3120',
-      lens: 'Essilor Crizal Rock 1.67 Blue UV',
-      rxSummary: 'OD -3.25 / OS -2.75',
-      machine: 'Essilor Delta #01',
-      tech: 'Trần Văn Bách',
-      status: 'in_progress',
-      statusLabel: 'Đang mài (68%)',
-      statusClass: 'bg-primary-fixed text-on-primary-fixed',
-      priority: 'Tiêu chuẩn',
-      timeRemaining: '04 phút'
-    },
-    {
-      id: '#LAB-2026-089',
-      tray: 'Khay Xanh #09',
-      orderId: '#OPT-8839-WEB',
-      customer: 'Trịnh Minh Quang',
-      phone: '0912 449 002',
-      frame: 'Charmant Titanium ZT2233',
-      lens: 'Transitions Gen S 1.60',
-      rxSummary: 'OD -7.50 / OS -7.00',
-      machine: 'Essilor Delta #02',
-      tech: 'Lê Quang Huy',
-      status: 'in_progress',
-      statusLabel: 'Đang mài (35%)',
-      statusClass: 'bg-secondary-fixed text-on-secondary-fixed',
-      priority: 'Tiêu chuẩn',
-      timeRemaining: '07 phút'
-    },
-    {
-      id: '#LAB-2026-091',
-      tray: 'Khay Đỏ #02',
-      orderId: '#OPT-8841-ONL',
-      customer: 'Lê Thúy Kiều',
-      phone: '0988 124 551',
-      frame: 'Ray-Ban Round Metal RB3447',
-      lens: 'Zeiss ClearView 1.74 Siêu Mỏng',
-      rxSummary: 'OD -2.00 / OS -1.75',
-      machine: 'Nidek ME-1200',
-      tech: 'Chưa gán KTV',
-      status: 'waiting',
-      statusLabel: 'Chờ nạp máy',
-      statusClass: 'bg-surface-container-high text-primary',
-      priority: 'Hỏa tốc 2H',
-      timeRemaining: 'Ưu tiên số 1'
-    },
-    {
-      id: '#LAB-2026-085',
-      tray: 'Khay Vàng #06',
-      orderId: '#OPT-8835-HN',
-      customer: 'Phạm Thị Bích Ngọc',
-      phone: '0977 898 332',
-      frame: 'Molsion Titanium MS3022',
-      lens: 'Varilux Comfort Max Đa Tròng',
-      rxSummary: 'Viễn +1.50 / Add +2.00',
-      machine: 'Essilor Delta #01',
-      tech: 'Trần Văn Bách',
-      status: 'completed',
-      statusLabel: 'Mài xong • Chờ QC',
-      statusClass: 'bg-surface-container text-outline',
-      priority: 'Tiêu chuẩn',
-      timeRemaining: 'Đã hoàn tất'
-    }
-  ]);
+  const [queueOrders, setQueueOrders] = useState([]);
 
   const handleAction = (msg) => {
     message.success(msg);

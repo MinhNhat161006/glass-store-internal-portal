@@ -63,12 +63,12 @@ export default function AuthPage({ onLoginSuccess }) {
 
   // Form states for Login
   const [storeBranch, setStoreBranch] = useState('CN-01');
-  const [staffId, setStaffId] = useState(ROLE_CONFIGS.pos.staffId);
-  const [password, setPassword] = useState('Password2026@');
+  const [staffId, setStaffId] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   // 6-digit OTP state
-  const [otpDigits, setOtpDigits] = useState(['7', '4', '1', '9', '0', '2']);
+  const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
   const [otpTimer, setOtpTimer] = useState(28);
   const otpRefs = useRef([]);
 

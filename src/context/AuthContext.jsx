@@ -38,47 +38,45 @@ export function AuthProvider({ children }) {
     return ROLES.POS;
   };
 
-  // Login action (strictly authenticates against real backend API)
+  // Login action (STRICT: Bắt buộc xác thực qua Backend, không fallback)
   const login = async (userData) => {
-    let finalUserData = { ...userData };
+    const inputUsername = (userData.username || '').trim();
+    const inputPassword = (userData.password || '').trim();
 
-    // If username and password provided, authenticate against backend
-    if (userData.username && userData.password) {
-      const authData = await authApi.login({
-        username: userData.username,
-        password: userData.password
-      });
-
-      if (!authData) {
-        throw new Error('Không nhận được thông tin xác thực từ hệ thống.');
-      }
-
-      const frontRole = mapBackendRoleToFrontend(authData.roles);
-      finalUserData = {
-        staffId: authData.employeeCode || `STF-0${authData.id}`,
-        staffName: authData.fullName,
-        role: frontRole,
-        branchName: authData.branchName || userData.branchName || 'Flagship Q.1 (TP.HCM)',
-        token: authData.token
-      };
+    if (!inputUsername) {
+      throw new Error('Vui lòng nhập Mã nhân viên (Staff ID) hoặc Tên đăng nhập!');
+    }
+    if (!inputPassword) {
+      throw new Error('Vui lòng nhập Mật khẩu tài khoản!');
     }
 
-    const role = finalUserData.role || ROLES.POS;
-    const roleDetails = ROLE_INFO[role] || ROLE_INFO[ROLES.POS];
+    // Call real backend authentication API
+    const authData = await authApi.login({
+      username: inputUsername,
+      password: inputPassword
+    });
+
+    if (!authData || !authData.token) {
+      throw new Error('Đăng nhập thất bại: Máy chủ không trả về phiên làm việc hợp lệ.');
+    }
+
+    const frontRole = mapBackendRoleToFrontend(authData.roles);
+    const roleDetails = ROLE_INFO[frontRole] || ROLE_INFO[ROLES.POS];
 
     const enhancedUser = {
-      staffId: finalUserData.staffId || 'NV-OPT-202688',
-      staffName: finalUserData.staffName || 'Nguyễn Bán Hàng',
-      role: role,
+      staffId: authData.employeeCode || inputUsername,
+      staffName: authData.fullName || 'Nhân Sự OptiVision',
+      role: frontRole,
       roleLabel: roleDetails.name,
       roleBadge: roleDetails.badgeText,
-      branchName: finalUserData.branchName || 'Chi nhánh 01 - Flagship Lê Thánh Tôn, Quận 1',
+      branchName: authData.branchName || userData.branchName || 'Chi nhánh 01 - Flagship Lê Thánh Tôn, Quận 1',
       defaultRoute: roleDetails.defaultRoute,
+      token: authData.token,
       loginAt: new Date().toISOString()
     };
 
     setUser(enhancedUser);
-    message.success('Đăng nhập thành công');
+    message.success(`Đăng nhập thành công! Xin chào ${enhancedUser.staffName}`);
 
     return enhancedUser.defaultRoute;
   };
@@ -88,13 +86,13 @@ export function AuthProvider({ children }) {
     authApi.logout();
     setUser(null);
     localStorage.removeItem(STORAGE_KEY);
-    message.success('Đăng xuất thành công');
+    localStorage.removeItem('optivision_jwt_token');
+    message.success('Đã đăng xuất khỏi hệ thống');
   };
 
   // Check if current user has permission for given roles
   const hasRole = (allowedRoles) => {
     if (!user || !user.role) return false;
-    // Admin has access to all operational routes
     if (user.role === ROLES.ADMIN) return true;
     if (!allowedRoles || allowedRoles.length === 0) return true;
     return allowedRoles.includes(user.role);

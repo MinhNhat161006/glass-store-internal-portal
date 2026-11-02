@@ -21,87 +21,28 @@ export default function LabQcPage() {
     message.success(msg);
   };
 
-    const [qcQueue, setQcQueue] = useState([
-    {
-      id: '#LAB-2026-088',
-      tray: 'Tray #08',
-      customer: 'Nguyễn Hoàng Duy',
-      frame: 'Bolon Titanium BL7110 Black',
-      lens: 'Essilor Crizal Rock 1.67 Blue UV',
-      tech: 'Trần Văn Bách',
-      status: 'inspecting',
-      statusLabel: 'Đang đo kiểm',
-      statusClass: 'bg-primary-fixed text-on-primary-fixed',
-      priority: 'Tiêu chuẩn',
-      time: '10:15'
-    },
-    {
-      id: '#LAB-2026-089',
-      tray: 'Tray #14',
-      customer: 'Lê Thúy Kiều',
-      frame: 'Ray-Ban Clubmaster RB5154',
-      lens: 'Essilor Eyezen Boost 1.60 Max',
-      tech: 'Lê Quang Hải',
-      status: 'waiting',
-      statusLabel: 'Chờ kiểm tra',
-      statusClass: 'bg-surface-container text-on-surface',
-      priority: 'Tiêu chuẩn',
-      time: '10:28'
-    },
-    {
-      id: '#LAB-2026-090',
-      tray: 'Tray #03',
-      customer: 'Trịnh Minh Quang',
-      frame: 'Molsion Titanium MS3022',
-      lens: 'Chemi U6 1.74 Aspheric',
-      tech: 'Trần Văn Bách',
-      status: 'waiting',
-      statusLabel: 'Hỏa Tốc Khách Đợi',
-      statusClass: 'bg-error-container text-error',
-      priority: 'Hỏa tốc 2H',
-      time: '10:35'
-    },
-    {
-      id: '#LAB-2026-084',
-      tray: 'Tray #02',
-      customer: 'Phạm Thị Bích Ngọc',
-      frame: 'Charmant Titanium XL1465',
-      lens: 'Zeiss Progressive Superb 1.60',
-      tech: 'Lâm Hoàng Phúc',
-      status: 'passed',
-      statusLabel: 'Đã Đạt QC',
-      statusClass: 'bg-secondary-fixed text-on-secondary-fixed',
-      priority: 'Tiêu chuẩn',
-      time: '10:05'
-    }
-  ]);
+    const [qcQueue, setQcQueue] = useState([]);
 
   useEffect(() => {
-    const fetchQc = async () => {
-      try {
-        const data = await labApi.getAllLabJobs();
-        if (Array.isArray(data) && data.length > 0) {
-          const mapped = data.map((job, idx) => ({
-            id: '#LAB-2026-0' + job.id,
-            tray: 'Tray #0' + ((idx % 9) + 1),
-            customer: (job.prescription && job.prescription.customerName) || 'Nguyễn Hoàng Duy',
-            frame: job.frameName || 'Gọng Kính Bolon Titanium',
-            lens: job.lensName || 'Cặp Tròng Essilor Crizal Rock 1.67',
-            tech: job.technicianName || 'Trần Văn Bách',
-            status: job.status === 'QC_PASSED' ? 'passed' : job.status === 'IN_PROGRESS' ? 'inspecting' : 'waiting',
-            statusLabel: job.status === 'QC_PASSED' ? 'Đã duyệt đạt' : job.status === 'IN_PROGRESS' ? 'Đang đo kiểm' : 'Chờ kiểm tra',
-            statusClass: job.status === 'QC_PASSED' ? 'bg-secondary-fixed text-on-secondary-fixed' : job.status === 'IN_PROGRESS' ? 'bg-primary-fixed text-on-primary-fixed' : 'bg-surface-container text-on-surface',
-            priority: idx === 0 ? 'Hỏa tốc 2H' : 'Tiêu chuẩn',
-            time: 'Hôm nay'
-          }));
-          setQcQueue(mapped);
-          if (mapped.length > 0) setSelectedTray(mapped[0].id);
-        }
-      } catch (err) {
-        console.warn('Lấy hàng đợi Lab QC lỗi:', err.message);
+    labApi.getAllLabJobs().then(data => {
+      if (Array.isArray(data)) {
+        const mapped = data.map((j) => ({
+          id: j.jobNumber || ('#LAB-' + j.id),
+          tray: 'Khay #' + j.id,
+          customer: j.customerName || 'Khách Hàng',
+          frame: j.frameInfo || 'Gọng Kính Đơn Hàng',
+          lens: j.lensInfo || 'Tròng Kính Khúc Xạ',
+          tech: j.technicianName || 'KTV Trần Văn Kỹ Thuật',
+          status: j.status === 'QC_PASSED' ? 'passed' : 'inspecting',
+          statusLabel: j.status === 'QC_PASSED' ? 'Đã đạt QC' : 'Chờ kiểm tra',
+          statusClass: 'bg-primary-fixed text-on-primary-fixed',
+          priority: 'Tiêu chuẩn',
+          time: 'Hôm nay'
+        }));
+        setQcQueue(mapped);
+        if (mapped.length > 0) setSelectedTray(mapped[0].id);
       }
-    };
-    fetchQc();
+    }).catch(e => console.warn('QC live sync:', e));
   }, []);
 
   return (

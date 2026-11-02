@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { prescriptionApi } from '../../api/prescriptionApi';
 import { message } from 'antd';
+import { useAuth } from '../../context/AuthContext';
 
 export default function OptometryPage() {
+  const { user } = useAuth();
   const [odSph, setOdSph] = useState(-3.25);
   const [odCyl, setOdCyl] = useState(-0.75);
   const [odAxis, setOdAxis] = useState(180);
@@ -39,7 +41,7 @@ export default function OptometryPage() {
         customerId: 10,
         customerName: 'Nguyễn Hoàng Duy',
         optometristId: 6,
-        optometristName: 'BS. CKI Vũ Anh Tuấn',
+        optometristName: user?.staffName || 'BS. Lê Thị Ánh Tuyết',
         odSph: odSph,
         odCyl: odCyl,
         odAxis: odAxis,
@@ -106,7 +108,7 @@ export default function OptometryPage() {
               <div className="h-5 w-px bg-surface-dim"></div>
               <div>
                 <span className="block font-label-md text-label-md text-outline uppercase tracking-wider">Bác Sĩ Khúc Xạ</span>
-                <span className="font-label-lg text-on-surface text-xs font-semibold">BS. Vũ Anh Tuấn (HN-882)</span>
+                <span className="font-label-lg text-on-surface text-xs font-semibold">{user?.staffName || 'BS. Lê Thị Ánh Tuyết'}</span>
               </div>
             </div>
           </div>
@@ -596,11 +598,11 @@ export default function OptometryPage() {
                 <div className="flex items-center gap-2.5">
                   <img
                     className="w-10 h-10 rounded-full object-cover shadow-xs shrink-0"
-                    alt="BS. Vũ Anh Tuấn"
+                    alt={user?.staffName || 'BS. Lê Thị Ánh Tuyết'}
                     src="https://lh3.googleusercontent.com/aida-public/AB6AXuC4arHRQz0jAHrGF5AEIOrvev07ZsaN9nl5gswaoU8KROBSQwIDLaZstjAsgTmofKCle-ezX8vliBcoLCxKy7qy6Hp_l9x4qdTDchrd-jygzC1nzBrKlnHHRNqNFu4izbXRz2X7Oju7oYgbqigvK9VFgBe88fkQTsN39cMQ5J-MaP-ys0g816wJrcveIblzuYIMxgZ_C0yCxKwYCLwnZ8CzGHX23EzKKH1I1W5VJsM"
                   />
                   <div>
-                    <span className="font-title-md text-title-md text-on-surface block font-semibold leading-tight">BS. Vũ Anh Tuấn</span>
+                    <span className="font-title-md text-title-md text-on-surface block font-semibold leading-tight">{user?.staffName || 'BS. Lê Thị Ánh Tuyết'}</span>
                     <span className="text-[11px] text-outline block">Bác sĩ Chuyên khoa Khúc xạ Mắt</span>
                     <span className="font-label-mono text-[11px] text-primary">CCHN: #VN-882-HN</span>
                   </div>
@@ -609,7 +611,7 @@ export default function OptometryPage() {
                 <div className="bg-surface-container-lowest rounded-lg p-2 flex items-center justify-between border border-[#d8e3fb]/40">
                   <div>
                     <span className="font-label-md text-outline block text-[10px]">Chữ Ký Số:</span>
-                    <span className="font-label-mono text-primary font-semibold text-xs">VuAnhTuan.MD@optivision.vn</span>
+                    <span className="font-label-mono text-primary font-semibold text-xs">{user?.email || 'bs.tuyet@optivision.vn'}</span>
                     <span className="text-outline text-[10px] block">Đã đóng dấu điện tử • 10:28:44</span>
                   </div>
                   <div className="w-8 h-8 rounded-full bg-secondary-fixed flex items-center justify-center text-primary">
