@@ -316,11 +316,9 @@ export default function OptometryAppointmentsPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="font-title-md text-title-md text-primary block font-semibold leading-tight">
-  {activeExam ? activeExam.customerName : 'Chua c� ca kh�m'}
-</span>
-<span className="font-body-sm text-on-surface-variant text-[11px]">
-  {activeExam ? `V�: ${activeExam.ticketCode}` : 'Ph�ng tr?ng'}
-</span>
+                        {activeExam ? activeExam.customerName : 'Chưa có ca khám'}
+                      </span>
+                      <span className="font-body-sm text-on-surface-variant text-[11px]">{activeExam ? 'Vé: ' + activeExam.ticketCode : 'Phòng trống'}</span>
                     </div>
                     <span className="px-2 py-0.2 rounded-full bg-[#FFEFC4] text-[#78350F] font-label-md text-[10px] font-semibold">
                       {activeExam ? (activeExam.customerTier || 'VIP Silver') : 'Sẵn sàng'}
@@ -424,29 +422,29 @@ export default function OptometryAppointmentsPage() {
                   <span className="font-label-mono text-label-mono text-primary font-bold">Đã chờ: 06 phút</span>
                 </div>
                 <div className="flex items-center justify-between bg-surface-container-lowest p-2 rounded-lg shadow-xs">
-  {nextWaiting ? (
-    <div className="flex items-center gap-2">
-      <div className="w-7 h-7 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold text-xs">
-        #{nextWaiting.ticketCode || '01'}
-      </div>
-      <div>
-        <div className="flex items-center gap-1.5">
-          <span className="font-title-md text-title-md text-on-surface font-semibold">{nextWaiting?.customerName || 'Chưa có'}</span>
-          <span className="px-1.5 py-0.2 rounded-full bg-[#FFEFC4] text-[#78350F] font-label-md text-[10px] font-semibold">
-            {nextWaiting.customerTier || 'Th�nh Vi�n'}
-          </span>
-        </div>
-        <span className="font-body-sm text-outline text-[11px]">{nextWaiting.notes || 'Kh�m kh�c x?'}</span>
-      </div>
-    </div>
-  ) : (
-    <div className="py-2 text-center text-outline text-xs w-full">
-      H�ng d?i ph�ng 02 dang tr?ng � Chua c� b?nh nh�n ti?p theo
-    </div>
-  )}
-</div>
-</div>
-</div>
+                  {nextWaiting ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold text-xs">
+                        #{nextWaiting.ticketCode || '01'}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-title-md text-title-md text-on-surface font-semibold">{nextWaiting?.customerName || 'Chưa có'}</span>
+                          <span className="px-1.5 py-0.2 rounded-full bg-[#FFEFC4] text-[#78350F] font-label-md text-[10px] font-semibold">
+                            {nextWaiting.customerTier || 'Thành Viên'}
+                          </span>
+                        </div>
+                        <span className="font-body-sm text-outline text-[11px]">{nextWaiting.notes || 'Khám khúc xạ'}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-2 text-center text-outline text-xs w-full">
+                      Hàng đợi phòng 02 đang trống • Chưa có bệnh nhân tiếp theo
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
 
             {/* Room 02 Action buttons */}
             <div className="pt-3 flex flex-wrap items-center justify-end gap-2 border-t border-[#e7eeff] mt-2">
@@ -675,4 +673,3 @@ export default function OptometryAppointmentsPage() {
     </div>
   );
 }
-

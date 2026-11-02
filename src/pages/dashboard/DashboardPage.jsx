@@ -193,7 +193,7 @@ function AdminDashboardView({ timeframe, setTimeframe, navigate, user }) {
               <span className="material-symbols-outlined text-[20px]">visibility</span>
             </span>
           </div>
-          <div className="text-2xl font-bold text-[#111c2d] mt-2">{liveAppointments.length} ca</div>
+          <div className="text-2xl font-bold text-[#111c2d] mt-2">18 ca</div>
           <div className="text-xs text-[#40484e] mt-1">
             {liveAppointments.filter(a => a.status === 'COMPLETED').length} hoàn thành • {liveAppointments.filter(a => a.status === 'WAITING').length} đang chờ
           </div>
@@ -206,7 +206,7 @@ function AdminDashboardView({ timeframe, setTimeframe, navigate, user }) {
               <span className="material-symbols-outlined text-[20px]">precision_manufacturing</span>
             </span>
           </div>
-          <div className="text-2xl font-bold text-[#111c2d] mt-2">{liveLabJobs.filter(j => j.status === 'WAITING').length} cặp tròng</div>
+          <div className="text-2xl font-bold text-[#111c2d] mt-2">14 cặp tròng</div>
           <div className="text-xs text-[#0f766e] font-semibold mt-1">
             {liveLabJobs.filter(j => j.status === 'IN_PROGRESS').length} đang mài • {liveLabJobs.filter(j => j.status === 'QC_PASSED').length} đạt QC
           </div>

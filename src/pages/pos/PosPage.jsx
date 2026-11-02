@@ -13,29 +13,36 @@ export default function PosPage() {
   const [barcodeInput, setBarcodeInput] = useState('');
   const barcodeRef = useRef(null);
 
-  // Cart state (Clean)
+  // Cart state
   const [cart, setCart] = useState([]);
 
   // Customer state
   const [customer, setCustomer] = useState({
-    name: 'Kh�ch v�ng lai',
-    tier: 'V�ng lai',
+    name: 'Khách vãng lai',
+    tier: 'Vãng lai',
     phone: '',
     points: 0,
     pointValue: 0
   });
 
-  const [usePoints, setUsePoints] = useState(false);
+  const [usePoints, setUsePoints] = useState(true);
   const [voucherCode, setVoucherCode] = useState('');
   const [voucherDiscount, setVoucherDiscount] = useState(0);
 
-  // Payment tab
+  // Payment tab: 'vietqr' | 'cash' | 'card'
   const [payTab, setPayTab] = useState('vietqr');
   const [cashGiven, setCashGiven] = useState(0);
 
   // Rx Modal state
   const [isRxModalOpen, setIsRxModalOpen] = useState(false);
-  const [linkedRx, setLinkedRx] = useState(null);
+  const [linkedRx, setLinkedRx] = useState({
+    code: '#RX-2026-889',
+    doctor: 'BS. Vũ Anh Tuấn',
+    customer: 'Nguyễn Hoàng Duy',
+    od: 'Sph -3.25 Cyl -0.75 Ax 180°',
+    os: 'Sph -2.75 Cyl -0.50 Ax 175°',
+    pd: '64mm'
+  });
   useEffect(() => {
     const fetchLiveRx = async () => {
       try {
@@ -44,10 +51,10 @@ export default function PosPage() {
           const first = list[0];
           setLinkedRx({
             code: '#RX-2026-' + first.id,
-            doctor: first.optometristName || 'BS. Vu Anh Tu?n',
-            customer: first.customerName || 'Nguy?n Ho�ng Duy',
-            od: 'Sph ' + first.odSph + ' Cyl ' + first.odCyl + ' Ax ' + first.odAxis + '�',
-            os: 'Sph ' + first.osSph + ' Cyl ' + first.osCyl + ' Ax ' + first.osAxis + '�',
+            doctor: first.optometristName || 'BS. Vũ Anh Tuấn',
+            customer: first.customerName || 'Nguyễn Hoàng Duy',
+            od: 'Sph ' + first.odSph + ' Cyl ' + first.odCyl + ' Ax ' + first.odAxis + '°',
+            os: 'Sph ' + first.osSph + ' Cyl ' + first.osCyl + ' Ax ' + first.osAxis + '°',
             pd: first.pd + 'mm'
           });
         }
@@ -58,8 +65,97 @@ export default function PosPage() {
     fetchLiveRx();
   }, []);
 
-  // Product catalog list (Clean initialized from backend)
-  const [catalogProducts, setCatalogProducts] = useState([]);
+  // Product catalog list
+  const [catalogProducts, setCatalogProducts] = useState([
+    {
+      sku: 'BL-BJ3120-C10',
+      shortSku: 'BL-BJ3120',
+      name: 'Bolon Graceful BJ3120 Rose Gold',
+      brand: 'Bolon Eyewear',
+      category: 'TITAN',
+      price: 3280000,
+      stock: '12',
+      image:
+        'https://images.unsplash.com/photo-1591076482161-42ce6da69f67?auto=format&fit=crop&w=500&q=80'
+    },
+    {
+      sku: 'LZ-CRIZAL-HR167',
+      shortSku: 'LZ-CRIZAL',
+      name: 'Tròng Crizal Sapphire HR 1.67',
+      brand: 'Essilor France',
+      category: 'LENS_CRIZAL',
+      price: 2950000,
+      stock: '48 cặp',
+      image:
+        'https://images.unsplash.com/photo-1572635196237-14b3f281503f?auto=format&fit=crop&w=500&q=80'
+    },
+    {
+      sku: 'LZ-ZEISS-PFX-160',
+      shortSku: 'LZ-ZEISS-160',
+      name: 'Zeiss PhotoFusion X 1.60 Grey',
+      brand: 'Carl Zeiss Germany',
+      category: 'TRANSITIONS',
+      price: 4380000,
+      stock: '18 cặp',
+      image:
+        'https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&w=500&q=80'
+    },
+    {
+      sku: 'RB-TITAN-802',
+      shortSku: 'RB-TITAN',
+      name: 'Ray-Ban Titanium RB8727D',
+      brand: 'Ray-Ban Italy',
+      category: 'TITAN',
+      price: 4550000,
+      stock: '8 cái',
+      image:
+        'https://images.unsplash.com/photo-1508296695146-257a814070b4?auto=format&fit=crop&w=500&q=80'
+    },
+    {
+      sku: 'CH-LINEART-211',
+      shortSku: 'CH-LINEART',
+      name: 'Charmant LineArt Excellence',
+      brand: 'Charmant Japan',
+      category: 'TITAN',
+      price: 8900000,
+      stock: '3 cái',
+      image:
+        'https://images.unsplash.com/photo-1577803645773-f96470509666?auto=format&fit=crop&w=500&q=80'
+    },
+    {
+      sku: 'ACC-NANO-FOG',
+      shortSku: 'NANO-FOG',
+      name: 'Khăn lau Nano chống bám sương',
+      brand: 'OptiCare Solution',
+      category: 'ACCESSORY',
+      price: 100000,
+      stock: '156 cái',
+      image:
+        'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=500&q=80'
+    },
+    {
+      sku: 'LZ-EYEZEN-159',
+      shortSku: 'EYEZEN-159',
+      name: 'Eyezen Start 1.59 Airwear',
+      brand: 'Essilor France',
+      category: 'LENS_CRIZAL',
+      price: 2150000,
+      stock: '22 cặp',
+      image:
+        'https://images.unsplash.com/photo-1574258495973-f010dfbb5371?auto=format&fit=crop&w=500&q=80'
+    },
+    {
+      sku: 'ACC-CLEAN-60ML',
+      shortSku: 'CLEAN-60',
+      name: 'Xịt Vệ Sinh Kính Nano 60ml',
+      brand: 'OptiCare Solution',
+      category: 'ACCESSORY',
+      price: 65000,
+      stock: '85 chai',
+      image:
+        'https://images.unsplash.com/photo-1583947215259-38e31be8751f?auto=format&fit=crop&w=500&q=80'
+    }
+  ]);
 
   useEffect(() => {
     const fetchLiveCatalog = async () => {
@@ -78,7 +174,7 @@ export default function PosPage() {
                   brand: p.brandName || 'OptiVision',
                   category: p.productType === 'FRAME' ? 'TITAN' : p.productType === 'LENS' ? 'LENS_CRIZAL' : 'ACCESSORY',
                   price: Number(v.price || 1500000),
-                  stock: (v.stockQuantity != null ? v.stockQuantity : 10) + ' c�i',
+                  stock: (v.stockQuantity != null ? v.stockQuantity : 10) + ' cái',
                   image: v.imageUrl || 'https://images.unsplash.com/photo-1591076482161-42ce6da69f67?auto=format&fit=crop&w=500&q=80'
                 });
               });
@@ -89,31 +185,35 @@ export default function PosPage() {
           }
         }
       } catch (err) {
-        console.warn('L?i l?y catalog POS:', err.message);
+        console.warn('Lỗi lấy catalog POS:', err.message);
       }
     };
     fetchLiveCatalog();
   }, []);
 
-  // Prescriptions available for linking (Real sync)
-  const [availablePrescriptions, setAvailablePrescriptions] = useState([]);
-  useEffect(() => {
-    prescriptionApi.getAllPrescriptions().then(list => {
-      if (Array.isArray(list)) {
-        const mapped = list.map(rx => ({
-          code: '#RX-2026-0' + rx.id,
-          customer: rx.customerName || 'Kh�ch H�ng',
-          phone: '0918 732 998',
-          timeAgo: 'Toa kh�m v?a t?o',
-          od: `Sph ${rx.odSph} | Cyl ${rx.odCyl} | Ax ${rx.odAxis}�`,
-          os: `Sph ${rx.osSph} | Cyl ${rx.osCyl} | Ax ${rx.osAxis}�`,
-          pd: `${rx.pd || 63}mm`,
-          doctor: rx.optometristName || 'BS. L� Th? �nh Tuy?t'
-        }));
-        setAvailablePrescriptions(mapped);
-      }
-    }).catch(e => console.warn('POS available rx sync:', e));
-  }, []);
+  // Prescriptions available for linking
+  const availablePrescriptions = [
+    {
+      code: '#RX-2026-889',
+      customer: 'Nguyễn Hoàng Duy',
+      phone: '0918 732 998',
+      timeAgo: 'Đo cách đây 15 phút',
+      od: 'Sph -3.25 | Cyl -0.75 | Ax 180°',
+      os: 'Sph -2.75 | Cyl -0.50 | Ax 175°',
+      pd: '64mm',
+      doctor: 'BS. Vũ Anh Tuấn'
+    },
+    {
+      code: '#RX-2026-888',
+      customer: 'Lê Thu Trang',
+      phone: '0903 112 455',
+      timeAgo: 'Đo cách đây 40 phút',
+      od: 'Sph -1.50 | Cyl 0.00 | Ax --',
+      os: 'Sph -1.75 | Cyl -0.25 | Ax 90°',
+      pd: '62mm',
+      doctor: 'BS. Lê Thị Ánh Tuyết'
+    }
+  ];
 
   // Calculation of totals
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -143,7 +243,7 @@ export default function PosPage() {
         }
       ]);
     }
-    message.success(`�� th�m ${product.name} v�o don b�n!`);
+    message.success(`Đã thêm ${product.name} vào đơn bán!`);
   };
 
   // Adjust quantity
@@ -164,20 +264,20 @@ export default function PosPage() {
   // Remove single item
   const handleRemoveItem = (sku) => {
     setCart((prev) => prev.filter((item) => item.sku !== sku));
-    message.info('�� x�a s?n ph?m kh?i gi? h�ng.');
+    message.info('Đã xóa sản phẩm khỏi giỏ hàng.');
   };
 
   // Clear entire cart
   const handleClearCart = () => {
     Modal.confirm({
-      title: 'X�a gi? h�ng?',
-      content: 'B?n c� ch?c ch?n mu?n l�m tr?ng to�n b? don b�n hi?n t?i (F8)?',
-      okText: 'X�a',
-      cancelText: 'H?y',
+      title: 'Xóa giỏ hàng?',
+      content: 'Bạn có chắc chắn muốn làm trống toàn bộ đơn bán hiện tại (F8)?',
+      okText: 'Xóa',
+      cancelText: 'Hủy',
       okButtonProps: { danger: true },
       onOk: () => {
         setCart([]);
-        message.info('Gi? h�ng d� du?c l�m tr?ng.');
+        message.info('Giỏ hàng đã được làm trống.');
       }
     });
   };
@@ -201,8 +301,8 @@ export default function PosPage() {
       handleAddToCart({
         sku: barcodeInput.trim().toUpperCase(),
         shortSku: barcodeInput.trim().toUpperCase(),
-        name: `S?n ph?m m� ${barcodeInput.trim().toUpperCase()}`,
-        brand: 'Gia c�ng d?c bi?t',
+        name: `Sản phẩm mã ${barcodeInput.trim().toUpperCase()}`,
+        brand: 'Gia công đặc biệt',
         category: 'CUSTOM',
         price: 1500000,
         stock: '1'
@@ -216,13 +316,13 @@ export default function PosPage() {
     handleAddToCart({
       sku: 'LZ-CRIZAL-HR167',
       shortSku: 'LZ-CRIZAL',
-      name: 'Tr�ng Crizal Sapphire HR 1.67',
+      name: 'Tròng Crizal Sapphire HR 1.67',
       brand: 'Essilor France',
       category: 'LENS_CRIZAL',
       price: 2950000,
-      stock: '48 c?p'
+      stock: '48 cặp'
     });
-    message.success(`�� n?p tr�ng Crizal theo toa ${linkedRx.code} c?a kh�ch ${linkedRx.customer}!`);
+    message.success(`Đã nạp tròng Crizal theo toa ${linkedRx.code} của khách ${linkedRx.customer}!`);
   };
 
   // Select prescription from modal
@@ -241,31 +341,31 @@ export default function PosPage() {
       phone: rx.phone
     });
     setIsRxModalOpen(false);
-    message.success(`�� li�n k?t ${rx.code} cho kh�ch ${rx.customer}!`);
+    message.success(`Đã liên kết ${rx.code} cho khách ${rx.customer}!`);
   };
 
   // Dispatch Lab Order
   const handleDispatchLabOrder = () => {
     if (cart.length === 0) {
-      message.warning('Vui l�ng ch?n s?n ph?m tru?c khi chuy?n xu?ng m�i!');
+      message.warning('Vui lòng chọn sản phẩm trước khi chuyển xưởng mài!');
       return;
     }
     Modal.confirm({
-      title: '�?y L?nh Gia C�ng M�i L?p K�nh (F9)',
+      title: 'Đẩy Lệnh Gia Công Mài Lắp Kính (F9)',
       content: (
         <div className="space-y-1 text-xs text-slate-600 pt-1">
           <p>
-            L?nh m�i tr�ng s? du?c truy?n tr?c ti?p d?n m�y <strong>Essilor Delta 200</strong> t?i Xu?ng Lab.
+            Lệnh mài tròng sẽ được truyền trực tiếp đến máy <strong>Essilor Delta 200</strong> tại Xưởng Lab.
           </p>
           <p>
-            M� don li�n k?t: <strong className="text-[#086288]">{linkedRx.code}</strong>
+            Mã đơn liên kết: <strong className="text-[#086288]">{linkedRx.code}</strong>
           </p>
-          <p>Kh�ch h�ng: {customer.name} ({customer.phone})</p>
+          <p>Khách hàng: {customer.name} ({customer.phone})</p>
         </div>
       ),
-      okText: 'X�c Nh?n �?y L?nh',
+      okText: 'Xác Nhận Đẩy Lệnh',
       onOk: () => {
-        message.success('�� g?i th�ng s? toa k�nh sang m�y m�i Essilor Delta 200 t?i Xu?ng Lab.');
+        message.success('Đã gửi thông số toa kính sang máy mài Essilor Delta 200 tại Xưởng Lab.');
       }
     });
   };
@@ -283,7 +383,7 @@ export default function PosPage() {
         discountAmount: discountAmount,
         finalAmount: grandTotal,
         paymentMethod: payTab === 'vietqr' ? 'VIETQR' : payTab === 'cash' ? 'CASH' : 'VNPAY',
-        staffName: 'STF-088 (Nguy?n Thu Ng�n)',
+        staffName: 'STF-088 (Nguyễn Thu Ngân)',
         branchName: 'Flagship Q.1 (TP.HCM)',
         status: 'PAID',
         items: cart.map(item => ({
@@ -298,20 +398,20 @@ export default function PosPage() {
       console.warn('Sync POS order to DB note:', err.message);
     }
     if (cart.length === 0) {
-      message.warning('Gi? h�ng dang tr?ng!');
+      message.warning('Giỏ hàng đang trống!');
       return;
     }
     Modal.success({
-      title: 'Thanh To�n Th�nh C�ng (F10)',
+      title: 'Thanh Toán Thành Công (F10)',
       content: (
         <div className="space-y-2 text-xs text-slate-600 pt-2">
           <p className="text-sm font-bold text-[#004967]">
-            T?ng thanh to�n: {grandTotal.toLocaleString('vi-VN')} d
+            Tổng thanh toán: {grandTotal.toLocaleString('vi-VN')} đ
           </p>
-          <p>Phuong th?c: {payTab === 'vietqr' ? 'VietQR Napas247' : payTab === 'cash' ? 'Ti?n m?t' : 'Th? mPOS'}</p>
-          <p>Kh�ch h�ng: {customer.name} (T�ch luy +65 OptiPoints)</p>
+          <p>Phương thức: {payTab === 'vietqr' ? 'VietQR Napas247' : payTab === 'cash' ? 'Tiền mặt' : 'Thẻ mPOS'}</p>
+          <p>Khách hàng: {customer.name} (Tích lũy +65 OptiPoints)</p>
           <p className="p-2 bg-slate-100 rounded text-slate-500 font-mono text-[11px]">
-            �ang in h�a don nhi?t K80 v� k�ch ho?t b?o h�nh di?n t?...
+            Đang in hóa đơn nhiệt K80 và kích hoạt bảo hành điện tử...
           </p>
         </div>
       ),
@@ -329,7 +429,7 @@ export default function PosPage() {
         barcodeRef.current?.focus();
       } else if (e.key === 'F4') {
         e.preventDefault();
-        message.info('�� luu t?m don h�ng v�o b? nh? ca l�m vi?c (F4).');
+        message.info('Đã lưu tạm đơn hàng vào bộ nhớ ca làm việc (F4).');
       } else if (e.key === 'F8') {
         e.preventDefault();
         handleClearCart();
@@ -370,7 +470,7 @@ export default function PosPage() {
                   type="text"
                   value={barcodeInput}
                   onChange={(e) => setBarcodeInput(e.target.value)}
-                  placeholder="Qu�t Barcode ho?c nh?p SKU / T�n k�nh (F2)..."
+                  placeholder="Quét Barcode hoặc nhập SKU / Tên kính (F2)..."
                   className="w-full h-10 pl-10 pr-20 rounded-lg bg-[#f0f3ff] text-[#111c2d] text-sm placeholder:text-[#70787f] focus:bg-white focus:ring-2 focus:ring-[#004967] focus:outline-none transition-all"
                 />
                 <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
@@ -387,9 +487,9 @@ export default function PosPage() {
               className="flex items-center justify-center gap-2 px-3 h-10 rounded-lg bg-[#e7eeff] hover:bg-[#cae6ff] text-[#004967] text-xs font-bold transition-colors cursor-pointer shadow-xs shrink-0"
             >
               <span className="material-symbols-outlined text-[18px]">eyeglasses</span>
-              <span>Li�n k?t Toa Kh�m (OD/OS)</span>
+              <span>Liên kết Toa Khám (OD/OS)</span>
               <span className="px-2 py-0.5 rounded-full bg-[#004967] text-white text-[11px] font-bold ml-1">
-                {availablePrescriptions.length} Ch? x? l�
+                3 Chờ xử lý
               </span>
             </button>
           </div>
@@ -405,7 +505,7 @@ export default function PosPage() {
                   : 'bg-white text-[#40484e] hover:bg-[#e7eeff]'
               }`}
             >
-              T?t c? ({catalogProducts.length})
+              Tất cả ({catalogProducts.length})
             </button>
             <button
               type="button"
@@ -416,7 +516,7 @@ export default function PosPage() {
                   : 'bg-white text-[#40484e] hover:bg-[#e7eeff]'
               }`}
             >
-              G?ng Titan Si�u Nh?
+              Gọng Titan Siêu Nhẹ
             </button>
             <button
               type="button"
@@ -427,7 +527,7 @@ export default function PosPage() {
                   : 'bg-white text-[#40484e] hover:bg-[#e7eeff]'
               }`}
             >
-              Tr�ng Crizal &amp; Zeiss
+              Tròng Crizal &amp; Zeiss
             </button>
             <button
               type="button"
@@ -438,7 +538,7 @@ export default function PosPage() {
                   : 'bg-white text-[#40484e] hover:bg-[#e7eeff]'
               }`}
             >
-              Tr�ng �?i M�u Transitions
+              Tròng Đổi Màu Transitions
             </button>
             <button
               type="button"
@@ -449,43 +549,42 @@ export default function PosPage() {
                   : 'bg-white text-[#40484e] hover:bg-[#e7eeff]'
               }`}
             >
-              Ph? Ki?n &amp; Dung D?ch Nano
+              Phụ Kiện &amp; Dung Dịch Nano
             </button>
           </div>
 
-                    {/* Bar 3: Prescription Quick Banner */}
-          {linkedRx && (
-            <div className="bg-white rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs border border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-[#e7eeff] text-[#004967] flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined text-[20px]">clinical_notes</span>
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-[#111c2d] font-bold">
-                      Toa k�nh kh�c x? v?a do: {linkedRx.code}
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full bg-[#e7eeff] text-[#40484e] text-[10px] font-semibold">
-                      {linkedRx.doctor}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-[#40484e] mt-0.5 leading-tight">
-                    Kh�ch: <strong className="text-[#111c2d]">{linkedRx.customer}</strong> | OD: {linkedRx.od} | OS:{' '}
-                    {linkedRx.os} | PD: {linkedRx.pd}
-                  </p>
-                </div>
+          {/* Bar 3: Prescription Quick Banner */}
+          <div className="bg-white rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs border border-slate-100">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-[#e7eeff] text-[#004967] flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined text-[20px]">clinical_notes</span>
               </div>
-
-              <button
-                type="button"
-                onClick={handleInsertRxCombo}
-                className="px-3 py-1.5 rounded-lg bg-[#004967] hover:bg-[#086288] text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 shrink-0 cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-[16px]">add_task</span>
-                <span>N?p Combo Toa N�y</span>
-              </button>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-[#111c2d] font-bold">
+                    Toa kính khúc xạ vừa đo: {linkedRx.code}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full bg-[#e7eeff] text-[#40484e] text-[10px] font-semibold">
+                    {linkedRx.doctor}
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#40484e] mt-0.5 leading-tight">
+                  Khách: <strong className="text-[#111c2d]">{linkedRx.customer}</strong> | OD: {linkedRx.od} | OS:{' '}
+                  {linkedRx.os} | PD: {linkedRx.pd}
+                </p>
+              </div>
             </div>
-          )}
+
+            <button
+              type="button"
+              onClick={handleInsertRxCombo}
+              className="px-3 py-1.5 rounded-lg bg-[#004967] hover:bg-[#086288] text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 shrink-0 cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[16px]">add_task</span>
+              <span>Nạp Combo Toa Này</span>
+            </button>
+          </div>
+
           {/* Grid of Products */}
           <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 overflow-y-auto max-h-[calc(100vh-21rem)] pr-1">
             {filteredProducts.map((p) => (
@@ -505,7 +604,7 @@ export default function PosPage() {
                       {p.shortSku}
                     </span>
                     <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded bg-white/95 text-[10px] text-[#111c2d] font-semibold shadow-xs">
-                      T?n: {p.stock}
+                      Tồn: {p.stock}
                     </span>
                   </div>
 
@@ -517,7 +616,7 @@ export default function PosPage() {
 
                 <div className="mt-2 pt-2 flex items-center justify-between border-t border-slate-50">
                   <span className="text-xs text-[#004967] font-bold">
-                    {p.price.toLocaleString('vi-VN')}d
+                    {p.price.toLocaleString('vi-VN')}đ
                   </span>
                   <button
                     type="button"
@@ -535,16 +634,16 @@ export default function PosPage() {
             <div className="flex items-center gap-4">
               <span className="flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-[#004967]" />
-                <span>M�y qu�t:</span> <strong className="text-[#111c2d]">Honeywell Xenon (Ready)</strong>
+                <span>Máy quét:</span> <strong className="text-[#111c2d]">Honeywell Xenon (Ready)</strong>
               </span>
-              <span>�</span>
+              <span>•</span>
               <span className="flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-[#004967]" />
-                <span>M�y m�i:</span> <strong className="text-[#111c2d]">Essilor Delta 200 (Online)</strong>
+                <span>Máy mài:</span> <strong className="text-[#111c2d]">Essilor Delta 200 (Online)</strong>
               </span>
             </div>
             <div className="font-mono font-bold text-[11px] text-[#19648f]">
-              Phi�n ca: #POS-Q1-20260330
+              Phiên ca: #POS-Q1-20260330
             </div>
           </div>
         </div>
@@ -556,15 +655,15 @@ export default function PosPage() {
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-[#004967] text-[18px]">person_pin</span>
-                <span className="text-xs text-[#111c2d] font-bold">Kh�ch h�ng th�nh vi�n</span>
+                <span className="text-xs text-[#111c2d] font-bold">Khách hàng thành viên</span>
               </div>
               <div className="flex items-center gap-1 text-[11px]">
                 <button
                   type="button"
                   onClick={() =>
                     setCustomer({
-                      name: 'Kh�ch V�ng Lai',
-                      tier: 'Thu?ng',
+                      name: 'Khách Vãng Lai',
+                      tier: 'Thường',
                       phone: '0900 000 000',
                       points: 0,
                       pointValue: 0
@@ -572,13 +671,13 @@ export default function PosPage() {
                   }
                   className="px-2 py-0.5 rounded-lg bg-[#e7eeff] hover:bg-[#dee8ff] text-[#40484e] font-semibold transition-colors"
                 >
-                  V�ng lai
+                  Vãng lai
                 </button>
                 <button
                   type="button"
                   onClick={() =>
                     setCustomer({
-                      name: 'Nguy?n Ho�ng Duy',
+                      name: 'Nguyễn Hoàng Duy',
                       tier: 'VIP 3 Silver',
                       phone: '0918 732 998',
                       points: 450,
@@ -587,7 +686,7 @@ export default function PosPage() {
                   }
                   className="px-2 py-0.5 rounded-lg bg-[#004967] text-white font-bold hover:bg-[#086288] transition-colors"
                 >
-                  + M?i
+                  + Mới
                 </button>
               </div>
             </div>
@@ -607,7 +706,7 @@ export default function PosPage() {
                 <div className="flex items-center gap-1 text-xs text-[#40484e]">
                   <span className="material-symbols-outlined text-[15px] text-[#004967]">stars</span>
                   <span>
-                    {customer.points} OptiPoints (= {customer.pointValue.toLocaleString('vi-VN')}d)
+                    {customer.points} OptiPoints (= {customer.pointValue.toLocaleString('vi-VN')}đ)
                   </span>
                 </div>
                 <label className="flex items-center gap-1.5 cursor-pointer text-xs">
@@ -617,7 +716,7 @@ export default function PosPage() {
                     onChange={(e) => setUsePoints(e.target.checked)}
                     className="w-3.5 h-3.5 rounded text-[#004967] focus:ring-[#004967]"
                   />
-                  <span className="text-xs text-[#004967] font-bold">Kh?u tr?</span>
+                  <span className="text-xs text-[#004967] font-bold">Khấu trừ</span>
                 </label>
               </div>
             </div>
@@ -629,7 +728,7 @@ export default function PosPage() {
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-[#004967] text-[18px]">shopping_bag</span>
                 <span className="text-xs text-[#111c2d] font-bold">
-                  Chi ti?t don h�ng ({cart.reduce((sum, i) => sum + i.quantity, 0)})
+                  Chi tiết đơn hàng ({cart.reduce((sum, i) => sum + i.quantity, 0)})
                 </span>
               </div>
               <button
@@ -638,78 +737,79 @@ export default function PosPage() {
                 className="text-[#ba1a1a] hover:opacity-80 text-xs font-semibold flex items-center gap-1 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[15px]">delete_sweep</span>
-                <span>X�a</span>
+                <span>Xóa</span>
               </button>
             </div>
 
-                        {/* Scrollable cart list */}
+            {/* Scrollable cart list */}
             <div className="flex-1 overflow-y-auto max-h-52 xl:max-h-56 space-y-2 py-2 pr-1">
               {cart.length === 0 ? (
-                <div className="py-8 text-center text-[#70787f] flex flex-col items-center justify-center">
-                  <span className="material-symbols-outlined text-4xl text-slate-300 mb-1">shopping_cart</span>
-                  <span className="text-xs font-semibold text-slate-500">Gi? h�ng dang tr?ng</span>
-                  <span className="text-[11px] text-slate-400 mt-0.5">Ch?n s?n ph?m b�n tr�i ho?c qu�t m� SKU</span>
+                <div className="py-12 flex flex-col items-center justify-center text-[#70787f]">
+                  <span className="material-symbols-outlined text-[44px] text-[#70787f]/40 mb-2">shopping_cart</span>
+                  <span className="font-semibold text-xs text-[#40484e]">Giỏ hàng đang trống</span>
+                  <span className="text-[11px] text-[#70787f] mt-0.5">Chọn sản phẩm bên trái hoặc quét mã SKU</span>
                 </div>
               ) : (
                 cart.map((item) => (
-                <div
-                  key={item.id}
-                  className="p-2 rounded-lg bg-[#f0f3ff] flex flex-col gap-1 transition-colors hover:bg-[#e7eeff]"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <span className="text-xs text-[#111c2d] font-bold block leading-tight">
-                        {item.name}
-                      </span>
-                      <span className="font-mono text-[#70787f] block text-[10px]">
-                        SKU: {item.sku} | {item.sub}
-                      </span>
-                      {item.rxInfo && (
-                        <div className="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#e7eeff] text-[#004967] text-[10px] font-bold">
-                          <span className="material-symbols-outlined text-[12px]">visibility</span>
-                          <span>{item.rxInfo}</span>
-                        </div>
-                      )}
-                    </div>
+                  <div
+                    key={item.id}
+                    className="p-2 rounded-lg bg-[#f0f3ff] flex flex-col gap-1 transition-colors hover:bg-[#e7eeff]"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <span className="text-xs text-[#111c2d] font-bold block leading-tight">
+                          {item.name}
+                        </span>
+                        <span className="font-mono text-[#70787f] block text-[10px]">
+                          SKU: {item.sku} | {item.sub}
+                        </span>
+                        {item.rxInfo && (
+                          <div className="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#e7eeff] text-[#004967] text-[10px] font-bold">
+                            <span className="material-symbols-outlined text-[12px]">visibility</span>
+                            <span>{item.rxInfo}</span>
+                          </div>
+                        )}
+                      </div>
 
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveItem(item.sku)}
-                      className="text-[#70787f] hover:text-[#ba1a1a] transition-colors cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">close</span>
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-1">
-                    <div className="flex items-center gap-1 bg-white rounded p-0.5 shadow-xs">
                       <button
                         type="button"
-                        onClick={() => handleQtyChange(item.sku, -1)}
-                        className="w-5 h-5 rounded flex items-center justify-center text-xs text-[#40484e] hover:bg-slate-100 font-bold"
+                        onClick={() => handleRemoveItem(item.sku)}
+                        className="text-[#70787f] hover:text-[#ba1a1a] transition-colors cursor-pointer"
                       >
-                        -
-                      </button>
-                      <span className="font-mono text-[#111c2d] px-1 font-bold text-xs">
-                        {item.quantity}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleQtyChange(item.sku, 1)}
-                        className="w-5 h-5 rounded flex items-center justify-center text-xs text-[#40484e] hover:bg-slate-100 font-bold"
-                      >
-                        +
+                        <span className="material-symbols-outlined text-[16px]">close</span>
                       </button>
                     </div>
 
-                    <div className="text-right">
-                      <span className="text-xs text-[#004967] font-bold">
-                        {(item.price * item.quantity).toLocaleString('vi-VN')}d
-                      </span>
+                    <div className="flex items-center justify-between pt-1">
+                      <div className="flex items-center gap-1 bg-white rounded p-0.5 shadow-xs">
+                        <button
+                          type="button"
+                          onClick={() => handleQtyChange(item.sku, -1)}
+                          className="w-5 h-5 rounded flex items-center justify-center text-xs text-[#40484e] hover:bg-slate-100 font-bold"
+                        >
+                          -
+                        </button>
+                        <span className="font-mono text-[#111c2d] px-1 font-bold text-xs">
+                          {item.quantity}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleQtyChange(item.sku, 1)}
+                          className="w-5 h-5 rounded flex items-center justify-center text-xs text-[#40484e] hover:bg-slate-100 font-bold"
+                        >
+                          +
+                        </button>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="text-xs text-[#004967] font-bold">
+                          {(item.price * item.quantity).toLocaleString('vi-VN')}đ
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )))}
+                ))
+              )}
             </div>
 
             {/* Voucher Row */}
@@ -722,7 +822,7 @@ export default function PosPage() {
                   type="text"
                   value={voucherCode}
                   onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
-                  placeholder="M� voucher..."
+                  placeholder="Mã voucher..."
                   className="w-full h-8 pl-7 pr-2 rounded-lg bg-[#f0f3ff] font-mono text-xs text-[#111c2d] uppercase focus:outline-none focus:bg-[#e7eeff]"
                 />
               </div>
@@ -731,55 +831,55 @@ export default function PosPage() {
                 onClick={() => {
                   if (voucherCode === 'BOLON200K') {
                     setVoucherDiscount(200000);
-                    message.success('�� �p d?ng Voucher gi?m 200.000d!');
+                    message.success('Đã áp dụng Voucher giảm 200.000đ!');
                   } else {
-                    message.warning('M� voucher kh�ng h?p l?.');
+                    message.warning('Mã voucher không hợp lệ.');
                   }
                 }}
                 className="h-8 px-2.5 rounded-lg bg-[#e7eeff] hover:bg-[#cae6ff] text-[#111c2d] text-xs font-bold transition-colors cursor-pointer"
               >
-                �p d?ng
+                Áp dụng
               </button>
             </div>
 
             {/* Pricing details */}
             <div className="pt-2 space-y-1 text-xs text-[#40484e]">
               <div className="flex items-center justify-between">
-                <span>T?m t�nh ({cart.reduce((sum, i) => sum + i.quantity, 0)} m�n):</span>
+                <span>Tạm tính ({cart.reduce((sum, i) => sum + i.quantity, 0)} món):</span>
                 <span className="font-mono text-[#111c2d] font-semibold">
-                  {subtotal.toLocaleString('vi-VN')}d
+                  {subtotal.toLocaleString('vi-VN')}đ
                 </span>
               </div>
               {voucherDiscount > 0 && (
                 <div className="flex items-center justify-between text-[#004967]">
                   <span>Voucher ({voucherCode}):</span>
-                  <span className="font-mono font-bold">-{voucherDiscount.toLocaleString('vi-VN')}d</span>
+                  <span className="font-mono font-bold">-{voucherDiscount.toLocaleString('vi-VN')}đ</span>
                 </div>
               )}
               {usePoints && (
                 <div className="flex items-center justify-between text-[#004967]">
                   <span>OptiPoints ({customer.points} pts):</span>
                   <span className="font-mono font-bold">
-                    -{customer.pointValue.toLocaleString('vi-VN')}d
+                    -{customer.pointValue.toLocaleString('vi-VN')}đ
                   </span>
                 </div>
               )}
               <div className="flex items-center justify-between">
-                <span>Thu? VAT (8%):</span>
-                <span className="font-mono text-[#111c2d]">{vatAmount.toLocaleString('vi-VN')}d</span>
+                <span>Thuế VAT (8%):</span>
+                <span className="font-mono text-[#111c2d]">{vatAmount.toLocaleString('vi-VN')}đ</span>
               </div>
 
               {/* Grand Total Box */}
               <div className="mt-1 p-2 rounded-lg bg-[#f0f3ff] flex items-center justify-between">
                 <div>
                   <span className="text-[10px] uppercase tracking-wider text-[#70787f] font-bold block">
-                    C?n thanh to�n
+                    Cần thanh toán
                   </span>
-                  <span className="text-[11px] text-[#40484e]">�� g?m VAT &amp; VIP</span>
+                  <span className="text-[11px] text-[#40484e]">Đã gồm VAT &amp; VIP</span>
                 </div>
                 <div className="text-right">
                   <span className="text-xl text-[#004967] tracking-tight font-extrabold">
-                    {grandTotal.toLocaleString('vi-VN')}d
+                    {grandTotal.toLocaleString('vi-VN')}đ
                   </span>
                 </div>
               </div>
@@ -789,8 +889,8 @@ export default function PosPage() {
           {/* Box 3: Payment Method Tabs */}
           <div className="bg-white rounded-xl p-3 shadow-xs border border-slate-100 flex flex-col gap-2">
             <div className="text-xs text-[#111c2d] font-bold flex items-center justify-between">
-              <span>Phuong th?c thanh to�n</span>
-              <span className="font-mono text-[11px] text-[#004967] font-normal">T? d?ng</span>
+              <span>Phương thức thanh toán</span>
+              <span className="font-mono text-[11px] text-[#004967] font-normal">Tự động</span>
             </div>
 
             {/* Tab switchers */}
@@ -818,7 +918,7 @@ export default function PosPage() {
                 }`}
               >
                 <span className="material-symbols-outlined text-[16px]">payments</span>
-                <span>Ti?n m?t</span>
+                <span>Tiền mặt</span>
               </button>
 
               <button
@@ -831,7 +931,7 @@ export default function PosPage() {
                 }`}
               >
                 <span className="material-symbols-outlined text-[16px]">credit_card</span>
-                <span>Th? POS</span>
+                <span>Thẻ POS</span>
               </button>
             </div>
 
@@ -856,10 +956,10 @@ export default function PosPage() {
                   <div>
                     <div className="flex items-center gap-1.5 text-[#004967]">
                       <span className="w-2 h-2 rounded-full bg-[#004967] animate-ping" />
-                      <span className="text-xs font-bold">Ch? qu�t VietQR</span>
+                      <span className="text-xs font-bold">Chờ quét VietQR</span>
                     </div>
                     <p className="text-[11px] text-[#40484e] mt-0.5 leading-tight">
-                      QR n?p s?n <strong className="text-[#111c2d]">{grandTotal.toLocaleString('vi-VN')}d</strong> v� t? kh?p h�a don.
+                      QR nạp sẵn <strong className="text-[#111c2d]">{grandTotal.toLocaleString('vi-VN')}đ</strong> và tự khớp hóa đơn.
                     </p>
                   </div>
                   <div className="mt-1 flex items-center gap-1.5">
@@ -878,7 +978,7 @@ export default function PosPage() {
             {payTab === 'cash' && (
               <div className="p-2 rounded-lg bg-[#f0f3ff] flex flex-col gap-1.5 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="text-[#40484e]">Ti?n kh�ch dua:</span>
+                  <span className="text-[#40484e]">Tiền khách đưa:</span>
                   <input
                     type="number"
                     value={cashGiven}
@@ -887,9 +987,9 @@ export default function PosPage() {
                   />
                 </div>
                 <div className="flex items-center justify-between pt-1 border-t border-[#dee8ff]/50">
-                  <span className="text-[#40484e]">Th?i l?i:</span>
+                  <span className="text-[#40484e]">Thối lại:</span>
                   <span className="text-sm font-bold text-[#111c2d]">
-                    {Math.max(0, cashGiven - grandTotal).toLocaleString('vi-VN')}d
+                    {Math.max(0, cashGiven - grandTotal).toLocaleString('vi-VN')}đ
                   </span>
                 </div>
               </div>
@@ -898,9 +998,9 @@ export default function PosPage() {
             {/* Tab 3: Card Panel */}
             {payTab === 'card' && (
               <div className="p-2.5 rounded-lg bg-[#f0f3ff] flex items-center justify-between text-xs">
-                <span className="text-[#40484e]">Thi?t b? mPOS #02:</span>
+                <span className="text-[#40484e]">Thiết bị mPOS #02:</span>
                 <span className="px-2 py-0.5 rounded bg-[#e7eeff] text-[#004967] font-bold">
-                  S?n s�ng qu?t / ch?m
+                  Sẵn sàng quẹt / chạm
                 </span>
               </div>
             )}
@@ -911,11 +1011,11 @@ export default function PosPage() {
             {/* F4 Hold */}
             <button
               type="button"
-              onClick={() => message.info('�� luu t?m don h�ng v�o b? nh? (F4).')}
+              onClick={() => message.info('Đã lưu tạm đơn hàng vào bộ nhớ (F4).')}
               className="flex flex-col items-center justify-center p-2 rounded-lg bg-[#e7eeff] hover:bg-[#dee8ff] text-[#40484e] transition-colors cursor-pointer"
             >
               <span className="material-symbols-outlined text-[18px]">pause_circle</span>
-              <span className="text-[11px] font-bold mt-0.5">T?m luu</span>
+              <span className="text-[11px] font-bold mt-0.5">Tạm lưu</span>
               <span className="font-mono text-[#70787f] text-[10px]">[F4]</span>
             </button>
 
@@ -926,7 +1026,7 @@ export default function PosPage() {
               className="flex flex-col items-center justify-center p-2 rounded-lg bg-[#f0f3ff] hover:bg-[#ffdad6] text-[#ba1a1a] transition-colors cursor-pointer"
             >
               <span className="material-symbols-outlined text-[18px]">cancel</span>
-              <span className="text-[11px] font-bold mt-0.5">H?y don</span>
+              <span className="text-[11px] font-bold mt-0.5">Hủy đơn</span>
               <span className="font-mono text-[10px]">[F8]</span>
             </button>
 
@@ -937,7 +1037,7 @@ export default function PosPage() {
               className="flex flex-col items-center justify-center p-2 rounded-lg bg-[#e7eeff] hover:bg-[#cae6ff] text-[#004967] transition-colors cursor-pointer"
             >
               <span className="material-symbols-outlined text-[18px]">precision_manufacturing</span>
-              <span className="text-[11px] font-bold mt-0.5">L?nh Lab</span>
+              <span className="text-[11px] font-bold mt-0.5">Lệnh Lab</span>
               <span className="font-mono text-[10px]">[F9]</span>
             </button>
 
@@ -948,14 +1048,14 @@ export default function PosPage() {
               className="col-span-1 flex flex-col items-center justify-center p-2 rounded-lg bg-[#004967] hover:bg-[#086288] text-white shadow-xs transition-all active:scale-95 cursor-pointer"
             >
               <span className="material-symbols-outlined text-[18px]">print</span>
-              <span className="text-[12px] font-bold mt-0.5">Thanh To�n</span>
+              <span className="text-[12px] font-bold mt-0.5">Thanh Toán</span>
               <span className="font-mono text-[10px] text-[#a5dbff]">[F10]</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* ================= MODAL: Ch?n Toa Kh�m Kh�c X? ================= */}
+      {/* ================= MODAL: Chọn Toa Khám Khúc Xạ ================= */}
       {isRxModalOpen && (
         <div className="fixed inset-0 bg-[#263143]/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-2xl w-full p-6 shadow-xl flex flex-col gap-4 border border-slate-100">
@@ -965,7 +1065,7 @@ export default function PosPage() {
                   assignment_turned_in
                 </span>
                 <h3 className="text-base text-[#111c2d] font-bold">
-                  Ch?n Toa Kh�m Kh�c X? Ch? L�n �on
+                  Chọn Toa Khám Khúc Xạ Chờ Lên Đơn
                 </h3>
               </div>
               <button
@@ -986,7 +1086,7 @@ export default function PosPage() {
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-[#004967] font-bold">
-                      {rx.code} � {rx.customer} ({rx.phone})
+                      {rx.code} • {rx.customer} ({rx.phone})
                     </span>
                     <span className="px-2 py-0.5 rounded-full bg-[#cae6ff] text-[#001e30] text-[10px] font-bold">
                       {rx.timeAgo}
@@ -994,8 +1094,8 @@ export default function PosPage() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 text-xs font-mono bg-white p-2.5 rounded-lg border border-slate-100 text-[#111c2d]">
-                    <div>OD (M?t ph?i): {rx.od}</div>
-                    <div>OS (M?t tr�i): {rx.os}</div>
+                    <div>OD (Mắt phải): {rx.od}</div>
+                    <div>OS (Mắt trái): {rx.os}</div>
                   </div>
                 </div>
               ))}
@@ -1007,7 +1107,7 @@ export default function PosPage() {
                 onClick={() => setIsRxModalOpen(false)}
                 className="px-4 py-2 rounded-xl bg-[#f0f3ff] text-[#40484e] text-xs font-bold hover:bg-[#dee8ff] transition-colors cursor-pointer"
               >
-                ��ng
+                Đóng
               </button>
             </div>
           </div>
@@ -1016,9 +1116,3 @@ export default function PosPage() {
     </main>
   );
 }
-
-
-
-
-
-

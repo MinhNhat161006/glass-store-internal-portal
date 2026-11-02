@@ -296,8 +296,10 @@ export default function LabPage() {
                       : 'bg-surface-container hover:bg-surface-container-high text-on-surface'
                   } ${tab.isHighlight && activeTab !== tab.id ? 'text-primary font-semibold' : ''}`}
                 >
-                  {tab.label}</button>
-              ))}</div>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Table */}
@@ -315,18 +317,18 @@ export default function LabPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#d8e3fb]/30 text-on-surface">
-  {filteredOrders.length === 0 ? (
-    <tr>
-      <td colSpan={7} className="py-12 text-center text-outline">
-        <div className="flex flex-col items-center justify-center">
-          <span className="material-symbols-outlined text-3xl text-slate-300 mb-1">precision_manufacturing</span>
-          <span className="text-sm font-medium text-on-surface">Chua c� l?nh m�i k�nh n�o trong xu?ng</span>
-          <span className="text-xs text-outline mt-0.5">Khi nh�n vi�n thu ng�n POS ho?c B�c si t?o don k�nh thu?c, l?nh s? xu?t hi?n t?i d�y</span>
-        </div>
-      </td>
-    </tr>
-  ) : (
-    filteredOrders.map((order) => (
+                {filteredOrders.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-12 text-center text-outline">
+                      <div className="flex flex-col items-center justify-center">
+                        <span className="material-symbols-outlined text-3xl text-slate-300 mb-1">precision_manufacturing</span>
+                        <span className="text-sm font-medium text-on-surface">Chưa có lệnh mài kính nào trong xưởng</span>
+                        <span className="text-xs text-outline mt-0.5">Khi nhân viên thu ngân POS hoặc Bác sĩ tạo đơn kính thuốc, lệnh sẽ xuất hiện tại đây</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredOrders.map((order) => (
                   <tr
                     key={order.id}
                     onClick={() => setSelectedOrder(order)}
@@ -389,7 +391,9 @@ export default function LabPage() {
                         >
                           Bàn Giao QC
                         </button>
-                      )}</td></tr>
+                      )}
+                    </td>
+                  </tr>
                 )))}
               </tbody>
             </table>
@@ -448,7 +452,3 @@ export default function LabPage() {
     </div>
   );
 }
-
-
-
-

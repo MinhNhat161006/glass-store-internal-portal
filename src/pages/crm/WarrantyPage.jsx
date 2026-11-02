@@ -32,7 +32,7 @@ export default function WarrantyPage() {
 
   const selectedItem = warranties.find(w => w.warrantyCode === selectedWarrantyId) || warranties[0] || null;
 
-const filteredList = warranties.filter(item => {
+  const filteredList = warranties.filter(item => {
     if (activeTab === 'pending' && item.status !== 'WAITING_PROCESS' && item.status !== 'PROCESSING_COUNTER') return false;
     if (activeTab === 'lab' && item.status !== 'LAB_APPROVED') return false;
     if (activeTab === 'done' && item.status !== 'COMPLETED' && item.status !== 'WAITING_CUSTOMER') return false;
@@ -287,13 +287,13 @@ const filteredList = warranties.filter(item => {
               </div>
             ) : (
               <div className="flex flex-col gap-2">
-  {filteredList.length === 0 ? (
-    <div className="p-8 text-center bg-surface-container-lowest rounded-xl border border-dashed border-[#d8e3fb]">
-      <span className="material-symbols-outlined text-3xl text-slate-300 mb-1">security</span>
-      <p className="text-xs text-outline font-medium">Hi?n chua c� phi?u b?o h�nh ho?c d?i tr? n�o</p>
-    </div>
-  ) : (
-    filteredList.map((item) => {
+                {filteredList.length === 0 ? (
+                <div className="p-8 text-center bg-surface-container-lowest rounded-xl border border-dashed border-[#d8e3fb]">
+                  <span className="material-symbols-outlined text-3xl text-slate-300 mb-1">security</span>
+                  <p className="text-xs text-outline font-medium">Hiện chưa có phiếu bảo hành hoặc đổi trả nào trong hệ thống.</p>
+                </div>
+              ) : (
+                filteredList.map((item) => {
                   const isSelected = selectedWarrantyId === item.warrantyCode;
                   return (
                     <div
@@ -331,8 +331,7 @@ const filteredList = warranties.filter(item => {
                       </div>
                     </div>
                   );
-                })
-              )}
+                }))}
               </div>
             )}
 
@@ -352,14 +351,14 @@ const filteredList = warranties.filter(item => {
           </div>
 
           {/* Right Column (7/12): Active Warranty Detail */}
-{!selectedItem ? (
-  <div className="lg:col-span-7 p-12 text-center bg-surface-container-lowest rounded-xl border border-dashed border-[#d8e3fb] flex flex-col items-center justify-center">
-    <span className="material-symbols-outlined text-4xl text-slate-300 mb-2">verified_user</span>
-    <h3 className="font-title-md text-on-surface font-semibold">Chua ch?n phi?u b?o h�nh</h3>
-    <p className="text-xs text-outline max-w-sm mt-1">Ch?n m?t phi?u b?o h�nh t? danh s�ch b�n tr�i ho?c t?o y�u c?u b?o h�nh m?i cho kh�ch h�ng.</p>
-  </div>
-) : (
-  <div className="lg:col-span-7 flex flex-col gap-3.5">
+          {!selectedItem ? (
+            <div className="lg:col-span-7 p-12 text-center bg-surface-container-lowest rounded-xl border border-dashed border-[#d8e3fb] flex flex-col items-center justify-center">
+              <span className="material-symbols-outlined text-4xl text-slate-300 mb-2">verified_user</span>
+              <h3 className="font-title-md text-on-surface font-semibold">Chưa chọn phiếu bảo hành</h3>
+              <p className="text-xs text-outline max-w-sm mt-1">Chọn một phiếu bảo hành từ danh sách bên trái hoặc tạo yêu cầu bảo hành mới cho khách hàng.</p>
+            </div>
+          ) : (
+          <div className="lg:col-span-7 flex flex-col gap-3.5">
             <div className="bg-surface-container-lowest rounded-xl shadow-xs border border-[#d8e3fb]/40 p-4 flex flex-col gap-3.5 relative overflow-hidden">
 
               {/* Detail Header Banner */}
@@ -377,7 +376,7 @@ const filteredList = warranties.filter(item => {
                   <div className="flex items-center gap-2 text-body-sm font-body-sm text-on-surface-variant mt-0.5">
                     <span>HĐ gốc:</span>
                     <span className="font-label-mono text-primary font-semibold flex items-center gap-0.5">
-                      {selectedItem.originalOrderCode || 'Chua li�n k?t don'}
+                      {selectedItem.originalOrderCode || 'Chưa liên kết đơn'}
                       <span className="material-symbols-outlined text-[12px]">open_in_new</span>
                     </span>
                     <span className="text-outline">|</span>
@@ -649,12 +648,12 @@ const filteredList = warranties.filter(item => {
                 </div>
               </div>
             </div>
+
           </div>
-        )}
+          )}
         </div>
+
       </div>
     </div>
   );
 }
-
-

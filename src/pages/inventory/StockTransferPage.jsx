@@ -19,7 +19,7 @@ export default function StockTransferPage() {
   const [transferReason, setTransferReason] = useState('Bổ sung tồn thiếu cho đơn đặt trước');
 
   const [transferList, setTransferList] = useState([]); // Clean empty transfers
-
+  
 
   const handleAction = (msg) => {
     message.success(msg);
@@ -150,18 +150,18 @@ export default function StockTransferPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#d8e3fb]/30 text-on-surface">
-  {transferList.length === 0 ? (
-    <tr>
-      <td colSpan={7} className="py-12 text-center text-outline">
-        <div className="flex flex-col items-center justify-center">
-          <span className="material-symbols-outlined text-3xl text-slate-300 mb-1">local_shipping</span>
-          <span className="text-sm font-medium text-on-surface">Chua c� l?nh di?u chuy?n kho n�o</span>
-          <span className="text-xs text-outline mt-0.5">B?m "+ L?p L?nh �i?u Chuy?n" d? t?o phi?u chuy?n h�ng gi?a c�c kho chi nh�nh</span>
-        </div>
-      </td>
-    </tr>
-  ) : (
-    transferList.map((item) => (
+                  {transferList.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-12 text-center text-outline">
+                        <div className="flex flex-col items-center justify-center">
+                          <span className="material-symbols-outlined text-3xl text-slate-300 mb-1">local_shipping</span>
+                          <span className="text-sm font-medium text-on-surface">Chưa có lệnh điều chuyển kho nào</span>
+                          <span className="text-xs text-outline mt-0.5">Bấm "+ Lập Lệnh Điều Chuyển" để tạo phiếu chuyển hàng giữa các kho chi nhánh</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    transferList.map((item) => (
                     <tr key={item.id} className="hover:bg-surface-container-low transition-colors">
                       <td className="py-2.5 px-3 font-label-mono font-bold text-primary text-xs">
                         {item.id}
@@ -214,9 +214,8 @@ export default function StockTransferPage() {
                         )}
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
+                  )))}
+                </tbody>
               </table>
             </div>
 
@@ -301,4 +300,3 @@ export default function StockTransferPage() {
     </div>
   );
 }
-

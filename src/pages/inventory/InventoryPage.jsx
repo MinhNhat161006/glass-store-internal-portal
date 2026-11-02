@@ -4,7 +4,6 @@ import { message } from 'antd';
 
 export default function InventoryPage() {
   const [activeCategory, setActiveCategory] = useState('all');
-
   const [inventoryItems, setInventoryItems] = useState([]);
 
   useEffect(() => {
@@ -23,14 +22,15 @@ export default function InventoryPage() {
                 items.push({
                   sku: v.sku || ('SKU-' + v.id),
                   name: (p.name + ' - ' + (v.name || v.color || '')).trim(),
-                  category: p.categoryName || (p.productType === 'FRAME' ? 'G?ng k�nh' : p.productType === 'LENS' ? 'Tr�ng k�nh' : 'Ph? ki?n'),
-                  shelf: 'K? ' + String.fromCharCode(65 + (pIdx % 4)) + '-0' + (vIdx + 1) + '-0' + (pIdx + 1),
-                  price: (v.price ? Number(v.price).toLocaleString('vi-VN') + ' d' : '2.500.000 d'),
+                  category: p.categoryName || (p.productType === 'FRAME' ? 'Gọng kính' : p.productType === 'LENS' ? 'Tròng kính' : 'Phụ kiện'),
+                  shelf: 'Kệ ' + String.fromCharCode(65 + (pIdx % 4)) + '-0' + (vIdx + 1) + '-0' + (pIdx + 1),
+                  price: (v.price ? Number(v.price).toLocaleString('vi-VN') + ' ₫' : '2.500.000 ₫'),
+                  rawPrice: v.price ? Number(v.price) : 2500000,
                   onHand: stock,
                   reserved: reserved,
                   available: available,
                   status: available > 5 ? 'in_stock' : available > 0 ? 'low_stock' : 'out_of_stock',
-                  statusLabel: available > 5 ? 'S?n h�ng' : available > 0 ? 'S?p h?t' : 'H?t h�ng',
+                  statusLabel: available > 5 ? 'Sẵn hàng' : available > 0 ? 'Sắp hết' : 'Hết hàng',
                   statusClass: available > 5 ? 'bg-secondary-fixed text-on-secondary-fixed' : available > 0 ? 'bg-error-container text-error' : 'bg-surface-container-high text-error'
                 });
               });
@@ -41,7 +41,7 @@ export default function InventoryPage() {
           }
         }
       } catch (err) {
-        console.warn('L?y t?n kho catalog l?i:', err.message);
+        console.warn('Lấy tồn kho catalog lỗi:', err.message);
       }
     };
     fetchInventory();
@@ -53,12 +53,22 @@ export default function InventoryPage() {
 
   const filteredItems = inventoryItems.filter((item) => {
     if (activeCategory === 'all') return true;
-    if (activeCategory === 'frames') return item.category === 'G?ng k�nh';
-    if (activeCategory === 'lenses') return item.category === 'Tr�ng k�nh';
-    if (activeCategory === 'accessories') return item.category === 'Ph? ki?n';
+    if (activeCategory === 'frames') return item.category === 'Gọng kính';
+    if (activeCategory === 'lenses') return item.category === 'Tròng kính';
+    if (activeCategory === 'accessories') return item.category === 'Phụ kiện';
     if (activeCategory === 'low_stock') return item.status === 'low_stock' || item.status === 'out_of_stock';
     return true;
   });
+
+  const totalInventoryValue = inventoryItems.reduce((acc, item) => {
+    return acc + (item.rawPrice || 0) * (item.onHand || 0);
+  }, 0);
+
+  const formattedValue = totalInventoryValue >= 1e9
+    ? (totalInventoryValue / 1e9).toFixed(2) + ' tỷ ₫'
+    : totalInventoryValue >= 1e6
+    ? (totalInventoryValue / 1e6).toFixed(1) + ' tr ₫'
+    : totalInventoryValue.toLocaleString('vi-VN') + ' ₫';
 
   return (
     <div className="w-full min-h-screen bg-[#f9f9ff]">
@@ -68,158 +78,154 @@ export default function InventoryPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface-container-lowest p-3.5 rounded-xl shadow-xs border border-[#d8e3fb]/40">
           <div className="space-y-0.5">
             <div className="flex items-center gap-2">
-              <span className="font-label-md text-label-md text-outline">KHO V?N &amp; V?T TU</span>
+              <span className="font-label-md text-label-md text-outline">KHO VẬN &amp; VẬT TƯ</span>
               <span className="text-outline">/</span>
-              <span className="font-label-md text-label-md text-primary font-semibold">T?N KHO CHI NH�NH</span>
+              <span className="font-label-md text-label-md text-primary font-semibold">TỒN KHO CHI NHÁNH</span>
               <span className="inline-flex items-center gap-1 px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[10px] font-semibold">
                 <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
-                T? �?ng �?ng B? Kho
+                Tự Động Đồng Bộ Kho
               </span>
             </div>
             <h1 className="font-headline-md text-headline-md text-primary font-bold tracking-tight">
-              T?n Kho Chi Nh�nh &amp; C?nh B�o T?n (Flagship Q.1)
+              Tồn Kho Chi Nhánh &amp; Cảnh Báo Tồn (Flagship Q.1)
             </h1>
             <p className="font-body-sm text-body-sm text-on-surface-variant">
-              Gi�m s�t m?c t?n th?c t? (On-Hand), lu?ng h�ng gi? ch? Lab/POS (Reserved) v� t?n kh? d?ng t?c th?i.
+              Giám sát mức tồn thực tế (On-Hand), lượng hàng giữ chỗ Lab/POS (Reserved) và tồn khả dụng tức thời.
             </p>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
             <button
-              onClick={() => handleAction('M? giao di?n ki?m k� nhanh theo k? [F4]')}
+              onClick={() => handleAction('Mở giao diện kiểm kê nhanh theo kệ [F4]')}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-container text-on-surface hover:bg-surface-container-high transition-colors font-label-md text-label-md cursor-pointer"
             >
               <span className="material-symbols-outlined text-[16px] text-primary">fact_check</span>
-              <span>Ki?m K� [F4]</span>
+              <span>Kiểm Kê [F4]</span>
             </button>
             <button
-              onClick={() => handleAction('M? phi?u t?o y�u c?u di?u chuy?n kho')}
+              onClick={() => handleAction('Mở phiếu tạo yêu cầu điều chuyển kho')}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-container text-on-surface hover:bg-surface-container-high transition-colors font-label-md text-label-md cursor-pointer"
             >
-              <span className="material-symbols-outlined text-[16px] text-secondary">move_up</span>
-              <span>Chuy?n Kho</span>
+              <span className="material-symbols-outlined text-[16px] text-primary">swap_horiz</span>
+              <span>Chuyển Kho</span>
             </button>
             <button
-              onClick={() => handleAction('L?p phi?u d? xu?t nh?p h�ng t? kho t?ng')}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-primary text-on-primary hover:bg-[#0b4d6b] font-label-lg text-label-lg shadow-xs transition-all cursor-pointer"
+              onClick={() => handleAction('Lập phiếu đề xuất nhập hàng từ kho tổng')}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-primary text-on-primary hover:bg-[#003851] transition-colors font-label-md text-label-md font-semibold cursor-pointer"
             >
-              <span className="material-symbols-outlined text-[16px]">add_shopping_cart</span>
-              <span>+ Nh?p Kho T?ng</span>
+              <span className="material-symbols-outlined text-[16px]">add_circle</span>
+              <span>+ Nhập Kho Tổng</span>
             </button>
           </div>
         </div>
 
-        {/* 2. 4 INVENTORY METRIC CARDS */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="bg-surface-container-lowest p-3 rounded-xl shadow-xs border border-[#d8e3fb]/40 flex flex-col justify-between">
-            <div className="flex items-start justify-between">
-              <div>
-                <span className="font-label-md text-label-md text-outline uppercase tracking-wider block">T?ng SKU T?n Chi Nh�nh</span>
-                <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className="font-display-lg text-display-lg text-primary tracking-tight font-bold">{inventoryItems.length}</span>
-                  <span className="font-label-md text-label-md text-outline">SKU</span>
-                </div>
-              </div>
-              <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+        {/* 2. INVENTORY HEALTH TILES */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {/* Tile 1 */}
+          <div className="bg-surface-container-lowest p-3 rounded-xl border border-[#d8e3fb]/40 shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="font-label-md text-label-md text-outline uppercase tracking-wider block">Tổng SKU Tồn Chi Nhánh</span>
+              <div className="w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center text-primary">
                 <span className="material-symbols-outlined text-[18px]">inventory_2</span>
               </div>
             </div>
-            <div className="mt-2 pt-2 border-t border-[#e7eeff] flex items-center justify-between text-body-sm text-[11px] text-on-surface-variant font-label-mono">
-              <span>{inventoryItems.filter(i => i.category === 'G?ng k�nh').length} g?ng � {inventoryItems.filter(i => i.category === 'Tr�ng k�nh').length} tr�ng</span>
-              <span className="text-primary font-bold">3.42 t? ?</span>
+            <div className="flex items-baseline gap-1 mt-1">
+              <span className="font-display-lg text-display-lg text-primary tracking-tight font-bold">{inventoryItems.length}</span>
+              <span className="font-label-md text-label-md text-outline font-semibold">SKU</span>
+            </div>
+            <div className="mt-1 pt-1 border-t border-[#d8e3fb]/30 flex items-center justify-between text-body-sm font-body-sm text-outline">
+              <span>{inventoryItems.filter(i => i.category === 'Gọng kính').length} gọng • {inventoryItems.filter(i => i.category === 'Tròng kính').length} tròng</span>
+              <span className="text-primary font-bold">{formattedValue}</span>
             </div>
           </div>
 
-          <div className="bg-surface-container-lowest p-3 rounded-xl shadow-xs border border-[#d8e3fb]/40 flex flex-col justify-between">
-            <div className="flex items-start justify-between">
-              <div>
-                <span className="font-label-md text-label-md text-outline uppercase tracking-wider block">S?p H?t H�ng (&lt; 5 chi?c)</span>
-                <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className="font-display-lg text-display-lg text-error tracking-tight font-bold">{inventoryItems.filter(i => i.status === 'low_stock').length}</span>
-                  <span className="font-label-md text-label-md text-error">SKU</span>
-                </div>
-              </div>
-              <div className="w-8 h-8 rounded-lg bg-error-container text-on-error-container flex items-center justify-center">
+          {/* Tile 2 */}
+          <div className="bg-surface-container-lowest p-3 rounded-xl border border-[#d8e3fb]/40 shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="font-label-md text-label-md text-outline uppercase tracking-wider block">Sắp Hết Hàng (&lt; 5 chiếc)</span>
+              <div className="w-7 h-7 rounded-lg bg-error-container/30 flex items-center justify-center text-error">
                 <span className="material-symbols-outlined text-[18px]">warning</span>
               </div>
             </div>
-            <div className="mt-2 pt-2 border-t border-[#e7eeff] flex items-center justify-between text-body-sm text-[11px]">
-              <span className="text-error font-medium">C?n b? sung kho t?ng</span>
-              <button onClick={() => setActiveCategory('low_stock')} className="text-primary hover:underline font-semibold cursor-pointer">
-                L?c xem ?
-              </button>
+            <div className="flex items-baseline gap-1 mt-1">
+              <span className="font-display-lg text-display-lg text-error tracking-tight font-bold">{inventoryItems.filter(i => i.status === 'low_stock').length}</span>
+              <span className="font-label-md text-label-md text-error font-semibold">SKU</span>
+            </div>
+            <div className="mt-1 pt-1 border-t border-[#d8e3fb]/30 flex items-center justify-between text-body-sm font-body-sm text-error">
+              <span>Cần bổ sung kho tổng</span>
+              <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
             </div>
           </div>
 
-          <div className="bg-surface-container-lowest p-3 rounded-xl shadow-xs border border-[#d8e3fb]/40 flex flex-col justify-between">
-            <div className="flex items-start justify-between">
-              <div>
-                <span className="font-label-md text-label-md text-outline uppercase tracking-wider block">H?t H�ng (T?n = 0)</span>
-                <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className="font-display-lg text-display-lg text-outline tracking-tight font-bold">{inventoryItems.filter(i => i.status === 'out_of_stock').length}</span>
-                  <span className="font-label-md text-label-md text-outline">SKU</span>
-                </div>
-              </div>
-              <div className="w-8 h-8 rounded-lg bg-surface-container text-outline flex items-center justify-center">
+          {/* Tile 3 */}
+          <div className="bg-surface-container-lowest p-3 rounded-xl border border-[#d8e3fb]/40 shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="font-label-md text-label-md text-outline uppercase tracking-wider block">Hết Hàng (Tồn = 0)</span>
+              <div className="w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center text-outline">
                 <span className="material-symbols-outlined text-[18px]">block</span>
               </div>
             </div>
-            <div className="mt-2 pt-2 border-t border-[#e7eeff] text-body-sm text-[11px] text-error flex items-center gap-1 font-medium">
-              <span className="material-symbols-outlined text-[14px]">lock</span>
-              <span>Kh�a b�n t? d?ng tr�n POS &amp; Web</span>
+            <div className="flex items-baseline gap-1 mt-1">
+              <span className="font-display-lg text-display-lg text-outline tracking-tight font-bold">{inventoryItems.filter(i => i.status === 'out_of_stock').length}</span>
+              <span className="font-label-md text-label-md text-outline font-semibold">SKU</span>
+            </div>
+            <div className="mt-1 pt-1 border-t border-[#d8e3fb]/30 flex items-center justify-between text-body-sm font-body-sm text-outline">
+              <span>Khóa bán tự động trên POS &amp; Web</span>
             </div>
           </div>
 
-          <div className="bg-surface-container-lowest p-3 rounded-xl shadow-xs border border-[#d8e3fb]/40 flex flex-col justify-between">
-            <div className="flex items-start justify-between">
-              <div>
-                <span className="font-label-md text-label-md text-outline uppercase tracking-wider block">T?n Gi? Ch? (Reserved)</span>
-                <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className="font-display-lg text-display-lg text-secondary tracking-tight font-bold">{inventoryItems.reduce((acc, i) => acc + (i.reserved || 0), 0)}</span>
-                  <span className="font-label-md text-label-md text-secondary">sp</span>
-                </div>
-              </div>
-              <div className="w-8 h-8 rounded-lg bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center">
-                <span className="material-symbols-outlined text-[18px]">pending_actions</span>
+          {/* Tile 4 */}
+          <div className="bg-surface-container-lowest p-3 rounded-xl border border-[#d8e3fb]/40 shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="font-label-md text-label-md text-outline uppercase tracking-wider block">Tồn Giữ Chỗ (Reserved)</span>
+              <div className="w-7 h-7 rounded-lg bg-secondary-fixed/50 flex items-center justify-center text-secondary">
+                <span className="material-symbols-outlined text-[18px]">lock_clock</span>
               </div>
             </div>
-            <div className="mt-2 pt-2 border-t border-[#e7eeff] text-body-sm text-[11px] text-outline">
-              Lab m�i: 31 � C?c online: 11
+            <div className="flex items-baseline gap-1 mt-1">
+              <span className="font-display-lg text-display-lg text-secondary tracking-tight font-bold">{inventoryItems.reduce((acc, i) => acc + (i.reserved || 0), 0)}</span>
+              <span className="font-label-md text-label-md text-secondary font-semibold">SP</span>
+            </div>
+            <div className="mt-1 pt-1 border-t border-[#d8e3fb]/30 flex items-center justify-between text-body-sm font-body-sm text-secondary">
+              <span>Đang chờ Lab / Đơn POS</span>
+              <span className="material-symbols-outlined text-[14px]">sync_alt</span>
             </div>
           </div>
         </div>
 
         {/* 3. SEARCH & CATEGORY FILTER */}
-        <div className="bg-surface-container-lowest p-3 rounded-xl shadow-xs border border-[#d8e3fb]/40 flex flex-wrap items-center justify-between gap-2.5">
-          <div className="relative flex-1 min-w-[280px]">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[16px]">search</span>
+        <div className="flex flex-col md:flex-row gap-2.5 items-stretch md:items-center justify-between">
+          <div className="relative flex-1 max-w-md">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">
+              search
+            </span>
             <input
-              className="w-full pl-9 pr-20 py-1.5 rounded-xl bg-surface-container-low text-on-surface font-body-md text-body-md focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-outline"
-              placeholder="Qu�t Barcode ho?c t�m m� SKU, t�n s?n ph?m, v? tr� k?..."
+              type="text"
+              placeholder="Quét Barcode hoặc tìm mã SKU, tên sản phẩm, vị trí kệ..."
+              className="w-full pl-9 pr-3 py-1.5 bg-surface-container-lowest border border-[#d8e3fb]/40 rounded-xl text-body-sm font-body-sm focus:outline-hidden focus:border-primary transition-colors text-on-surface shadow-2xs"
             />
-            <div className="absolute right-1.5 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded bg-surface-container text-primary font-label-mono text-[10px]">
-              F2 Scan
-            </div>
           </div>
 
-          <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap text-label-md font-label-md">
+          <div className="flex items-center gap-1 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
             {[
-              { id: 'all', label: 'T?t c? (1,480)' },
-              { id: 'frames', label: 'G?ng k�nh (620)' },
-              { id: 'lenses', label: 'Tr�ng k�nh (740)' },
-              { id: 'accessories', label: 'Ph? ki?n (120)' },
-              { id: 'low_stock', label: 'C?nh b�o t?n (&lt; 5)', isAlert: true }
+              { id: 'all', label: `Tất cả (${inventoryItems.length})` },
+              { id: 'frames', label: `Gọng kính (${inventoryItems.filter(i => i.category === 'Gọng kính').length})` },
+              { id: 'lenses', label: `Tròng kính (${inventoryItems.filter(i => i.category === 'Tròng kính').length})` },
+              { id: 'accessories', label: `Phụ kiện (${inventoryItems.filter(i => i.category === 'Phụ kiện').length})` },
+              { id: 'low_stock', label: 'Cảnh báo tồn (&lt; 5)', isAlert: true }
             ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveCategory(tab.id)}
-                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                className={`px-3 py-1 rounded-xl text-body-sm font-body-sm whitespace-nowrap transition-colors cursor-pointer ${
                   activeCategory === tab.id
-                    ? 'bg-primary text-on-primary font-bold shadow-xs'
-                    : 'bg-surface-container hover:bg-surface-container-high text-on-surface'
-                } ${tab.isAlert && activeCategory !== tab.id ? 'text-error font-semibold' : ''}`}
+                    ? tab.isAlert
+                      ? 'bg-error-container text-error font-semibold'
+                      : 'bg-primary text-on-primary font-semibold'
+                    : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
+                }`}
               >
-                {tab.label}
+                <span dangerouslySetInnerHTML={{ __html: tab.label }}></span>
               </button>
             ))}
           </div>
@@ -231,76 +237,88 @@ export default function InventoryPage() {
             <table className="w-full text-left font-body-md text-body-md">
               <thead className="bg-surface-container-low text-outline font-label-md text-label-md uppercase">
                 <tr>
-                  <th className="py-2.5 px-3">M� SKU</th>
-                  <th className="py-2.5 px-3">T�n S?n Ph?m</th>
-                  <th className="py-2.5 px-3">V? Tr� K?</th>
-                  <th className="py-2.5 px-3 text-right">�on Gi�</th>
-                  <th className="py-2.5 px-3 text-center">T?n Th?c</th>
-                  <th className="py-2.5 px-3 text-center text-outline">Gi? Ch?</th>
-                  <th className="py-2.5 px-3 text-center text-primary font-bold">Kh? D?ng</th>
-                  <th className="py-2.5 px-3 text-center">Tr?ng Th�i</th>
-                  <th className="py-2.5 px-3 text-right">Thao T�c</th>
+                  <th className="py-2.5 px-3">Mã SKU</th>
+                  <th className="py-2.5 px-3">Tên Sản Phẩm</th>
+                  <th className="py-2.5 px-3">Vị Trí Kệ</th>
+                  <th className="py-2.5 px-3 text-right">Đơn Giá</th>
+                  <th className="py-2.5 px-3 text-center">Tồn Thực</th>
+                  <th className="py-2.5 px-3 text-center text-outline">Giữ Chỗ</th>
+                  <th className="py-2.5 px-3 text-center text-primary font-bold">Khả Dụng</th>
+                  <th className="py-2.5 px-3 text-center">Trạng Thái</th>
+                  <th className="py-2.5 px-3 text-right">Thao Tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#d8e3fb]/30 text-on-surface">
-                {filteredItems.map((item) => (
-                  <tr key={item.sku} className="hover:bg-surface-container-low transition-colors">
-                    <td className="py-2.5 px-3 font-label-mono font-semibold text-primary text-xs">
-                      {item.sku}
-                    </td>
-                    <td className="py-2.5 px-3 max-w-sm">
-                      <span className="font-title-md text-title-md text-on-surface block font-medium truncate">
-                        {item.name}
-                      </span>
-                      <span className="text-[10px] text-outline font-label-md">{item.category}</span>
-                    </td>
-                    <td className="py-2.5 px-3 font-label-mono text-xs text-outline">
-                      {item.shelf}
-                    </td>
-                    <td className="py-2.5 px-3 text-right font-label-mono font-medium text-xs">
-                      {item.price}
-                    </td>
-                    <td className="py-2.5 px-3 text-center font-label-mono font-semibold text-xs">
-                      {item.onHand}
-                    </td>
-                    <td className="py-2.5 px-3 text-center font-label-mono text-outline text-xs">
-                      {item.reserved}
-                    </td>
-                    <td className="py-2.5 px-3 text-center font-label-mono font-bold text-primary text-xs">
-                      {item.available}
-                    </td>
-                    <td className="py-2.5 px-3 text-center">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold inline-block ${item.statusClass}`}>
-                        {item.statusLabel}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => handleAction(`M? di?u chuy?n cho SKU: ${item.sku}`)}
-                          className="px-2 py-1 bg-surface-container hover:bg-surface-container-high rounded text-xs text-primary font-medium transition-colors cursor-pointer"
-                        >
-                          Chuy?n
-                        </button>
-                        <button
-                          onClick={() => handleAction(`Xem l?ch s? th? kho c?a SKU: ${item.sku}`)}
-                          className="p-1 rounded text-outline hover:text-on-surface transition-colors cursor-pointer"
-                          title="L?ch s? th? kho"
-                        >
-                          <span className="material-symbols-outlined text-[16px]">history</span>
-                        </button>
+                {filteredItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="py-12 text-center text-outline">
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <span className="material-symbols-outlined text-[40px] text-outline/50">inventory_2</span>
+                        <span className="font-body-md text-on-surface-variant font-medium">Chưa có sản phẩm nào trong kho chi nhánh.</span>
+                        <span className="text-xs text-outline">Dữ liệu sản phẩm sẽ hiển thị khi kết nối và đồng bộ từ catalog hệ thống.</span>
                       </div>
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredItems.map((item) => (
+                    <tr key={item.sku} className="hover:bg-surface-container-low transition-colors">
+                      <td className="py-2.5 px-3 font-label-mono font-semibold text-primary text-xs">
+                        {item.sku}
+                      </td>
+                      <td className="py-2.5 px-3 max-w-sm">
+                        <span className="font-title-md text-title-md text-on-surface block font-medium truncate">
+                          {item.name}
+                        </span>
+                        <span className="text-[10px] text-outline font-label-md">{item.category}</span>
+                      </td>
+                      <td className="py-2.5 px-3 font-label-mono text-xs text-outline">
+                        {item.shelf}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-label-mono font-medium text-xs">
+                        {item.price}
+                      </td>
+                      <td className="py-2.5 px-3 text-center font-label-mono font-semibold text-xs">
+                        {item.onHand}
+                      </td>
+                      <td className="py-2.5 px-3 text-center font-label-mono text-outline text-xs">
+                        {item.reserved}
+                      </td>
+                      <td className="py-2.5 px-3 text-center font-label-mono font-bold text-primary text-xs">
+                        {item.available}
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold inline-block ${item.statusClass}`}>
+                          {item.statusLabel}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => handleAction(`Mở điều chuyển cho SKU: ${item.sku}`)}
+                            className="px-2 py-1 bg-surface-container hover:bg-surface-container-high rounded text-xs text-primary font-medium transition-colors cursor-pointer"
+                          >
+                            Chuyển
+                          </button>
+                          <button
+                            onClick={() => handleAction(`Xem lịch sử thẻ kho của SKU: ${item.sku}`)}
+                            className="p-1 rounded text-outline hover:text-on-surface transition-colors cursor-pointer"
+                            title="Lịch sử thẻ kho"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">history</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
 
           <div className="pt-1 flex items-center justify-between text-body-sm font-body-sm text-outline">
-            <span>Hi?n th? {filteredItems.length} / 1,480 SKU t?i chi nh�nh</span>
+            <span>Hiển thị {filteredItems.length} SKU tại chi nhánh</span>
             <div className="flex items-center gap-1">
-              <button className="px-2 py-1 rounded bg-surface-container text-xs cursor-pointer hover:bg-surface-container-high">Tru?c</button>
+              <button className="px-2 py-1 rounded bg-surface-container text-xs cursor-pointer hover:bg-surface-container-high">Trước</button>
               <button className="px-2.5 py-1 rounded bg-primary text-on-primary text-xs font-bold">1</button>
               <button className="px-2 py-1 rounded bg-surface-container text-xs cursor-pointer hover:bg-surface-container-high">Sau</button>
             </div>
@@ -311,4 +329,3 @@ export default function InventoryPage() {
     </div>
   );
 }
-
