@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { prescriptionApi } from '../../api/prescriptionApi';
+import { customerApi } from '../../api/customerApi';
 import { message } from 'antd';
 import { useAuth } from '../../context/AuthContext';
 
@@ -13,6 +14,15 @@ export default function OptometryPage() {
   const [osCyl, setOsCyl] = useState(0.00);
   const [osAxis, setOsAxis] = useState(180);
   const [livePrescription, setLivePrescription] = useState(null);
+  const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
+  const [patientSearchQuery, setPatientSearchQuery] = useState('');
+  const [dbPatients, setDbPatients] = useState([]);
+
+  useEffect(() => {
+    customerApi.getCustomerList().then(res => {
+      if (Array.isArray(res)) setDbPatients(res);
+    }).catch(e => console.warn('Sync patients for optometry:', e));
+  }, []);
 
   useEffect(() => {
     const fetchLivePrescription = async () => {
@@ -126,6 +136,10 @@ export default function OptometryPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <button onClick={() => setIsPatientModalOpen(true)} className="px-3.5 py-1.5 rounded-xl bg-primary text-on-primary font-label-md text-label-md flex items-center gap-1.5 shadow-xs hover:bg-primary-container transition-all cursor-pointer">
+              <span className="material-symbols-outlined text-[16px]">person_search</span>
+              <span>Chọn Bệnh Nhân (CSDL)</span>
+            </button>
             <button onClick={() => handleAction('Lịch sử đo khám thị lực')} className="px-3 py-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface font-label-md text-label-md flex items-center gap-1 transition-colors cursor-pointer">
               <span className="material-symbols-outlined text-[15px]">history</span>
               <span>Lịch Sử Đo</span>
@@ -468,11 +482,15 @@ export default function OptometryPage() {
                     <span className="font-label-md text-label-md text-primary uppercase tracking-wider block mb-1 font-semibold">Gợi Ý Tròng Kính Đề Xuất</span>
                     <div className="flex items-center gap-2.5 bg-surface-container-lowest p-2 rounded-lg border border-[#d8e3fb]/40">
                       <div className="w-9 h-9 rounded-lg bg-surface-container flex items-center justify-center text-primary font-bold text-xs shrink-0">
-                        1.60
+                        RX
                       </div>
                       <div>
-                        <h3 className="font-title-md text-title-md text-on-surface font-semibold">Essilor Crizal Rock 1.60</h3>
-                        <p className="font-body-sm text-[11px] text-outline leading-tight">Chống trầy xước gấp 3, lọc UV400, chống chói 360°, nano kỵ nước.</p>
+                        <h3 className="font-title-md text-title-md text-on-surface font-semibold">
+                          {hasRx ? 'Tròng Kính Tối Ưu Thị Lực' : 'Chưa có đề xuất'}
+                        </h3>
+                        <p className="font-body-sm text-[11px] text-outline leading-tight">
+                          {hasRx ? 'Được đề xuất tự động dựa trên độ khúc xạ và khoảng cách đồng tử' : 'Vui lòng thực hiện đo khám để nhận gợi ý tròng phù hợp.'}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -649,6 +667,95 @@ export default function OptometryPage() {
         </div>
 
       </div>
+
+      {/* ================= MODAL: Chọn Bệnh Nhân Đo Khám Khúc Xạ ================= */}
+      {isPatientModalOpen && (
+        <div className="fixed inset-0 bg-[#263143]/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl flex flex-col gap-4 border border-slate-100">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-[24px]">
+                  person_search
+                </span>
+                <h3 className="text-base text-on-surface font-bold">
+                  Chọn Bệnh Nhân Vào Bàn Đo Khám (CSDL)
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPatientModalOpen(false)}
+                className="text-outline hover:text-on-surface transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[24px]">close</span>
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">
+                search
+              </span>
+              <input
+                type="text"
+                placeholder="Tìm tên hoặc SĐT bệnh nhân..."
+                value={patientSearchQuery}
+                onChange={(e) => setPatientSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 rounded-xl bg-surface-container-low border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+
+            {/* Patients List */}
+            <div className="space-y-2 max-h-80 overflow-y-auto">
+              {dbPatients
+                .filter(p => {
+                  const q = patientSearchQuery.toLowerCase().trim();
+                  if (!q) return true;
+                  return (p.fullName || '').toLowerCase().includes(q) || (p.phoneNumber || '').includes(q);
+                })
+                .map(p => (
+                  <div
+                    key={p.id}
+                    onClick={() => {
+                      setLivePrescription({
+                        customerId: p.id,
+                        customerName: p.fullName,
+                        customerPhone: p.phoneNumber || '',
+                        notes: 'Bệnh nhân đo khám khúc xạ tại quầy Flagship.'
+                      });
+                      setIsPatientModalOpen(false);
+                      message.success(`Đã tiếp nhận bệnh nhân ${p.fullName} vào bàn đo!`);
+                    }}
+                    className="p-3 rounded-xl bg-surface-container-low hover:bg-surface-container border border-[#d8e3fb]/40 transition-colors cursor-pointer flex items-center justify-between"
+                  >
+                    <div>
+                      <span className="font-bold text-xs text-on-surface block">{p.fullName}</span>
+                      <span className="text-[11px] text-outline">{p.phoneNumber || 'Chưa có SĐT'} • {p.email || ''}</span>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-lg bg-primary text-on-primary text-[10px] font-bold">
+                      Vào Khám
+                    </span>
+                  </div>
+                ))}
+              {dbPatients.length === 0 && (
+                <div className="py-8 text-center text-outline text-xs">
+                  Không tìm thấy bệnh nhân nào trong cơ sở dữ liệu.
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-between items-center pt-2 border-t border-slate-100">
+              <span className="text-[11px] text-outline">CSDL: {dbPatients.length} bệnh nhân</span>
+              <button
+                type="button"
+                onClick={() => setIsPatientModalOpen(false)}
+                className="px-4 py-1.5 rounded-xl bg-surface-container text-on-surface text-xs font-bold hover:bg-surface-container-high transition-colors cursor-pointer"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

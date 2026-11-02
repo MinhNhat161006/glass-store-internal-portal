@@ -4,6 +4,7 @@ import { orderApi } from '../../api/orderApi';
 import { productApi } from '../../api/productApi';
 import { labApi } from '../../api/labApi';
 import { prescriptionApi } from '../../api/prescriptionApi';
+import { customerApi } from '../../api/customerApi';
 
 export default function PosPage() {
   // Category filter
@@ -25,6 +26,16 @@ export default function PosPage() {
     pointValue: 0
   });
 
+  // Customer selection modal
+  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
+  const [dbCustomers, setDbCustomers] = useState([]);
+
+  useEffect(() => {
+    customerApi.getCustomerList().then(res => {
+      if (Array.isArray(res)) setDbCustomers(res);
+    }).catch(e => console.warn('Sync customer list for POS:', e));
+  }, []);
   const [usePoints, setUsePoints] = useState(true);
   const [voucherCode, setVoucherCode] = useState('');
   const [voucherDiscount, setVoucherDiscount] = useState(0);
@@ -36,27 +47,6 @@ export default function PosPage() {
   // Rx Modal state
   const [isRxModalOpen, setIsRxModalOpen] = useState(false);
   const [linkedRx, setLinkedRx] = useState(null);
-  useEffect(() => {
-    const fetchLiveRx = async () => {
-      try {
-        const list = await prescriptionApi.getAllPrescriptions();
-        if (Array.isArray(list) && list.length > 0) {
-          const first = list[0];
-          setLinkedRx({
-            code: '#RX-2026-' + first.id,
-            doctor: first.optometristName || 'BS. Khúc Xạ',
-            customer: first.customerName || 'Khách hàng',
-            od: 'Sph ' + first.odSph + ' Cyl ' + first.odCyl + ' Ax ' + first.odAxis + '°',
-            os: 'Sph ' + first.osSph + ' Cyl ' + first.osCyl + ' Ax ' + first.osAxis + '°',
-            pd: first.pd + 'mm'
-          });
-        }
-      } catch (err) {
-        console.warn('Sync live rx in POS note:', err.message);
-      }
-    };
-    fetchLiveRx();
-  }, []);
 
   // Product catalog list
   const [catalogProducts, setCatalogProducts] = useState([]);
@@ -387,9 +377,11 @@ export default function PosPage() {
             >
               <span className="material-symbols-outlined text-[18px]">eyeglasses</span>
               <span>Liên kết Toa Khám (OD/OS)</span>
-              <span className="px-2 py-0.5 rounded-full bg-[#004967] text-white text-[11px] font-bold ml-1">
-                3 Chờ xử lý
-              </span>
+              {availablePrescriptions.length > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-[#004967] text-white text-[11px] font-bold ml-1">
+                  {availablePrescriptions.length} Chờ xử lý
+                </span>
+              )}
             </button>
           </div>
 
@@ -548,17 +540,17 @@ export default function PosPage() {
           <div className="mt-auto bg-white rounded-xl p-2.5 shadow-xs border border-slate-100 flex items-center justify-between text-xs text-[#40484e]">
             <div className="flex items-center gap-4">
               <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-[#004967]" />
-                <span>Máy quét:</span> <strong className="text-[#111c2d]">Honeywell Xenon (Ready)</strong>
+                <span className="w-2 h-2 rounded-full bg-emerald-600" />
+                <span>Máy quét mã vạch:</span> <strong className="text-[#111c2d]">Sẵn sàng tiếp nhận</strong>
               </span>
               <span>•</span>
               <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-[#004967]" />
-                <span>Máy mài:</span> <strong className="text-[#111c2d]">Essilor Delta 200 (Online)</strong>
+                <span className="w-2 h-2 rounded-full bg-emerald-600" />
+                <span>Cổng kết nối Lab:</span> <strong className="text-[#111c2d]">Trực tuyến</strong>
               </span>
             </div>
             <div className="font-mono font-bold text-[11px] text-[#19648f]">
-              Phiên ca: #POS-Q1-20260330
+              Quầy POS Bán Lẻ
             </div>
           </div>
         </div>
@@ -578,28 +570,20 @@ export default function PosPage() {
                   onClick={() =>
                     setCustomer({
                       name: 'Khách Vãng Lai',
-                      tier: 'Thường',
-                      phone: '0900 000 000',
+                      tier: 'Vãng lai',
+                      phone: '',
                       points: 0,
                       pointValue: 0
                     })
                   }
-                  className="px-2 py-0.5 rounded-lg bg-[#e7eeff] hover:bg-[#dee8ff] text-[#40484e] font-semibold transition-colors"
+                  className="px-2 py-0.5 rounded-lg bg-[#e7eeff] hover:bg-[#dee8ff] text-[#40484e] font-semibold transition-colors cursor-pointer"
                 >
                   Vãng lai
                 </button>
                 <button
                   type="button"
-                  onClick={() =>
-                    setCustomer({
-                      name: linkedRx?.customer || 'Khách Hàng Tiếp Nhận',
-                      tier: 'Thành Viên',
-                      phone: '0901 000 999',
-                      points: 0,
-                      pointValue: 0
-                    })
-                  }
-                  className="px-2 py-0.5 rounded-lg bg-[#004967] text-white font-bold hover:bg-[#086288] transition-colors"
+                  onClick={() => setIsCustomerModalOpen(true)}
+                  className="px-2 py-0.5 rounded-lg bg-[#004967] text-white font-bold hover:bg-[#086288] transition-colors cursor-pointer"
                 >
                   + Tiếp nhận
                 </button>
@@ -853,29 +837,49 @@ export default function PosPage() {
             {/* Tab 1: VietQR Panel */}
             {payTab === 'vietqr' && (
               <div className="p-2 rounded-lg bg-[#f0f3ff] flex items-center gap-3">
-                <div className="w-20 h-20 rounded-lg bg-white p-1 shadow-xs flex flex-col items-center justify-between shrink-0">
-                  <svg className="w-full h-full text-[#111c2d]" fill="currentColor" viewBox="0 0 100 100">
-                    <path d="M5,5 h30 v30 h-30 z M10,10 v20 h20 v-20 z M15,15 h10 v10 h-10 z" />
-                    <path d="M65,5 h30 v30 h-30 z M70,10 v20 h20 v-20 z M75,15 h10 v10 h-10 z" />
-                    <path d="M5,65 h30 v30 h-30 z M10,70 v20 h20 v-20 z M15,75 h10 v10 h-10 z" />
-                    <rect height="25" width="8" x="42" y="5" />
-                    <rect height="15" width="5" x="55" y="15" />
-                    <rect height="20" width="20" x="40" y="40" />
-                    <rect height="8" width="30" x="65" y="45" />
-                    <rect height="27" width="10" x="45" y="68" />
-                    <rect height="12" width="12" x="65" y="65" />
-                    <rect height="15" width="13" x="82" y="80" />
-                  </svg>
+                <div className="w-20 h-20 rounded-lg bg-white p-1 shadow-xs flex flex-col items-center justify-center shrink-0">
+                  {cart.length > 0 ? (
+                    <svg className="w-full h-full text-[#111c2d]" fill="currentColor" viewBox="0 0 100 100">
+                      <path d="M5,5 h30 v30 h-30 z M10,10 v20 h20 v-20 z M15,15 h10 v10 h-10 z" />
+                      <path d="M65,5 h30 v30 h-30 z M70,10 v20 h20 v-20 z M75,15 h10 v10 h-10 z" />
+                      <path d="M5,65 h30 v30 h-30 z M10,70 v20 h20 v-20 z M15,75 h10 v10 h-10 z" />
+                      <rect height="25" width="8" x="42" y="5" />
+                      <rect height="15" width="5" x="55" y="15" />
+                      <rect height="20" width="20" x="40" y="40" />
+                      <rect height="8" width="30" x="65" y="45" />
+                      <rect height="27" width="10" x="45" y="68" />
+                      <rect height="12" width="12" x="65" y="65" />
+                      <rect height="15" width="13" x="82" y="80" />
+                    </svg>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center text-[#70787f] text-[10px] text-center p-1">
+                      <span className="material-symbols-outlined text-[20px] text-slate-300">qr_code_2</span>
+                      <span>Chưa có đơn</span>
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1 flex flex-col justify-between py-0.5">
                   <div>
-                    <div className="flex items-center gap-1.5 text-[#004967]">
-                      <span className="w-2 h-2 rounded-full bg-[#004967] animate-ping" />
-                      <span className="text-xs font-bold">Chờ quét VietQR</span>
-                    </div>
-                    <p className="text-[11px] text-[#40484e] mt-0.5 leading-tight">
-                      QR nạp sẵn <strong className="text-[#111c2d]">{grandTotal.toLocaleString('vi-VN')}đ</strong> và tự khớp hóa đơn.
-                    </p>
+                    {cart.length > 0 ? (
+                      <>
+                        <div className="flex items-center gap-1.5 text-[#004967]">
+                          <span className="w-2 h-2 rounded-full bg-[#004967] animate-ping" />
+                          <span className="text-xs font-bold">Chờ quét VietQR</span>
+                        </div>
+                        <p className="text-[11px] text-[#40484e] mt-0.5 leading-tight">
+                          QR nạp sẵn <strong className="text-[#111c2d]">{grandTotal.toLocaleString('vi-VN')}đ</strong> và tự khớp hóa đơn.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-1.5 text-[#70787f]">
+                          <span className="text-xs font-bold">Thanh toán VietQR</span>
+                        </div>
+                        <p className="text-[11px] text-[#70787f] mt-0.5 leading-tight">
+                          Thêm sản phẩm vào giỏ hàng để tạo mã QR tự động.
+                        </p>
+                      </>
+                    )}
                   </div>
                   <div className="mt-1 flex items-center gap-1.5">
                     <span className="px-1.5 py-0.5 rounded bg-[#dee8ff] text-[#40484e] font-mono text-[10px] font-bold">
@@ -993,27 +997,37 @@ export default function PosPage() {
             </div>
 
             <div className="space-y-3 max-h-96 overflow-y-auto">
-              {availablePrescriptions.map((rx) => (
-                <div
-                  key={rx.code}
-                  onClick={() => handleSelectPrescription(rx)}
-                  className="p-4 rounded-xl bg-[#f0f3ff] hover:bg-[#e7eeff] border border-[#dee8ff]/50 transition-colors cursor-pointer flex flex-col gap-2"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-[#004967] font-bold">
-                      {rx.code} • {rx.customer} ({rx.phone})
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full bg-[#cae6ff] text-[#001e30] text-[10px] font-bold">
-                      {rx.timeAgo}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 text-xs font-mono bg-white p-2.5 rounded-lg border border-slate-100 text-[#111c2d]">
-                    <div>OD (Mắt phải): {rx.od}</div>
-                    <div>OS (Mắt trái): {rx.os}</div>
-                  </div>
+              {availablePrescriptions.length === 0 ? (
+                <div className="py-12 text-center text-[#70787f] flex flex-col items-center justify-center">
+                  <span className="material-symbols-outlined text-4xl text-slate-300 mb-2">eyeglasses</span>
+                  <span className="font-semibold text-sm">Chưa có toa khám khúc xạ nào trong CSDL</span>
+                  <p className="text-xs text-[#70787f] mt-1 max-w-md">
+                    Bác sĩ khúc xạ tại phòng đo mắt chưa lưu toa kính nào. Toa sau khi khám xong sẽ tự động hiển thị tại đây.
+                  </p>
                 </div>
-              ))}
+              ) : (
+                availablePrescriptions.map((rx) => (
+                  <div
+                    key={rx.code}
+                    onClick={() => handleSelectPrescription(rx)}
+                    className="p-4 rounded-xl bg-[#f0f3ff] hover:bg-[#e7eeff] border border-[#dee8ff]/50 transition-colors cursor-pointer flex flex-col gap-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-[#004967] font-bold">
+                        {rx.code} • {rx.customer} ({rx.phone})
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full bg-[#cae6ff] text-[#001e30] text-[10px] font-bold">
+                        {rx.timeAgo}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs font-mono bg-white p-2.5 rounded-lg border border-slate-100 text-[#111c2d]">
+                      <div>OD (Mắt phải): {rx.od}</div>
+                      <div>OS (Mắt trái): {rx.os}</div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
 
             <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
@@ -1021,6 +1035,96 @@ export default function PosPage() {
                 type="button"
                 onClick={() => setIsRxModalOpen(false)}
                 className="px-4 py-2 rounded-xl bg-[#f0f3ff] text-[#40484e] text-xs font-bold hover:bg-[#dee8ff] transition-colors cursor-pointer"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL: Chọn Khách Hàng Tiếp Nhận (Từ DB) ================= */}
+      {isCustomerModalOpen && (
+        <div className="fixed inset-0 bg-[#263143]/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl flex flex-col gap-4 border border-slate-100">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#004967] text-[24px]">
+                  person_search
+                </span>
+                <h3 className="text-base text-[#111c2d] font-bold">
+                  Tiếp Nhận Khách Hàng (Dữ Liệu Thật CSDL)
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCustomerModalOpen(false)}
+                className="text-[#70787f] hover:text-[#111c2d] transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[24px]">close</span>
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#70787f] text-[18px]">
+                search
+              </span>
+              <input
+                type="text"
+                placeholder="Tìm theo tên hoặc SĐT..."
+                value={customerSearchQuery}
+                onChange={(e) => setCustomerSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#f0f3ff] border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#004967]/30"
+              />
+            </div>
+
+            {/* Customer List from DB */}
+            <div className="space-y-2 max-h-80 overflow-y-auto">
+              {dbCustomers
+                .filter(c => {
+                  const q = customerSearchQuery.toLowerCase().trim();
+                  if (!q) return true;
+                  return (c.fullName || '').toLowerCase().includes(q) || (c.phoneNumber || '').includes(q);
+                })
+                .map(c => (
+                  <div
+                    key={c.id}
+                    onClick={() => {
+                      setCustomer({
+                        name: c.fullName,
+                        tier: 'Thành Viên',
+                        phone: c.phoneNumber || '',
+                        points: 0,
+                        pointValue: 0
+                      });
+                      setIsCustomerModalOpen(false);
+                      message.success(`Đã tiếp nhận khách hàng: ${c.fullName}`);
+                    }}
+                    className="p-3 rounded-xl bg-[#f0f3ff] hover:bg-[#e7eeff] border border-[#dee8ff]/50 transition-colors cursor-pointer flex items-center justify-between"
+                  >
+                    <div>
+                      <span className="font-bold text-xs text-[#111c2d] block">{c.fullName}</span>
+                      <span className="text-[11px] text-[#70787f]">{c.phoneNumber || 'Chưa có SĐT'} • {c.email || ''}</span>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full bg-[#004967] text-white text-[10px] font-bold">
+                      Chọn
+                    </span>
+                  </div>
+                ))}
+              {dbCustomers.length === 0 && (
+                <div className="py-8 text-center text-[#70787f] text-xs">
+                  Không tìm thấy khách hàng nào trong cơ sở dữ liệu.
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-between items-center pt-2 border-t border-slate-100">
+              <span className="text-[11px] text-[#70787f]">CSDL: {dbCustomers.length} khách hàng</span>
+              <button
+                type="button"
+                onClick={() => setIsCustomerModalOpen(false)}
+                className="px-4 py-1.5 rounded-xl bg-[#f0f3ff] text-[#40484e] text-xs font-bold hover:bg-[#dee8ff] transition-colors cursor-pointer"
               >
                 Đóng
               </button>

@@ -283,9 +283,17 @@ export default function OptometryAppointmentsPage() {
                   <div>
                     <div className="flex items-center gap-2">
                       <h2 className="font-headline-sm text-headline-sm text-primary">Phòng Đo Mắt 01</h2>
-                      <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-md text-[10px] font-semibold flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-error animate-pulse"></span>
-                        SẴN SÀNG
+                      <span className={`px-2 py-0.2 rounded-full font-label-md text-[10px] font-semibold flex items-center gap-1 ${
+                        activeExam ? 'bg-amber-100 text-amber-800' : 'bg-surface-container-high text-primary'
+                      }`}>
+                        {activeExam ? (
+                          <>
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse"></span>
+                            ĐANG KHÁM
+                          </>
+                        ) : (
+                          'PHÒNG TRỐNG (SẴN SÀNG)'
+                        )}
                       </span>
                     </div>
                     <p className="font-body-sm text-body-sm text-on-surface-variant">Topcon KR-800 • Kính thử phoropter CV-5000</p>
@@ -304,9 +312,9 @@ export default function OptometryAppointmentsPage() {
                     <div className="w-7 h-7 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-bold text-[10px]">BS</div>
                     <div>
                       <span className="font-title-md text-title-md text-on-surface block font-semibold leading-tight">
-                        {activeExam?.optometristName || 'BS. Khúc Xạ'}
+                        {activeExam?.optometristName || 'BS. Lê Thị Ánh Tuyết'}
                       </span>
-                      <span className="font-body-sm text-outline text-[11px]">CCHN: 014829/BYT-CCHN</span>
+                      <span className="font-body-sm text-outline text-[11px]">Bác sĩ Khúc Xạ Mắt CCHN</span>
                     </div>
                   </div>
                 </div>
@@ -330,33 +338,60 @@ export default function OptometryAppointmentsPage() {
               {/* 12-Step Progress Bar */}
               <div className="p-2.5 bg-surface-container-low rounded-xl space-y-1.5 border border-[#d8e3fb]/30">
                 <div className="flex items-center justify-between text-body-sm">
-                  <span className="font-label-md text-label-md text-on-surface font-medium">Tiến trình khám khúc xạ tiêu chuẩn:</span>
-                  <span className="font-label-mono text-primary font-bold">{filteredAppointments.length > 0 ? 'Bước 07 / 12' : 'Bước 00 / 12'}</span>
+                  <span className="font-label-md text-label-md text-on-surface font-medium">Tiến trình khám khúc xạ:</span>
+                  <span className="font-label-mono text-primary font-bold">{activeExam ? 'Bước 07 / 12' : 'Bước 00 / 12'}</span>
                 </div>
                 <div className="w-full bg-surface-container-highest h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-primary h-full rounded-full transition-all duration-500" style={{ width: filteredAppointments.length > 0 ? '58.3%' : '0%' }}></div>
+                  <div className="bg-primary h-full rounded-full transition-all duration-500" style={{ width: activeExam ? '58.3%' : '0%' }}></div>
                 </div>
                 <div className="flex items-center justify-between font-body-sm text-body-sm text-on-surface-variant">
                   <span className="flex items-center gap-1 text-primary font-semibold text-[11px]">
                     <span className="material-symbols-outlined text-[13px]">tune</span>
-                    {activeExam?.examStep || 'Phòng trống - Sẵn sàng tiếp nhận'}
+                    {activeExam ? (activeExam.examStep || 'Đang thực hiện quy trình khám 12 bước') : 'Phòng trống - Sẵn sàng đón bệnh nhân'}
                   </span>
-                  <span className="text-outline text-[11px]">Sẵn sàng</span>
+                  <span className="text-outline text-[11px]">{activeExam ? 'Đang khám' : 'Sẵn sàng'}</span>
                 </div>
               </div>
             </div>
 
             {/* Room 01 Action buttons */}
             <div className="pt-3 flex flex-wrap items-center justify-end gap-2 border-t border-[#e7eeff] mt-2">
-              <button onClick={() => handleAction('Mở hồ sơ lịch sử thị lực bệnh nhân')} className="h-8 px-3 rounded-lg bg-surface-container text-primary font-label-md text-label-md flex items-center gap-1 hover:bg-surface-container-high transition-colors cursor-pointer">
+              <button 
+                onClick={() => {
+                  if (!activeExam) {
+                    message.info('Phòng 01 hiện chưa có ca khám đang diễn ra.');
+                    return;
+                  }
+                  handleAction('Mở hồ sơ lịch sử thị lực bệnh nhân ' + activeExam.customerName);
+                }} 
+                className="h-8 px-3 rounded-lg bg-surface-container text-primary font-label-md text-label-md flex items-center gap-1 hover:bg-surface-container-high transition-colors cursor-pointer"
+              >
                 <span className="material-symbols-outlined text-[15px]">history</span>
                 <span>Lịch Sử Đo</span>
               </button>
-              <button onClick={() => handleAction('Mở toa kính đang khám')} className="h-8 px-3 rounded-lg bg-secondary-fixed text-on-secondary-fixed font-label-md text-label-md flex items-center gap-1 hover:bg-secondary-container transition-colors cursor-pointer">
+              <button 
+                onClick={() => {
+                  if (!activeExam) {
+                    message.info('Phòng 01 hiện chưa có ca khám đang diễn ra.');
+                    return;
+                  }
+                  handleAction('Mở toa kính đang khám');
+                }} 
+                className="h-8 px-3 rounded-lg bg-secondary-fixed text-on-secondary-fixed font-label-md text-label-md flex items-center gap-1 hover:bg-secondary-container transition-colors cursor-pointer"
+              >
                 <span className="material-symbols-outlined text-[15px]">description</span>
                 <span>Mở Toa Kính</span>
               </button>
-              <button onClick={() => handleFinishAndPushPos(activeExam)} className="h-8 px-3.5 rounded-lg bg-primary text-on-primary font-label-md text-label-md flex items-center gap-1 shadow-xs hover:bg-[#0b4d6b] transition-all cursor-pointer">
+              <button 
+                onClick={() => {
+                  if (!activeExam) {
+                    message.info('Phòng 01 đang trống, không có ca khám để đẩy sang POS.');
+                    return;
+                  }
+                  handleFinishAndPushPos(activeExam);
+                }} 
+                className="h-8 px-3.5 rounded-lg bg-primary text-on-primary font-label-md text-label-md flex items-center gap-1 shadow-xs hover:bg-[#0b4d6b] transition-all cursor-pointer"
+              >
                 <span className="material-symbols-outlined text-[15px]">check_circle</span>
                 <span>Hoàn Tất &amp; Đẩy POS</span>
               </button>
@@ -374,8 +409,7 @@ export default function OptometryAppointmentsPage() {
                   <div>
                     <div className="flex items-center gap-2">
                       <h2 className="font-headline-sm text-headline-sm text-primary">Phòng Đo Mắt 02</h2>
-                      <span className="px-2 py-0.2 rounded-full bg-secondary-container text-on-secondary-container font-label-md text-[10px] font-semibold flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                      <span className="px-2 py-0.2 rounded-full bg-surface-container-high text-primary font-label-md text-[10px] font-semibold">
                         SẴN SÀNG
                       </span>
                     </div>
@@ -395,7 +429,7 @@ export default function OptometryAppointmentsPage() {
                     <div className="w-7 h-7 rounded-full bg-secondary text-on-secondary flex items-center justify-center font-bold text-[10px]">KTV</div>
                     <div>
                       <span className="font-title-md text-title-md text-on-surface block font-semibold leading-tight">Sẵn sàng đón bệnh nhân</span>
-                      <span className="font-body-sm text-outline text-[11px]">KTV Khúc Xạ Chính [STF-102]</span>
+                      <span className="font-body-sm text-outline text-[11px]">KTV Khúc Xạ Chính</span>
                     </div>
                   </div>
                 </div>
@@ -405,7 +439,7 @@ export default function OptometryAppointmentsPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="font-title-md text-title-md text-primary block font-semibold leading-tight">Nidek RT-5100</span>
-                      <span className="font-body-sm text-on-surface-variant text-[11px]">Hiệu chuẩn 08:00 sáng nay • OK</span>
+                      <span className="font-body-sm text-on-surface-variant text-[11px]">Hiệu chuẩn tự động • OK</span>
                     </div>
                     <span className="material-symbols-outlined text-primary text-[18px]">verified</span>
                   </div>
@@ -419,7 +453,9 @@ export default function OptometryAppointmentsPage() {
                     <span className="material-symbols-outlined text-[15px]">notifications_active</span>
                     Bệnh nhân ưu tiên kế tiếp
                   </span>
-                  <span className="font-label-mono text-label-mono text-primary font-bold">Đã chờ: 06 phút</span>
+                  <span className="font-label-mono text-label-mono text-primary font-bold">
+                    {nextWaiting ? 'Đang chờ' : '0 người'}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between bg-surface-container-lowest p-2 rounded-lg shadow-xs">
                   {nextWaiting ? (
@@ -429,7 +465,7 @@ export default function OptometryAppointmentsPage() {
                       </div>
                       <div>
                         <div className="flex items-center gap-1.5">
-                          <span className="font-title-md text-title-md text-on-surface font-semibold">{nextWaiting?.customerName || 'Chưa có'}</span>
+                          <span className="font-title-md text-title-md text-on-surface font-semibold">{nextWaiting.customerName}</span>
                           <span className="px-1.5 py-0.2 rounded-full bg-[#FFEFC4] text-[#78350F] font-label-md text-[10px] font-semibold">
                             {nextWaiting.customerTier || 'Thành Viên'}
                           </span>
@@ -453,11 +489,22 @@ export default function OptometryAppointmentsPage() {
                 <span>Tạm Ngưng (5p)</span>
               </button>
               <button
-                onClick={() => handleCallPatient(nextWaiting, 'Phòng Đo Mắt 02')}
-                className="h-8 px-4 rounded-lg bg-primary text-on-primary font-label-lg text-label-lg flex items-center gap-1 shadow-xs hover:bg-[#0b4d6b] transition-all cursor-pointer"
+                disabled={!nextWaiting}
+                onClick={() => {
+                  if (!nextWaiting) {
+                    message.info('Hàng đợi phòng 02 đang trống, chưa có bệnh nhân tiếp theo.');
+                    return;
+                  }
+                  handleCallPatient(nextWaiting, 'Phòng Đo Mắt 02');
+                }}
+                className={`h-8 px-4 rounded-lg font-label-lg text-label-lg flex items-center gap-1 shadow-xs transition-all ${
+                  nextWaiting 
+                    ? 'bg-primary text-on-primary hover:bg-[#0b4d6b] cursor-pointer' 
+                    : 'bg-surface-container text-outline cursor-not-allowed'
+                }`}
               >
                 <span className="material-symbols-outlined text-[16px]">campaign</span>
-                <span>Gọi Vào Khám: {nextWaiting?.customerName || 'Chưa có'}</span>
+                <span>Gọi Vào Khám{nextWaiting ? `: ${nextWaiting.customerName}` : ''}</span>
               </button>
             </div>
           </div>

@@ -73,6 +73,9 @@ export default function CrmPage() {
     loadCustomers();
   }, []);
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterTag, setFilterTag] = useState('all');
+
   // Modal States
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -254,29 +257,20 @@ export default function CrmPage() {
           <div className="p-3.5 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 flex flex-col justify-between">
             <div className="flex items-start justify-between">
               <div>
-                <span className="font-label-md text-label-md uppercase tracking-wider text-outline block">Phân Hạng Hội Viên VIP</span>
+                <span className="font-label-md text-label-md uppercase tracking-wider text-outline block">Phân Hạng Hội Viên</span>
                 <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className="font-display-lg text-display-lg text-on-surface tracking-tight">100% VIP</span>
-                  <span className="font-label-md text-label-md text-secondary">4 Tier Level</span>
+                  <span className="font-display-lg text-display-lg text-on-surface tracking-tight">
+                    {customerList.length > 0 ? (customerList[0]?.tier || 'Thành Viên') : '0'}
+                  </span>
+                  <span className="font-label-md text-label-md text-secondary">Hồ sơ CSDL</span>
                 </div>
               </div>
               <div className="w-8 h-8 rounded-lg bg-primary-fixed text-on-primary-fixed flex items-center justify-center">
                 <span className="material-symbols-outlined text-[18px]">workspace_premium</span>
               </div>
             </div>
-            <div className="mt-2 pt-2 border-t border-[#e7eeff] space-y-1">
-              <div className="w-full h-1.5 rounded-full bg-surface-container flex overflow-hidden">
-                <div className="h-full bg-primary" style={{ width: '45%' }}></div>
-                <div className="h-full bg-secondary" style={{ width: '28%' }}></div>
-                <div className="h-full bg-secondary-fixed-dim" style={{ width: '12%' }}></div>
-                <div className="h-full bg-surface-dim" style={{ width: '15%' }}></div>
-              </div>
-              <div className="flex items-center justify-between font-label-mono text-[10px] text-outline">
-                <span>Silver 45%</span>
-                <span>Gold 28%</span>
-                <span>Plat 12%</span>
-                <span className="text-primary font-semibold">1.42M pts</span>
-              </div>
+            <div className="mt-2 pt-2 border-t border-[#e7eeff] text-body-sm text-[11px] text-outline">
+              Hạng thành viên ghi nhận từ CSDL
             </div>
           </div>
 
@@ -286,7 +280,7 @@ export default function CrmPage() {
                 <span className="font-label-md text-label-md uppercase tracking-wider text-outline block">Cảnh Báo Tái Khám (6T)</span>
                 <div className="flex items-baseline gap-1.5 mt-0.5">
                   <span className="font-display-lg text-display-lg text-secondary tracking-tight">0</span>
-                  <span className="font-label-md text-label-md text-error font-medium">Đến hạn tái khám</span>
+                  <span className="font-label-md text-label-md text-outline font-medium">Đến hạn</span>
                 </div>
               </div>
               <div className="w-8 h-8 rounded-lg bg-error-container text-on-error-container flex items-center justify-center">
@@ -294,9 +288,9 @@ export default function CrmPage() {
               </div>
             </div>
             <div className="mt-2 pt-2 border-t border-[#e7eeff] flex items-center justify-between font-body-sm text-body-sm">
-              <span className="text-on-surface-variant truncate">Cần kích hoạt ZNS định kỳ</span>
-              <button onClick={() => handleAction('Đã gửi thông báo ZNS hàng loạt tới 142 khách hàng')} className="px-2 py-0.5 bg-primary text-on-primary rounded text-[10px] font-semibold hover:bg-primary-container shrink-0 cursor-pointer">
-                Gửi hàng loạt
+              <span className="text-on-surface-variant truncate">0 khách hàng đến hạn</span>
+              <button onClick={() => handleAction('Chưa có khách hàng nào đến hạn tái khám')} className="px-2 py-0.5 bg-surface-container text-outline rounded text-[10px] font-semibold shrink-0 cursor-pointer">
+                Gửi ZNS
               </button>
             </div>
           </div>
@@ -306,8 +300,8 @@ export default function CrmPage() {
               <div>
                 <span className="font-label-md text-label-md uppercase tracking-wider text-outline block">Chất Lượng CSAT / NPS</span>
                 <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className="font-display-lg text-display-lg text-primary tracking-tight">100%</span>
-                  <span className="font-label-md text-label-md text-primary font-bold">NPS +78</span>
+                  <span className="font-display-lg text-display-lg text-primary tracking-tight">--</span>
+                  <span className="font-label-md text-label-md text-outline font-bold">Chưa có khảo sát</span>
                 </div>
               </div>
               <div className="w-8 h-8 rounded-lg bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center">
@@ -315,8 +309,8 @@ export default function CrmPage() {
               </div>
             </div>
             <div className="mt-2 pt-2 border-t border-[#e7eeff] flex items-center gap-1 font-body-sm text-body-sm text-on-surface-variant">
-              <span className="material-symbols-outlined text-primary text-[14px]">check_circle</span>
-              <span className="truncate">Chuẩn ISO Y Tế &amp; Mài Lắp QC Pass</span>
+              <span className="material-symbols-outlined text-outline text-[14px]">info</span>
+              <span className="truncate text-outline text-[11px]">Chưa ghi nhận đánh giá từ khách hàng</span>
             </div>
           </div>
         </div>
@@ -335,6 +329,8 @@ export default function CrmPage() {
                   className="w-full pl-9 pr-20 py-1.5 bg-surface-container-low text-on-surface font-body-md text-body-md rounded-xl focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                   placeholder="Tìm tên, SĐT, CCCD..."
                   type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                 />
                 <button onClick={() => handleAction('Quét QR thẻ thành viên camera')} className="absolute right-1.5 top-1/2 -translate-y-1/2 px-2 py-0.5 bg-surface-container text-primary hover:bg-secondary-fixed text-[10px] font-label-mono rounded-lg flex items-center gap-1 transition-all cursor-pointer">
                   <span className="material-symbols-outlined text-[13px]">qr_code_scanner</span>
@@ -343,25 +339,37 @@ export default function CrmPage() {
               </div>
 
               <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap pb-0.5 text-label-md font-label-md">
-                <button className="px-2.5 py-1 rounded-full bg-primary text-on-primary shrink-0 transition-colors cursor-pointer">Tất cả (42.8k)</button>
-                <button className="px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant hover:bg-surface-container-high shrink-0 transition-colors cursor-pointer">VIP Gold/Plat</button>
-                <button className="px-2.5 py-1 rounded-full bg-error-container text-on-error-container hover:opacity-90 shrink-0 flex items-center gap-1 transition-colors cursor-pointer">
-                  <span className="w-1.5 h-1.5 rounded-full bg-error"></span>
-                  Tái khám (142)
+                <button className="px-2.5 py-1 rounded-full bg-primary text-on-primary shrink-0 transition-colors cursor-pointer">
+                  Tất cả ({customerList.length})
                 </button>
-                <button className="px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant hover:bg-surface-container-high shrink-0 transition-colors cursor-pointer">Mới đăng ký</button>
+                <button className="px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant hover:bg-surface-container-high shrink-0 transition-colors cursor-pointer">
+                  Hội viên ({customerList.length})
+                </button>
+                <button className="px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant hover:bg-surface-container-high shrink-0 transition-colors cursor-pointer">
+                  Tái khám (0)
+                </button>
               </div>
             </div>
 
             {/* Customer List items */}
             <div className="flex flex-col gap-2 max-h-[720px] overflow-y-auto pr-0.5">
-              {customerList.length === 0 ? (
+              {customerList.filter(item => {
+                const q = searchQuery.toLowerCase().trim();
+                if (!q) return true;
+                return (item.name || '').toLowerCase().includes(q) || (item.phone || '').includes(q) || (item.id || '').toLowerCase().includes(q);
+              }).length === 0 ? (
                 <div className="p-8 text-center bg-surface-container-lowest rounded-xl border border-dashed border-[#d8e3fb]">
                   <span className="material-symbols-outlined text-3xl text-slate-300 mb-1">person_search</span>
-                  <p className="text-xs text-outline font-medium">Chưa có khách hàng nào trong hệ thống</p>
+                  <p className="text-xs text-outline font-medium">Không tìm thấy khách hàng nào</p>
                 </div>
               ) : (
-                customerList.map((item) => {
+                customerList
+                  .filter(item => {
+                    const q = searchQuery.toLowerCase().trim();
+                    if (!q) return true;
+                    return (item.name || '').toLowerCase().includes(q) || (item.phone || '').includes(q) || (item.id || '').toLowerCase().includes(q);
+                  })
+                  .map((item) => {
                 const isSelected = selectedCustomerId === item.id;
                 return (
                   <div
@@ -582,10 +590,6 @@ export default function CrmPage() {
                   <span className="font-body-sm text-body-sm text-outline">Bảo toàn vĩnh viễn theo chuẩn Y Khoa NFR-SEC-04</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => handleAction('Đang mở chi tiết Toa Kính #RX-2026-889')} className="px-2.5 py-1 bg-primary text-on-primary rounded-lg text-label-md font-label-md flex items-center gap-1 shadow-xs hover:bg-primary-container transition-all cursor-pointer">
-                    <span className="material-symbols-outlined text-[15px]">visibility</span>
-                    Xem #RX-2026-889
-                  </button>
                   <button onClick={() => handleAction('Đã gửi lệnh in sổ khám A5 ra máy in')} className="px-2.5 py-1 bg-surface-container text-on-surface rounded-lg text-label-md font-label-md flex items-center gap-1 hover:bg-surface-container-high transition-all cursor-pointer">
                     <span className="material-symbols-outlined text-[15px]">print</span>
                     In Sổ (A5)
@@ -626,14 +630,13 @@ export default function CrmPage() {
                     <span className="material-symbols-outlined text-primary text-[18px]">laptop_mac</span>
                     <span className="font-title-md text-title-md text-on-surface font-semibold">Thói Quen Thị Giác &amp; Nghề Nghiệp</span>
                   </div>
-                  <div className="p-2.5 bg-surface-container-low rounded-xl text-body-sm font-body-sm text-on-surface-variant space-y-1">
-                    <div><strong>Kỹ sư phần mềm cao cấp:</strong> Tiếp xúc màn hình OLED/LED 8-10 giờ/ngày.</div>
-                    <div className="text-error font-medium">Triệu chứng: Khô mỏi mắt lúc 16h-18h, chói lóa khi lái xe đêm, nhạy cảm ánh sáng xanh 415-455nm.</div>
+                  <div className="p-2.5 bg-surface-container-low rounded-xl text-body-sm font-body-sm text-outline">
+                    Chưa ghi nhận thói quen thị giác và triệu chứng công việc của khách hàng này.
                   </div>
                 </div>
                 <div className="pt-2 flex items-center justify-between font-label-mono text-[10px] text-outline">
-                  <span>Cập nhật 04/2026</span>
-                  <span onClick={() => handleAction('Mở bài kiểm tra Schirmer Test')} className="text-primary font-semibold cursor-pointer hover:underline">Khám khô mắt Schirmer →</span>
+                  <span>Dữ liệu CSDL</span>
+                  <span onClick={() => handleAction('Chức năng khảo sát thị giác chuẩn bị cập nhật')} className="text-primary font-semibold cursor-pointer hover:underline">Thêm ghi chú →</span>
                 </div>
               </div>
 
@@ -643,18 +646,16 @@ export default function CrmPage() {
                     <span className="material-symbols-outlined text-primary text-[18px]">recommend</span>
                     <span className="font-title-md text-title-md text-on-surface font-semibold">Khuyến Cáo Kỹ Thuật Kính (Dispensing Rx)</span>
                   </div>
-                  <div className="p-2.5 bg-surface-container-low rounded-xl text-body-sm font-body-sm text-on-surface-variant space-y-1">
-                    <div>• <strong>Chiết suất:</strong> 1.60 hoặc 1.67 Aspheric (mỏng hơn 30%, chống quang sai rìa)</div>
-                    <div>• <strong>Lớp phủ:</strong> Crizal Blue UV Capture hoặc EyeZen Relax giảm căng điều tiết</div>
-                    <div>• <strong>Dáng gọng:</strong> Khuyên dùng gọng có đệm ve mũi rời để chuẩn Vertex Distance 12mm</div>
+                  <div className="p-2.5 bg-surface-container-low rounded-xl text-body-sm font-body-sm text-outline">
+                    Chưa có chỉ định loại tròng hoặc thông số chiết suất riêng cho khách hàng này.
                   </div>
                 </div>
                 <div className="pt-2 flex items-center gap-2">
-                  <button onClick={() => handleAction('Đã đẩy toa khám sang POS [F3]')} className="flex-1 py-1.5 px-3 bg-primary text-on-primary hover:bg-primary-container rounded-xl font-label-md text-label-md font-semibold transition-all flex items-center justify-center gap-1 cursor-pointer">
+                  <button onClick={() => handleAction('Đã chuyển tiếp khách hàng sang màn hình POS [F3]')} className="flex-1 py-1.5 px-3 bg-primary text-on-primary hover:bg-primary-container rounded-xl font-label-md text-label-md font-semibold transition-all flex items-center justify-center gap-1 cursor-pointer">
                     <span className="material-symbols-outlined text-[15px]">shopping_cart_checkout</span>
                     Đẩy Sang POS [F3]
                   </button>
-                  <button onClick={() => handleAction('Đã gửi bản tóm tắt ZNS tới SĐT khách hàng')} className="py-1.5 px-3 bg-surface-container text-on-surface hover:bg-surface-container-high rounded-xl font-label-md text-label-md transition-all flex items-center gap-1 cursor-pointer">
+                  <button onClick={() => handleAction('Chưa có lịch hẹn để gửi ZNS')} className="py-1.5 px-3 bg-surface-container text-on-surface hover:bg-surface-container-high rounded-xl font-label-md text-label-md transition-all flex items-center gap-1 cursor-pointer">
                     <span className="material-symbols-outlined text-[15px]">sms</span>
                     ZNS
                   </button>

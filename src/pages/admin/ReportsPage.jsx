@@ -25,7 +25,7 @@ export default function ReportsPage() {
   const onlineCount = liveOrders.filter(o => o.channel === 'ONLINE').length;
   const avgOrderValue = totalOrderCount > 0 ? Math.round(totalRevenue / totalOrderCount) : 0;
   const completedCount = liveOrders.filter(o => o.status === 'COMPLETED').length;
-  const qcPassRate = totalOrderCount > 0 ? ((completedCount / totalOrderCount) * 100).toFixed(1) : '100.0';
+  const qcPassRate = totalOrderCount > 0 ? ((completedCount / totalOrderCount) * 100).toFixed(1) : '0.0';
 
   // Aggregate product sales from real order items
   const productSalesMap = {};
