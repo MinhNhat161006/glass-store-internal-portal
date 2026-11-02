@@ -229,7 +229,7 @@ function AdminDashboardView({ timeframe, setTimeframe, navigate }) {
               <span className="material-symbols-outlined text-[20px]">shopping_bag</span>
             </span>
           </div>
-          <div className="text-2xl font-bold text-[#111c2d] mt-2">34 đơn</div>
+          <div className="text-2xl font-bold text-[#111c2d] mt-2">{liveLabJobs.length} đơn</div>
           <div className="text-xs text-[#40484e] mt-1">22 đơn có độ • 12 gọng &amp; râm</div>
         </div>
 
@@ -240,7 +240,7 @@ function AdminDashboardView({ timeframe, setTimeframe, navigate }) {
               <span className="material-symbols-outlined text-[20px]">visibility</span>
             </span>
           </div>
-          <div className="text-2xl font-bold text-[#111c2d] mt-2">18 ca</div>
+          <div className="text-2xl font-bold text-[#111c2d] mt-2">{liveAppointments.length} ca</div>
           <div className="text-xs text-[#40484e] mt-1">12 hoàn thành • 6 đang chờ</div>
         </div>
 
@@ -251,7 +251,7 @@ function AdminDashboardView({ timeframe, setTimeframe, navigate }) {
               <span className="material-symbols-outlined text-[20px]">precision_manufacturing</span>
             </span>
           </div>
-          <div className="text-2xl font-bold text-[#111c2d] mt-2">14 cặp tròng</div>
+          <div className="text-2xl font-bold text-[#111c2d] mt-2">{liveLabJobs.filter(j => j.status === 'WAITING').length} cặp tròng</div>
           <div className="text-xs text-[#0f766e] font-semibold mt-1">Hiệu suất trạm: 94.8% SLA</div>
         </div>
       </div>
@@ -263,7 +263,7 @@ function AdminDashboardView({ timeframe, setTimeframe, navigate }) {
           <div className="flex items-center justify-between border-b border-[#dee8ff]/40 pb-3">
             <div className="flex items-center gap-2">
               <span className="text-base font-bold text-[#111c2d]">Điều Phối Mài Lắp Kính (Lab Queue)</span>
-              <span className="px-2 py-0.5 rounded-full bg-[#e7eeff] text-[#004967] text-xs font-semibold">3 đơn đang làm</span>
+              <span className="px-2 py-0.5 rounded-full bg-[#e7eeff] text-[#004967] text-xs font-semibold">{displayLabQueue.length} đơn đang làm</span>
             </div>
             <button onClick={() => navigate('/lab')} className="text-xs text-[#004967] hover:underline font-semibold">
               Xem tất cả &gt;

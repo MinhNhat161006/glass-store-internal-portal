@@ -120,7 +120,7 @@ export default function LabPage() {
               </div>
             </div>
             <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="font-display-lg text-display-lg text-on-surface font-bold">{orders.length}</span>
+              <span className="font-display-lg text-display-lg text-on-surface font-bold">{queueOrders.length}</span>
               <span className="font-label-md text-label-md text-outline">lệnh gia công</span>
             </div>
             <div className="mt-1 pt-1.5 border-t border-[#e7eeff] text-body-sm text-[11px] text-outline">
@@ -136,7 +136,7 @@ export default function LabPage() {
               </div>
             </div>
             <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="font-display-lg text-display-lg text-secondary font-bold">{orders.filter(o => o.status === 'Chờ nạp').length}</span>
+              <span className="font-display-lg text-display-lg text-secondary font-bold">{queueOrders.filter(o => o.status === 'Chờ nạp').length}</span>
               <span className="font-label-md text-label-md text-outline">khay chờ nạp</span>
             </div>
             <div className="mt-1 pt-1.5 border-t border-[#e7eeff] text-body-sm text-[11px] text-secondary">
@@ -152,7 +152,7 @@ export default function LabPage() {
               </div>
             </div>
             <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="font-display-lg text-display-lg text-primary font-bold">{orders.filter(o => o.status === 'Đang mài').length}</span>
+              <span className="font-display-lg text-display-lg text-primary font-bold">{queueOrders.filter(o => o.status === 'Đang mài').length}</span>
               <span className="font-label-md text-label-md text-outline">máy đang cắt</span>
             </div>
             <div className="mt-1 pt-1.5 border-t border-[#e7eeff] text-body-sm text-[11px] text-outline flex items-center gap-1">
@@ -169,7 +169,7 @@ export default function LabPage() {
               </div>
             </div>
             <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="font-display-lg text-display-lg text-on-surface font-bold">{orders.filter(o => o.status === 'Chờ QC').length}</span>
+              <span className="font-display-lg text-display-lg text-on-surface font-bold">{queueOrders.filter(o => o.status === 'Chờ QC').length}</span>
               <span className="font-label-md text-label-md text-outline">đơn sẵn sàng</span>
             </div>
             <div className="mt-1 pt-1.5 border-t border-[#e7eeff] text-body-sm text-[11px] text-outline">
@@ -254,7 +254,7 @@ export default function LabPage() {
                 </span>
               </div>
               <div className="mt-2 flex items-center justify-between text-[11px]">
-                <span className="text-outline truncate">Gợi ý nạp: #LAB-091 (Hỏa tốc)</span>
+                <span className="text-outline truncate">Hàng đợi trống • Sẵn sàng cắt mài</span>
                 <button
                   onClick={() => handleAction('Đã nạp lệnh hỏa tốc #LAB-091 vào máy Nidek')}
                   className="px-2 py-0.5 bg-primary text-on-primary rounded text-[10px] font-semibold hover:bg-primary-container shrink-0 cursor-pointer"
@@ -281,7 +281,7 @@ export default function LabPage() {
 
             <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap text-label-md font-label-md">
               {[
-                { id: 'all', label: 'Tất cả ({orders.length})' },
+                { id: 'all', label: 'Tất cả ({queueOrders.length})' },
                 { id: 'waiting', label: 'Chờ nạp (0)' },
                 { id: 'in_progress', label: 'Đang mài (0)' },
                 { id: 'completed', label: 'Chờ QC (0)' },

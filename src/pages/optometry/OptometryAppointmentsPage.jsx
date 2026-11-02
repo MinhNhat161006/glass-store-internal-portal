@@ -112,7 +112,7 @@ export default function OptometryAppointmentsPage() {
     customerName: 'Nguyễn Hoàng Duy',
     customerTier: 'VIP Silver',
     optometristName: 'BS. Lê Thị Ánh Tuyết',
-    examStep: 'Đang thử kính mẫu & Cân bằng thị giác hai mắt (Binocular Balance)',
+    examStep: 'Đang thử kính mẫu & Phòng đo sẵn sàng tiếp nhận lượt khám mới',
     waitMinutes: 14
   };
 
@@ -330,12 +330,12 @@ export default function OptometryAppointmentsPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="font-title-md text-title-md text-primary block font-semibold leading-tight">
-                        {activeExam.customerName || 'Nguyễn Hoàng Duy'}
+                        {filteredAppointments.length > 0 ? (activeExam.customerName || 'Nguyễn Hoàng Duy') : 'Chưa có bệnh nhân'}
                       </span>
-                      <span className="font-body-sm text-on-surface-variant text-[11px]">STT: {activeExam.ticketCode || '#04'}</span>
+                      <span className="font-body-sm text-on-surface-variant text-[11px]">STT: {filteredAppointments.length > 0 ? (activeExam.ticketCode || '#04') : 'Trống'}</span>
                     </div>
                     <span className="px-2 py-0.2 rounded-full bg-[#FFEFC4] text-[#78350F] font-label-md text-[10px] font-semibold">
-                      {activeExam.customerTier || 'VIP Silver'}
+                      {filteredAppointments.length > 0 ? (activeExam.customerTier || 'VIP Silver') : 'Sẵn sàng'}
                     </span>
                   </div>
                 </div>
@@ -345,17 +345,17 @@ export default function OptometryAppointmentsPage() {
               <div className="p-2.5 bg-surface-container-low rounded-xl space-y-1.5 border border-[#d8e3fb]/30">
                 <div className="flex items-center justify-between text-body-sm">
                   <span className="font-label-md text-label-md text-on-surface font-medium">Tiến trình khám khúc xạ tiêu chuẩn:</span>
-                  <span className="font-label-mono text-primary font-bold">Bước 07 / 12</span>
+                  <span className="font-label-mono text-primary font-bold">{filteredAppointments.length > 0 ? 'Bước 07 / 12' : 'Bước 00 / 12'}</span>
                 </div>
                 <div className="w-full bg-surface-container-highest h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-primary h-full rounded-full transition-all duration-500" style={{ width: '58.3%' }}></div>
+                  <div className="bg-primary h-full rounded-full transition-all duration-500" style={{ width: filteredAppointments.length > 0 ? '58.3%' : '0%' }}></div>
                 </div>
                 <div className="flex items-center justify-between font-body-sm text-body-sm text-on-surface-variant">
                   <span className="flex items-center gap-1 text-primary font-semibold text-[11px]">
                     <span className="material-symbols-outlined text-[13px]">tune</span>
                     {activeExam.examStep || 'Cân bằng thị giác hai mắt (Binocular Balance)'}
                   </span>
-                  <span className="text-outline text-[11px]">Dự kiến: 3 phút</span>
+                  <span className="text-outline text-[11px]">Sẵn sàng</span>
                 </div>
               </div>
             </div>
