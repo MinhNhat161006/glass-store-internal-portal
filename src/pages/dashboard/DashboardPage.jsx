@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { message, Modal } from 'antd';
+import { message } from 'antd';
 import { useAuth } from '../../context/AuthContext';
 import { ROLES } from '../../routes/rolesConfig';
 
@@ -8,10 +8,8 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // Selected view: defaults to logged in user's role, but allows switching for demo/testing
-  const [activeRoleView, setActiveRoleView] = useState(() => {
-    return user?.role || ROLES.ADMIN;
-  });
+  // Strictly bind to the authenticated user's assigned role
+  const currentRole = user?.role || ROLES.ADMIN;
 
   // Timeframe filter state
   const [timeframe, setTimeframe] = useState('today');
@@ -19,79 +17,20 @@ export default function DashboardPage() {
   return (
     <main className="relative bg-[#f9f9ff] w-full px-4 sm:px-6 lg:px-8 py-5 min-h-screen">
       <div className="flex flex-col w-full space-y-5 pb-12 max-w-[1920px] mx-auto">
-        {/* ================= ROLE VIEW SWITCHER PILL (For Interactive Demo & Testing) ================= */}
-        <div className="flex flex-wrap items-center justify-between gap-3 bg-white px-4 py-2.5 rounded-xl border border-[#dee8ff]/60 shadow-sm">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[18px] text-[#004967]">switch_account</span>
-            <span className="text-xs font-bold text-[#111c2d] uppercase tracking-wider">
-              Góc Nhìn Bàn Làm Việc Theo Vai Trò (Role-Adaptive Dashboard):
-            </span>
-          </div>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <button
-              onClick={() => setActiveRoleView(ROLES.ADMIN)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
-                activeRoleView === ROLES.ADMIN
-                  ? 'bg-[#004967] text-white shadow-sm'
-                  : 'bg-[#f0f3ff] text-[#40484e] hover:bg-[#dee8ff]'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[15px]">admin_panel_settings</span>
-              <span>1. Quản Trị / Giám Đốc Chuỗi</span>
-            </button>
-
-            <button
-              onClick={() => setActiveRoleView(ROLES.LAB)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
-                activeRoleView === ROLES.LAB
-                  ? 'bg-[#0f766e] text-white shadow-sm'
-                  : 'bg-[#f0f3ff] text-[#40484e] hover:bg-[#dee8ff]'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[15px]">precision_manufacturing</span>
-              <span>2. KTV Xưởng Mài Lắp Lens (Lab)</span>
-            </button>
-
-            <button
-              onClick={() => setActiveRoleView(ROLES.OPTOMETRY)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
-                activeRoleView === ROLES.OPTOMETRY
-                  ? 'bg-[#0284c7] text-white shadow-sm'
-                  : 'bg-[#f0f3ff] text-[#40484e] hover:bg-[#dee8ff]'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[15px]">clinical_notes</span>
-              <span>3. Bác Sĩ / KTV Khúc Xạ</span>
-            </button>
-
-            <button
-              onClick={() => setActiveRoleView(ROLES.POS)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
-                activeRoleView === ROLES.POS
-                  ? 'bg-[#086288] text-white shadow-sm'
-                  : 'bg-[#f0f3ff] text-[#40484e] hover:bg-[#dee8ff]'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[15px]">point_of_sale</span>
-              <span>4. Thu Ngân / Bán Lẻ POS</span>
-            </button>
-          </div>
-        </div>
-
-        {/* ================= CONDITIONAL DASHBOARD RENDERING BASED ON ROLE ================= */}
-        {activeRoleView === ROLES.ADMIN && (
+        {/* ================= STRICT CONDITIONAL DASHBOARD RENDERING BASED ON USER'S ROLE ================= */}
+        {currentRole === ROLES.ADMIN && (
           <AdminDashboardView timeframe={timeframe} setTimeframe={setTimeframe} navigate={navigate} />
         )}
 
-        {activeRoleView === ROLES.LAB && (
+        {currentRole === ROLES.LAB && (
           <LabDashboardView navigate={navigate} />
         )}
 
-        {activeRoleView === ROLES.OPTOMETRY && (
+        {currentRole === ROLES.OPTOMETRY && (
           <OptometryDashboardView navigate={navigate} />
         )}
 
-        {activeRoleView === ROLES.POS && (
+        {currentRole === ROLES.POS && (
           <PosDashboardView navigate={navigate} />
         )}
       </div>
@@ -103,7 +42,7 @@ export default function DashboardPage() {
    1. ADMIN / EXECUTIVE VIEW: Toàn chuỗi, tài chính, đa kênh, hiệu suất chung
    ========================================================================================= */
 function AdminDashboardView({ timeframe, setTimeframe, navigate }) {
-  const [labQueue, setLabQueue] = useState([
+  const [labQueue] = useState([
     {
       id: '#LAB-1092',
       customer: 'Trần H. Nam',

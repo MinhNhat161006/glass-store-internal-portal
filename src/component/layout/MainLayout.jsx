@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Modal, Dropdown } from 'antd';
+import { ROLES } from '../../routes/rolesConfig';
+import { Modal } from 'antd';
 
 export default function MainLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Current logged in role
+  const currentRole = user?.role || ROLES.ADMIN;
 
   const [selectedBranch, setSelectedBranch] = useState('Chi nhánh 01 - Lê Thánh Tôn');
 
@@ -31,109 +35,138 @@ export default function MainLayout() {
     });
   };
 
-  // Nav categories & items matching OptiVision Clinical & Retail design
-  const navSections = [
+  // Master definition of all navigation categories with strict RBAC access control
+  const allNavSections = [
     {
       title: 'TỔNG QUAN',
+      allowedRoles: [ROLES.ADMIN, ROLES.POS, ROLES.OPTOMETRY, ROLES.LAB],
       items: [
         {
           key: '/dashboard',
           label: 'Bàn làm việc (Overview)',
-          icon: 'space_dashboard'
+          icon: 'space_dashboard',
+          allowedRoles: [ROLES.ADMIN, ROLES.POS, ROLES.OPTOMETRY, ROLES.LAB]
         }
       ]
     },
     {
       title: 'BÁN HÀNG & POS',
+      allowedRoles: [ROLES.ADMIN, ROLES.POS],
       items: [
         {
           key: '/pos',
           label: 'POS Thu Ngân (FR-POS)',
-          icon: 'point_of_sale'
+          icon: 'point_of_sale',
+          allowedRoles: [ROLES.ADMIN, ROLES.POS]
         },
         {
           key: '/orders',
           label: 'Quản Lý Đơn Hàng OMS',
-          icon: 'receipt_long'
+          icon: 'receipt_long',
+          allowedRoles: [ROLES.ADMIN, ROLES.POS]
         }
       ]
     },
     {
       title: 'KHÚC XẠ & LÂM SÀNG',
+      allowedRoles: [ROLES.ADMIN, ROLES.OPTOMETRY],
       items: [
         {
           key: '/optometry-appointments',
           label: 'Lịch hẹn đo mắt (FR-EYE)',
-          icon: 'calendar_month'
+          icon: 'calendar_month',
+          allowedRoles: [ROLES.ADMIN, ROLES.OPTOMETRY]
         },
         {
           key: '/optometry',
           label: 'Hồ sơ toa kính OD/OS',
-          icon: 'medical_information'
+          icon: 'medical_information',
+          allowedRoles: [ROLES.ADMIN, ROLES.OPTOMETRY]
         }
       ]
     },
     {
       title: 'LAB GIA CÔNG',
+      allowedRoles: [ROLES.ADMIN, ROLES.LAB],
       items: [
         {
           key: '/lab',
           label: 'Điều phối mài lắp (FR-LAB)',
-          icon: 'precision_manufacturing'
+          icon: 'precision_manufacturing',
+          allowedRoles: [ROLES.ADMIN, ROLES.LAB]
         },
         {
           key: '/lab-qc',
           label: 'Kiểm tra chất lượng (QC)',
-          icon: 'verified'
+          icon: 'verified',
+          allowedRoles: [ROLES.ADMIN, ROLES.LAB]
         }
       ]
     },
     {
       title: 'KHO VẬN & VẬT TƯ',
+      allowedRoles: [ROLES.ADMIN, ROLES.LAB],
       items: [
         {
           key: '/inventory',
           label: 'Tồn kho chi nhánh (FR-INV)',
-          icon: 'inventory_2'
+          icon: 'inventory_2',
+          allowedRoles: [ROLES.ADMIN, ROLES.LAB]
         },
         {
           key: '/stock-transfer',
           label: 'Nhập / Xuất / Chuyển kho',
-          icon: 'move_up'
+          icon: 'move_up',
+          allowedRoles: [ROLES.ADMIN, ROLES.LAB]
         }
       ]
     },
     {
       title: 'KHÁCH HÀNG & BẢO HÀNH',
+      allowedRoles: [ROLES.ADMIN, ROLES.POS, ROLES.OPTOMETRY],
       items: [
         {
           key: '/crm',
           label: 'Hồ sơ CRM (FR-CRM)',
-          icon: 'badge'
+          icon: 'badge',
+          allowedRoles: [ROLES.ADMIN, ROLES.POS, ROLES.OPTOMETRY]
         },
         {
           key: '/warranty',
           label: 'Phiếu BH & Đổi trả (FR-WAR)',
-          icon: 'assignment_return'
+          icon: 'assignment_return',
+          allowedRoles: [ROLES.ADMIN, ROLES.POS]
         }
       ]
     },
     {
       title: 'QUẢN TRỊ & BÁO CÁO',
+      allowedRoles: [ROLES.ADMIN],
       items: [
         {
           key: '/reports',
           label: 'Báo cáo KPIs (FR-REP)',
-          icon: 'analytics'
+          icon: 'analytics',
+          allowedRoles: [ROLES.ADMIN]
         },
         {
           key: '/settings',
           label: 'Cấu hình hệ thống (FR-ADM)',
-          icon: 'settings'
+          icon: 'settings',
+          allowedRoles: [ROLES.ADMIN]
         }
       ]
     }
   ];
+
+  // Strictly filter navigation sections and items by the logged in role
+  const navSections = allNavSections
+    .filter(section => !section.allowedRoles || section.allowedRoles.includes(currentRole))
+    .map(section => ({
+      ...section,
+      items: section.items.filter(item => !item.allowedRoles || item.allowedRoles.includes(currentRole))
+    }))
+    .filter(section => section.items.length > 0);
 
   const handleNavClick = (key) => {
     // If route exists, navigate to it; otherwise map fallback
@@ -168,7 +201,7 @@ export default function MainLayout() {
           </div>
         </div>
 
-        {/* Navigation Menu */}
+        {/* Navigation Menu (Filtered by Current User's Role) */}
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
           {navSections.map((sec, secIdx) => (
             <div key={secIdx}>
@@ -209,10 +242,10 @@ export default function MainLayout() {
             </div>
             <div className="overflow-hidden leading-tight">
               <div className="text-xs font-bold text-[#111c2d] truncate">
-                {user?.staffName || 'Nguyễn Văn A'}
+                {user?.staffName || 'Nhân sự OptiVision'}
               </div>
               <div className="text-[10px] text-[#086288] font-semibold truncate">
-                {user?.roleLabel || 'Bác sĩ Khúc Xạ'}
+                {user?.roleLabel || 'Nhân viên'}
               </div>
             </div>
           </div>
@@ -256,15 +289,41 @@ export default function MainLayout() {
 
           {/* Header Right Actions */}
           <div className="flex items-center gap-4">
-            {/* Quick POS Order Button */}
-            <button
-              type="button"
-              onClick={() => navigate('/pos')}
-              className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#086288] hover:bg-[#004967] text-white text-xs font-bold shadow-[0_4px_14px_rgba(8,98,136,0.2)] transition-all active:scale-[0.98] cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[18px]">add_circle</span>
-              <span>Tạo đơn POS nhanh</span>
-            </button>
+            {/* Quick POS Order Button (for Admin & POS only) */}
+            {(currentRole === ROLES.ADMIN || currentRole === ROLES.POS) && (
+              <button
+                type="button"
+                onClick={() => navigate('/pos')}
+                className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#086288] hover:bg-[#004967] text-white text-xs font-bold shadow-[0_4px_14px_rgba(8,98,136,0.2)] transition-all active:scale-[0.98] cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[18px]">add_circle</span>
+                <span>Tạo đơn POS nhanh</span>
+              </button>
+            )}
+
+            {/* Quick Optometry Room Button (for Optometry) */}
+            {currentRole === ROLES.OPTOMETRY && (
+              <button
+                type="button"
+                onClick={() => navigate('/optometry')}
+                className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#0284c7] hover:bg-[#0369a1] text-white text-xs font-bold shadow-[0_4px_14px_rgba(2,132,199,0.2)] transition-all active:scale-[0.98] cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[18px]">medical_services</span>
+                <span>Phòng khám khúc xạ</span>
+              </button>
+            )}
+
+            {/* Quick Lab Workstation Button (for Lab) */}
+            {currentRole === ROLES.LAB && (
+              <button
+                type="button"
+                onClick={() => navigate('/lab')}
+                className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#0f766e] hover:bg-[#115e59] text-white text-xs font-bold shadow-[0_4px_14px_rgba(15,118,110,0.2)] transition-all active:scale-[0.98] cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[18px]">precision_manufacturing</span>
+                <span>Xưởng mài lắp Lab</span>
+              </button>
+            )}
 
             {/* Notification Bell */}
             <button
@@ -300,10 +359,10 @@ export default function MainLayout() {
               </div>
               <div className="flex flex-col text-left">
                 <span className="text-xs text-[#111c2d] font-bold leading-tight">
-                  {user?.staffName || 'BS. Khúc Xạ Nguyễn Văn A'}
+                  {user?.staffName || 'Nhân sự OptiVision'}
                 </span>
                 <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-[#8fcdfd]/30 text-[#005881] text-[10px] font-bold w-fit leading-tight mt-0.5">
-                  {user?.roleLabel || 'Optometrist Lead'}
+                  {user?.roleLabel || 'Nhân viên'}
                 </span>
               </div>
             </div>
