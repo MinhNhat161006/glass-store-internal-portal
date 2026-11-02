@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { message, Modal } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { message, Modal, Spin } from 'antd';
+import { staffApi } from '../../api/staffApi';
 
 const INITIAL_STAFF = [
   {
@@ -156,6 +157,7 @@ const RBAC_MODULES = [
 export default function StaffRbacPage() {
   const [activeTab, setActiveTab] = useState('staff'); // 'staff' | 'matrix'
   const [staffList, setStaffList] = useState(INITIAL_STAFF);
+  const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -170,6 +172,77 @@ export default function StaffRbacPage() {
     roleName: 'Thu Ngân POS & Bán Lẻ'
   });
 
+  // Map roles from backend
+  const mapRoleToInfo = (roles = []) => {
+    const roleList = Array.isArray(roles) ? roles : Array.from(roles || []);
+    if (roleList.includes('ROLE_ADMIN')) {
+      return { code: 'admin', label: 'Quản Trị Viên (Admin)', color: 'bg-purple-700 text-white' };
+    }
+    if (roleList.includes('ROLE_OPTOMETRIST')) {
+      return { code: 'optometrist', label: 'Bác Sĩ / KTV Khúc Xạ (CCHN)', color: 'bg-emerald-700 text-white' };
+    }
+    if (roleList.includes('ROLE_LAB_TECH')) {
+      return { code: 'lab_tech', label: 'Kỹ Thuật Viên Xưởng Lab', color: 'bg-indigo-700 text-white' };
+    }
+    if (roleList.includes('ROLE_SALES_STAFF')) {
+      return { code: 'cashier', label: 'Thu Ngân POS & Bán Lẻ', color: 'bg-[#004967] text-white' };
+    }
+    return { code: 'cashier', label: 'Nhân Viên Bán Hàng', color: 'bg-slate-700 text-white' };
+  };
+
+  const mapCodeToBackendRole = (code) => {
+    switch (code) {
+      case 'admin': return 'ROLE_ADMIN';
+      case 'optometrist': return 'ROLE_OPTOMETRIST';
+      case 'lab_tech': return 'ROLE_LAB_TECH';
+      case 'manager': return 'ROLE_ADMIN';
+      default: return 'ROLE_SALES_STAFF';
+    }
+  };
+
+  const loadStaff = async () => {
+    try {
+      setLoading(true);
+      const data = await staffApi.getStaffList();
+      if (Array.isArray(data) && data.length > 0) {
+        const mapped = data.map((u) => {
+          const roleInfo = mapRoleToInfo(u.roles);
+          const initials = (u.fullName || 'NV')
+            .split(' ')
+            .map((n) => n[0])
+            .slice(-2)
+            .join('')
+            .toUpperCase();
+
+          return {
+            dbId: u.id,
+            id: u.employeeCode || `STF-0${u.id}`,
+            name: u.fullName,
+            email: u.email,
+            phone: u.phoneNumber || '0901000000',
+            branch: u.branchName || 'Flagship Q.1 (TP.HCM)',
+            roleName: roleInfo.label,
+            roleCode: roleInfo.code,
+            status: u.status === 'ACTIVE' ? 'active' : 'locked',
+            lastActive: 'Trực tuyến hôm nay',
+            avatar: initials,
+            color: roleInfo.color,
+            permissions: ['pos_create', 'stock_view']
+          };
+        });
+        setStaffList(mapped);
+      }
+    } catch (err) {
+      console.warn('Lấy dữ liệu nhân viên từ backend thất bại, dùng danh sách dự phòng:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadStaff();
+  }, []);
+
   // Filtered staff list
   const filteredStaff = staffList.filter(staff => {
     const q = searchQuery.toLowerCase().trim();
@@ -179,36 +252,42 @@ export default function StaffRbacPage() {
     return matchSearch && matchRole && matchStatus;
   });
 
-  const handleToggleStatus = (staff) => {
-    const newStatus = staff.status === 'active' ? 'locked' : 'active';
-    setStaffList(prev => prev.map(s => s.id === staff.id ? { ...s, status: newStatus } : s));
-    message.success(`Đã ${newStatus === 'active' ? 'mở khóa' : 'tạm khóa'} tài khoản ${staff.name} (${staff.id})`);
+  const handleToggleStatus = async (staff) => {
+    try {
+      if (staff.dbId) {
+        await staffApi.toggleStaffStatus(staff.dbId);
+      }
+      const newStatus = staff.status === 'active' ? 'locked' : 'active';
+      setStaffList(prev => prev.map(s => s.id === staff.id ? { ...s, status: newStatus } : s));
+      message.success(`Đã ${newStatus === 'active' ? 'mở khóa' : 'tạm khóa'} tài khoản ${staff.name} (${staff.id})`);
+    } catch (err) {
+      message.error(`Không thể cập nhật trạng thái nhân viên: ${err.message}`);
+    }
   };
 
-  const handleCreateStaff = () => {
+  const handleCreateStaff = async () => {
     if (!newStaff.name.trim() || !newStaff.email.trim()) {
       message.error('Vui lòng nhập họ tên và email nhân viên');
       return;
     }
     const newId = `STF-0${Math.floor(100 + Math.random() * 900)}`;
-    const initials = newStaff.name.split(' ').map(n => n[0]).slice(-2).join('').toUpperCase();
-    const createdItem = {
-      id: newId,
-      name: newStaff.name,
-      email: newStaff.email,
-      branch: newStaff.branch,
-      roleName: ROLES_LIST.find(r => r.code === newStaff.roleCode)?.label || 'Thu Ngân POS',
-      roleCode: newStaff.roleCode,
-      status: 'active',
-      lastActive: 'Vừa kích hoạt',
-      avatar: initials,
-      color: 'bg-[#004967] text-white',
-      permissions: ['pos_create', 'stock_view']
-    };
-    setStaffList([createdItem, ...staffList]);
-    setIsAddModalOpen(false);
-    setNewStaff({ name: '', email: '', phone: '', branch: 'Flagship Q.1', roleCode: 'cashier', roleName: 'Thu Ngân POS & Bán Lẻ' });
-    message.success(`Tạo mới hồ sơ nhân sự ${createdItem.name} (${newId}) thành công!`);
+
+    try {
+      const created = await staffApi.createStaff({
+        fullName: newStaff.name,
+        email: newStaff.email,
+        phoneNumber: newStaff.phone || '0901000000',
+        branchName: newStaff.branch,
+        employeeCode: newId,
+        role: mapCodeToBackendRole(newStaff.roleCode)
+      });
+      setIsAddModalOpen(false);
+      setNewStaff({ name: '', email: '', phone: '', branch: 'Flagship Q.1', roleCode: 'cashier', roleName: 'Thu Ngân POS & Bán Lẻ' });
+      message.success(`Tạo mới hồ sơ nhân sự ${created?.fullName || newStaff.name} (${newId}) thành công!`);
+      await loadStaff();
+    } catch (err) {
+      message.error(`Lỗi tạo nhân sự: ${err.message}`);
+    }
   };
 
   return (
