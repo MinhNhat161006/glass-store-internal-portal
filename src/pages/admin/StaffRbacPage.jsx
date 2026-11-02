@@ -2,101 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { message, Modal, Spin } from 'antd';
 import { staffApi } from '../../api/staffApi';
 
-const INITIAL_STAFF = []; // Cleared mock staff
-const OLD_STAFF = [
-  {
-    id: 'STF-088',
-    name: 'Trần Minh Anh',
-    email: 'minhanh.tran@optivision.vn',
-    branch: 'Flagship Q.1',
-    roleName: 'Thu Ngân POS & Bán Lẻ',
-    roleCode: 'cashier',
-    status: 'active',
-    lastActive: '10 phút trước',
-    avatar: 'MA',
-    color: 'bg-[#004967] text-white',
-    permissions: ['pos_create', 'pos_voucher', 'pos_reprint', 'optom_queue', 'stock_view']
-  },
-  {
-    id: 'STF-021',
-    name: 'BS. CKI Vũ Anh Tuấn',
-    email: 'tuan.vu@optivision.vn',
-    branch: 'Flagship Q.1',
-    roleName: 'Bác Sĩ Khúc Xạ (CCHN)',
-    roleCode: 'optometrist',
-    status: 'active',
-    lastActive: 'Live (Phòng 01)',
-    avatar: 'AT',
-    color: 'bg-emerald-700 text-white',
-    permissions: ['optom_queue', 'optom_exam', 'optom_sign_rx', 'crm_view_rx', 'stock_view']
-  },
-  {
-    id: 'STF-045',
-    name: 'Trần Văn Bách',
-    email: 'bach.tran@optivision.vn',
-    branch: 'Flagship Q.1',
-    roleName: 'Kỹ Thuật Viên Xưởng Lab',
-    roleCode: 'lab_tech',
-    status: 'active',
-    lastActive: '45 phút trước',
-    avatar: 'TB',
-    color: 'bg-indigo-700 text-white',
-    permissions: ['lab_queue', 'lab_edging', 'lab_qc_sign', 'stock_view', 'stock_transfer']
-  },
-  {
-    id: 'STF-014',
-    name: 'Lê Hoàng Nam',
-    email: 'nam.le@optivision.vn',
-    branch: 'Tràng Tiền Plaza (HN)',
-    roleName: 'Quản Lý Cửa Hàng (Store Manager)',
-    roleCode: 'manager',
-    status: 'active',
-    lastActive: '25 phút trước',
-    avatar: 'HN',
-    color: 'bg-amber-700 text-white',
-    permissions: ['pos_create', 'pos_discount_override', 'pos_refund', 'stock_adjust', 'reports_branch', 'staff_view']
-  },
-  {
-    id: 'STF-092',
-    name: 'Nguyễn Thảo Vy',
-    email: 'vy.nguyen@optivision.vn',
-    branch: 'Thảo Điền Store (Q.2)',
-    roleName: 'Thủ Kho Chi Nhánh',
-    roleCode: 'inventory',
-    status: 'active',
-    lastActive: '3 giờ trước',
-    avatar: 'TV',
-    color: 'bg-teal-700 text-white',
-    permissions: ['stock_view', 'stock_transfer', 'stock_receipt', 'stock_audit']
-  },
-  {
-    id: 'STF-063',
-    name: 'Đỗ Gia Huy',
-    email: 'huy.do@optivision.vn',
-    branch: 'Hub E-Com Online',
-    roleName: 'CSKH & Vận Hành Đơn OMS',
-    roleCode: 'oms_staff',
-    status: 'active',
-    lastActive: '5 phút trước',
-    avatar: 'GH',
-    color: 'bg-sky-700 text-white',
-    permissions: ['oms_view', 'oms_confirm', 'crm_view', 'warranty_create']
-  },
-  {
-    id: 'STF-031',
-    name: 'Hoàng Văn Đức',
-    email: 'duc.hoang@optivision.vn',
-    branch: 'Flagship Q.1',
-    roleName: 'Nhân Viên Bán Hàng Thời Vụ',
-    roleCode: 'cashier',
-    status: 'locked',
-    lastActive: '14 ngày trước',
-    avatar: 'HĐ',
-    color: 'bg-gray-500 text-white',
-    permissions: []
-  }
-];
-
+// Cleared mock staff
 const ROLES_LIST = [
   { code: 'all', label: 'Tất cả vai trò' },
   { code: 'admin', label: 'Quản Trị Viên (Admin)' },
@@ -782,3 +688,5 @@ export default function StaffRbacPage() {
     </div>
   );
 }
+
+

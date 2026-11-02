@@ -21,13 +21,13 @@ export default function LabPage() {
               dbId: j.id,
               tray: 'Khay Xanh #' + (idx + 4),
               orderId: '#OPT-' + j.orderId + '-VN',
-              customer: j.prescription?.customerName || 'Nguyễn Hoàng Duy',
-              phone: '0918 732 998',
+              customer: j.prescription?.customerName || j.customerName || 'Khách hàng',
+              phone: j.customerPhone || '0901 000 000',
               frame: j.frameName || j.frameSku,
               lens: j.lensName || j.lensSku,
-              rxSummary: j.prescription ? ('OD ' + j.prescription.odSph + ' / OS ' + j.prescription.osSph) : 'OD -3.25 / OS -2.75',
+              rxSummary: j.prescription ? ('OD ' + j.prescription.odSph + ' / OS ' + j.prescription.osSph) : 'Toa khúc xạ tiêu chuẩn',
               machine: 'Essilor Delta #' + (idx + 1),
-              tech: j.technicianName || 'Trần Văn Bách',
+              tech: j.technicianName || 'KTV Xưởng Lab',
               status: isInProgress ? 'in_progress' : isQc ? 'qc' : 'waiting',
               statusLabel: isInProgress ? 'Đang mài (68%)' : isQc ? 'Đã duyệt QC' : 'Chờ nạp máy',
               statusClass: isInProgress ? 'bg-primary-fixed text-on-primary-fixed' : isQc ? 'bg-secondary-fixed text-on-secondary-fixed' : 'bg-surface-container-high text-primary',
@@ -152,12 +152,11 @@ export default function LabPage() {
               </div>
             </div>
             <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="font-display-lg text-display-lg text-primary font-bold">{queueOrders.filter(o => o.status === 'Đang mài').length}</span>
+              <span className="font-display-lg text-display-lg text-primary font-bold">{queueOrders.filter(o => o.status === 'in_progress').length}</span>
               <span className="font-label-md text-label-md text-outline">máy đang cắt</span>
             </div>
-            <div className="mt-1 pt-1.5 border-t border-[#e7eeff] text-body-sm text-[11px] text-outline flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>
-              Essilor Delta + Nidek ME-1200
+            <div className="mt-1 pt-1.5 border-t border-[#e7eeff] text-body-sm text-[11px] text-outline">
+              {queueOrders.filter(o => o.status === 'in_progress').length > 0 ? 'Có lệnh đang xử lý' : 'Tất cả máy đang chờ lệnh'}
             </div>
           </div>
 
@@ -199,18 +198,30 @@ export default function LabPage() {
                   </div>
                   <span className="text-[10px] text-outline block mt-0.5">Trạm Mài 3D Chính</span>
                 </div>
-                <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[10px] font-semibold flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span> 68%
-                </span>
+                {queueOrders[0] && queueOrders[0].status === 'in_progress' ? (
+                  <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[10px] font-semibold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span> Đang cắt
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.2 rounded-full bg-surface-container-high text-primary text-[10px] font-semibold">
+                    SẴN SÀNG
+                  </span>
+                )}
               </div>
               <div className="mt-2 space-y-1">
-                <div className="flex justify-between text-[11px]">
-                  <span className="font-label-mono text-primary font-bold">#LAB-088 (Khay #04)</span>
-                  <span className="text-outline">Còn ~04 phút</span>
-                </div>
-                <div className="w-full bg-surface-variant rounded-full h-1.5 overflow-hidden">
-                  <div className="bg-primary h-full rounded-full transition-all duration-500" style={{ width: '68%' }}></div>
-                </div>
+                {queueOrders[0] && queueOrders[0].status === 'in_progress' ? (
+                  <>
+                    <div className="flex justify-between text-[11px]">
+                      <span className="font-label-mono text-primary font-bold">{queueOrders[0].id}</span>
+                      <span className="text-outline">{queueOrders[0].timeRemaining}</span>
+                    </div>
+                    <div className="w-full bg-surface-variant rounded-full h-1.5 overflow-hidden">
+                      <div className="bg-primary h-full rounded-full transition-all duration-500" style={{ width: '50%' }}></div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-[11px] text-outline">Hàng đợi trống • Sẵn sàng tiếp nhận lệnh</div>
+                )}
               </div>
             </div>
 
@@ -224,18 +235,30 @@ export default function LabPage() {
                   </div>
                   <span className="text-[10px] text-outline block mt-0.5">Chuyên Gọng Kim Loại</span>
                 </div>
-                <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[10px] font-semibold flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span> 35%
-                </span>
+                {queueOrders[1] && queueOrders[1].status === 'in_progress' ? (
+                  <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[10px] font-semibold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span> Đang cắt
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.2 rounded-full bg-surface-container-high text-primary text-[10px] font-semibold">
+                    SẴN SÀNG
+                  </span>
+                )}
               </div>
               <div className="mt-2 space-y-1">
-                <div className="flex justify-between text-[11px]">
-                  <span className="font-label-mono text-secondary font-bold">#LAB-089 (Khay #09)</span>
-                  <span className="text-outline">Còn ~07 phút</span>
-                </div>
-                <div className="w-full bg-surface-variant rounded-full h-1.5 overflow-hidden">
-                  <div className="bg-secondary h-full rounded-full transition-all duration-500" style={{ width: '35%' }}></div>
-                </div>
+                {queueOrders[1] && queueOrders[1].status === 'in_progress' ? (
+                  <>
+                    <div className="flex justify-between text-[11px]">
+                      <span className="font-label-mono text-secondary font-bold">{queueOrders[1].id}</span>
+                      <span className="text-outline">{queueOrders[1].timeRemaining}</span>
+                    </div>
+                    <div className="w-full bg-surface-variant rounded-full h-1.5 overflow-hidden">
+                      <div className="bg-secondary h-full rounded-full transition-all duration-500" style={{ width: '35%' }}></div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-[11px] text-outline">Hàng đợi trống • Sẵn sàng tiếp nhận lệnh</div>
+                )}
               </div>
             </div>
 
@@ -249,18 +272,20 @@ export default function LabPage() {
                   </div>
                   <span className="text-[10px] text-outline block mt-0.5">Vát Mini &amp; Kính Khoan</span>
                 </div>
-                <span className="px-2 py-0.2 rounded-full bg-surface-container-high text-primary text-[10px] font-semibold">
-                  SẴN SÀNG
-                </span>
+                {queueOrders[2] && queueOrders[2].status === 'in_progress' ? (
+                  <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[10px] font-semibold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span> Đang cắt
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.2 rounded-full bg-surface-container-high text-primary text-[10px] font-semibold">
+                    SẴN SÀNG
+                  </span>
+                )}
               </div>
               <div className="mt-2 flex items-center justify-between text-[11px]">
-                <span className="text-outline truncate">Hàng đợi trống • Sẵn sàng cắt mài</span>
-                <button
-                  onClick={() => handleAction('Đã nạp lệnh hỏa tốc #LAB-091 vào máy Nidek')}
-                  className="px-2 py-0.5 bg-primary text-on-primary rounded text-[10px] font-semibold hover:bg-primary-container shrink-0 cursor-pointer"
-                >
-                  Nạp ngay
-                </button>
+                <span className="text-outline truncate">
+                  {queueOrders[2] ? queueOrders[2].id : 'Hàng đợi trống • Sẵn sàng cắt mài'}
+                </span>
               </div>
             </div>
           </div>
@@ -317,7 +342,18 @@ export default function LabPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#d8e3fb]/30 text-on-surface">
-                {filteredOrders.map((order) => (
+                {filteredOrders.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-12 text-center text-outline">
+                      <div className="flex flex-col items-center justify-center">
+                        <span className="material-symbols-outlined text-3xl text-slate-300 mb-1">precision_manufacturing</span>
+                        <span className="text-sm font-medium text-on-surface">Chưa có lệnh mài kính nào trong xưởng</span>
+                        <span className="text-xs text-outline mt-0.5">Khi nhân viên thu ngân POS hoặc Bác sĩ tạo đơn kính thuốc, lệnh sẽ xuất hiện tại đây</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredOrders.map((order) => (
                   <tr
                     key={order.id}
                     onClick={() => setSelectedOrder(order)}
@@ -383,7 +419,7 @@ export default function LabPage() {
                       )}
                     </td>
                   </tr>
-                ))}
+                )))}
               </tbody>
             </table>
           </div>

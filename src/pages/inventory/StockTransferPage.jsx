@@ -19,56 +19,7 @@ export default function StockTransferPage() {
   const [transferReason, setTransferReason] = useState('Bổ sung tồn thiếu cho đơn đặt trước');
 
   const [transferList, setTransferList] = useState([]); // Clean empty transfers
-  const [oldTransfers] = useState([
-    {
-      id: '#TRF-2026-042',
-      from: 'Flagship Q.1 (HCM)',
-      to: 'Trung tâm Lab Tân Bình',
-      items: '12 gọng titan Bolon & Ray-Ban',
-      carrier: 'Xe tải nội bộ (Tài xế: Minh Quân)',
-      status: 'in_transit',
-      statusLabel: 'Đang giao (GPS: Cầu Sài Gòn)',
-      statusClass: 'bg-primary-fixed text-on-primary-fixed',
-      eta: '11:45 Hôm nay',
-      timeCreated: '09:30'
-    },
-    {
-      id: '#TRF-2026-041',
-      from: 'Kho Tổng Bình Tân',
-      to: 'Flagship Q.1 (HCM)',
-      items: '50 cặp tròng Essilor Crizal Rock 1.67',
-      carrier: 'AhaMove Hỏa Tốc (Mã: AHA-9921)',
-      status: 'in_transit',
-      statusLabel: 'Đang giao hàng',
-      statusClass: 'bg-secondary-fixed text-on-secondary-fixed',
-      eta: '11:15 Hôm nay',
-      timeCreated: '10:00'
-    },
-    {
-      id: '#TRF-2026-040',
-      from: 'Flagship Q.1 (HCM)',
-      to: 'CN Thảo Điền (Q.2)',
-      items: '02 gọng Charmant LineArt XL1465',
-      carrier: 'Nhân viên giao nhận nội bộ',
-      status: 'pending_dispatch',
-      statusLabel: 'Chờ xuất kho',
-      statusClass: 'bg-surface-container-high text-primary',
-      eta: 'Chiều nay 14:00',
-      timeCreated: '10:15'
-    },
-    {
-      id: '#TRF-2026-038',
-      from: 'Trung tâm Lab Tân Bình',
-      to: 'Flagship Q.1 (HCM)',
-      items: '15 cặp kính mài lắp hoàn tất (Kèm hộp)',
-      carrier: 'Xe máy nội bộ',
-      status: 'delivered',
-      statusLabel: 'Đã nhận đủ 100%',
-      statusClass: 'bg-surface-container text-outline',
-      eta: 'Xong lúc 09:10',
-      timeCreated: '08:00'
-    }
-  ]);
+  
 
   const handleAction = (msg) => {
     message.success(msg);
@@ -115,7 +66,7 @@ export default function StockTransferPage() {
               </div>
             </div>
             <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="font-display-lg text-display-lg text-primary font-bold">04</span>
+              <span className="font-display-lg text-display-lg text-primary font-bold">{transferList.filter(t => t.status === 'in_transit').length}</span>
               <span className="font-label-md text-label-md text-outline">chuyến xe</span>
             </div>
             <div className="mt-1 pt-1.5 border-t border-[#e7eeff] text-body-sm text-[11px] text-outline">
@@ -131,7 +82,7 @@ export default function StockTransferPage() {
               </div>
             </div>
             <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="font-display-lg text-display-lg text-secondary font-bold">02</span>
+              <span className="font-display-lg text-display-lg text-secondary font-bold">{transferList.filter(t => t.status === 'pending_dispatch').length}</span>
               <span className="font-label-md text-label-md text-outline">phiếu</span>
             </div>
             <div className="mt-1 pt-1.5 border-t border-[#e7eeff] text-body-sm text-[11px] text-secondary">
@@ -147,7 +98,7 @@ export default function StockTransferPage() {
               </div>
             </div>
             <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="font-display-lg text-display-lg text-on-surface font-bold">08</span>
+              <span className="font-display-lg text-display-lg text-on-surface font-bold">{transferList.filter(t => t.status === 'delivered').length}</span>
               <span className="font-label-md text-label-md text-outline">phiếu nhận</span>
             </div>
             <div className="mt-1 pt-1.5 border-t border-[#e7eeff] text-body-sm text-[11px] text-primary font-medium">
@@ -199,7 +150,18 @@ export default function StockTransferPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#d8e3fb]/30 text-on-surface">
-                  {transferList.map((item) => (
+                  {transferList.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-12 text-center text-outline">
+                        <div className="flex flex-col items-center justify-center">
+                          <span className="material-symbols-outlined text-3xl text-slate-300 mb-1">local_shipping</span>
+                          <span className="text-sm font-medium text-on-surface">Chưa có lệnh điều chuyển kho nào</span>
+                          <span className="text-xs text-outline mt-0.5">Bấm "+ Lập Lệnh Điều Chuyển" để tạo phiếu chuyển hàng giữa các kho chi nhánh</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    transferList.map((item) => (
                     <tr key={item.id} className="hover:bg-surface-container-low transition-colors">
                       <td className="py-2.5 px-3 font-label-mono font-bold text-primary text-xs">
                         {item.id}
@@ -252,7 +214,7 @@ export default function StockTransferPage() {
                         )}
                       </td>
                     </tr>
-                  ))}
+                  )))}
                 </tbody>
               </table>
             </div>

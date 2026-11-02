@@ -1,9 +1,9 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { labApi } from '../../api/labApi';
 import { message } from 'antd';
 
 export default function LabQcPage() {
-  const [selectedTray, setSelectedTray] = useState('#LAB-2026-088');
+  const [selectedTray, setSelectedTray] = useState('');
 
   // Checklist state
   const [checks, setChecks] = useState({
@@ -22,6 +22,7 @@ export default function LabQcPage() {
   };
 
     const [qcQueue, setQcQueue] = useState([]);
+  const selectedItem = qcQueue.find(q => q.id === selectedTray) || qcQueue[0] || null;
 
   useEffect(() => {
     labApi.getAllLabJobs().then(data => {
@@ -154,7 +155,7 @@ export default function LabQcPage() {
           <div className="col-span-12 xl:col-span-4 flex flex-col gap-2.5">
             <div className="p-3 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="font-title-md text-title-md text-on-surface font-semibold">Khay Chờ Đo Kiểm (4)</span>
+                <span className="font-title-md text-title-md text-on-surface font-semibold">Khay Chờ Đo Kiểm ({qcQueue.length})</span>
                 <span className="font-label-mono text-[11px] text-outline">F2 Scan</span>
               </div>
               <div className="relative">
@@ -162,14 +163,19 @@ export default function LabQcPage() {
                 <input
                   className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-surface-container-low text-on-surface font-label-mono text-body-md focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-outline"
                   placeholder="Quét mã khay / Mã đơn #LAB-..."
-                  defaultValue="TRAY-2026-088"
                 />
               </div>
             </div>
 
             {/* Tray List */}
             <div className="flex flex-col gap-2">
-              {qcQueue.map((item) => {
+              {qcQueue.length === 0 ? (
+              <div className="p-8 text-center bg-surface-container-lowest rounded-xl border border-dashed border-[#d8e3fb]">
+                <span className="material-symbols-outlined text-3xl text-slate-300 mb-1">precision_manufacturing</span>
+                <p className="text-xs text-outline font-medium">Chưa có kính nào trong hàng đợi QC</p>
+              </div>
+            ) : (
+              qcQueue.map((item) => {
                 const isSelected = selectedTray === item.id;
                 return (
                   <div
@@ -198,11 +204,18 @@ export default function LabQcPage() {
                     </div>
                   </div>
                 );
-              })}
+              }))}
             </div>
           </div>
 
           {/* Right Column (8/12): Focal Inspection Station */}
+          {!selectedItem ? (
+            <div className="col-span-12 xl:col-span-8 p-12 text-center bg-surface-container-lowest rounded-xl border border-dashed border-[#d8e3fb] flex flex-col items-center justify-center">
+              <span className="material-symbols-outlined text-4xl text-slate-300 mb-2">fact_check</span>
+              <h3 className="font-title-md text-on-surface font-semibold">Chưa chọn khay kính cần kiểm tra QC</h3>
+              <p className="text-xs text-outline max-w-sm mt-1">Chọn một khay kính từ danh sách bên trái hoặc quét mã vạch khay để bắt đầu nghiệm thu quang học.</p>
+            </div>
+          ) : (
           <div className="col-span-12 xl:col-span-8 flex flex-col gap-3">
 
             {/* Order Details Header */}
@@ -211,28 +224,28 @@ export default function LabQcPage() {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="px-2.5 py-0.5 rounded-lg bg-primary-container text-on-primary font-label-mono font-bold text-xs">
-                      ĐƠN ĐANG ĐO: #LAB-2026-088
+                      ĐƠN ĐANG ĐO: {selectedItem.id}
                     </span>
-                    <span className="font-label-mono text-[11px] text-outline">Toa #RX-2026-889</span>
+                    <span className="font-label-mono text-[11px] text-outline">{selectedItem.tray}</span>
                     <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-md text-[10px] font-semibold">
-                      VIP Titanium
+                      {selectedItem.priority || 'Tiêu chuẩn'}
                     </span>
                   </div>
                   <div className="font-headline-sm text-headline-sm text-on-surface font-bold mt-1">
-                    Khách: Nguyễn Hoàng Duy (32 Tuổi • Nam • Flagship Q.1)
+                    Khách: {selectedItem.customer}
                   </div>
                 </div>
 
                 <div className="text-right shrink-0">
-                  <span className="text-[11px] text-outline block">Bác sĩ chỉ định:</span>
-                  <span className="font-title-md text-title-md text-primary font-semibold">BS. Vũ Anh Tuấn</span>
+                  <span className="text-[11px] text-outline block">Kỹ thuật viên mài:</span>
+                  <span className="font-title-md text-title-md text-primary font-semibold">{selectedItem.tech}</span>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-body-sm">
                 <div className="p-2 rounded-lg bg-surface-container-low border border-[#d8e3fb]/30">
                   <span className="text-[10px] text-outline block">KTV Mài Lắp</span>
-                  <span className="font-semibold text-on-surface">Trần Văn Bách</span>
+                  <span className="font-semibold text-on-surface">{selectedItem.tech}</span>
                 </div>
                 <div className="p-2 rounded-lg bg-surface-container-low border border-[#d8e3fb]/30">
                   <span className="text-[10px] text-outline block">Máy Mài 3D</span>
@@ -244,7 +257,7 @@ export default function LabQcPage() {
                 </div>
                 <div className="p-2 rounded-lg bg-surface-container-low border border-[#d8e3fb]/30">
                   <span className="text-[10px] text-outline block">Tròng Kính</span>
-                  <span className="font-semibold text-on-surface truncate block">Crizal Rock 1.67 Blue UV</span>
+                  <span className="font-semibold text-on-surface truncate block">{selectedItem.lens}</span>
                 </div>
               </div>
             </div>
@@ -414,11 +427,9 @@ export default function LabQcPage() {
                 <span>ĐẠT CHUẨN (PASS QC) &amp; BÀN GIAO POS</span>
               </button>
             </div>
-
           </div>
-
+        )}
         </div>
-
       </div>
     </div>
   );

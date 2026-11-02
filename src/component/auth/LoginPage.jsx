@@ -148,11 +148,7 @@ export default function LoginPage({ onLoginSuccess }) {
       message.error('Vui lòng nhập Mật khẩu tài khoản nội bộ!');
       return;
     }
-    const enteredOtp = otpDigits.join('');
-    if (enteredOtp.length < 6) {
-      message.error('Vui lòng nhập đủ 6 số Smart OTP xác thực 2 bước!');
-      return;
-    }
+
 
     const conf = ROLE_CONFIGS[selectedRole];
     const branchObj = BRANCH_OPTIONS.find(b => b.value === selectedBranch);
@@ -287,7 +283,7 @@ export default function LoginPage({ onLoginSuccess }) {
             <div className="optivision-left-features">
               <div className="optivision-feature-item">
                 <CheckCircleOutlined className="optivision-feature-icon" />
-                <span>Xác thực chứng danh nhân sự phân quyền RBAC & 2FA</span>
+                <span>Xác thực chứng danh nhân sự phân quyền theo vai trò (RBAC)</span>
               </div>
               <div className="optivision-feature-item">
                 <CheckCircleOutlined className="optivision-feature-icon" />
@@ -295,7 +291,7 @@ export default function LoginPage({ onLoginSuccess }) {
               </div>
               <div className="optivision-feature-item">
                 <CheckCircleOutlined className="optivision-feature-icon" />
-                <span>Mã hóa bảo mật cấp y khoa SHA-256 & Smart Token</span>
+                <span>Bảo mật tiêu chuẩn y khoa & mã hóa mật khẩu</span>
               </div>
             </div>
           </div>
@@ -329,7 +325,7 @@ export default function LoginPage({ onLoginSuccess }) {
             </div>
 
             <div className="optivision-rbac-badge">
-              <SafetyCertificateOutlined /> RBAC + 2FA Active
+              <SafetyCertificateOutlined /> Phân Quyền RBAC
             </div>
           </div>
 
@@ -382,15 +378,15 @@ export default function LoginPage({ onLoginSuccess }) {
                 {/* Staff ID */}
                 <div className="optivision-form-row">
                   <div className="optivision-label-row">
-                    <span>Mã định danh nhân viên (Staff ID) <span style={{ color: '#ef4444' }}>*</span></span>
-                    <span className="hint-text">Định dạng NV-OPT-XXXXXX</span>
+                    <span>Tài khoản / Email / Mã nhân viên <span style={{ color: '#ef4444' }}>*</span></span>
+                    <span className="hint-text">Email, username hoặc Staff ID</span>
                   </div>
                   <input
                     type="text"
                     className="optivision-form-input"
                     value={staffId}
                     onChange={(e) => setStaffId(e.target.value)}
-                    placeholder="NV-OPT-XXXXXX"
+                    placeholder="admin, email hoặc mã nhân viên..."
                     required
                   />
                 </div>
@@ -429,39 +425,6 @@ export default function LoginPage({ onLoginSuccess }) {
                     >
                       {showPassword ? <EyeInvisibleOutlined /> : <EyeOutlined />}
                     </button>
-                  </div>
-                </div>
-
-                {/* 2FA OTP 6 Digits */}
-                <div className="optivision-form-row">
-                  <div className="optivision-label-row">
-                    <span>Mã Smart OTP xác thực 2 bước (2FA)</span>
-                    <span
-                      style={{ color: '#086288', fontSize: 11, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                      onClick={handleRegenerateOtp}
-                    >
-                      <ReloadOutlined spin={otpTimer <= 3} style={{ fontSize: 10 }} />
-                      Làm mới: {otpTimer}s
-                    </span>
-                  </div>
-
-                  <div className="optivision-otp-row">
-                    {otpDigits.map((digit, idx) => (
-                      <input
-                        key={idx}
-                        ref={(el) => (otpRefs.current[idx] = el)}
-                        type="text"
-                        maxLength={1}
-                        value={digit}
-                        onChange={(e) => handleOtpChange(idx, e.target.value)}
-                        onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                        className="optivision-otp-digit"
-                      />
-                    ))}
-                  </div>
-
-                  <div className="optivision-otp-hint">
-                    Nhập chuỗi OTP từ ứng dụng OptiVision Authenticator hoặc khóa bảo mật phần cứng YubiKey.
                   </div>
                 </div>
 

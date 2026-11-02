@@ -2,346 +2,6 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { message, Modal } from 'antd';
 import { orderApi } from '../../api/orderApi';
 
-// Mock initial OMS order dataset matching clinical & omnichannel specs
-const INITIAL_ORDERS = [
-  {
-    id: '#OPT-8842-SG',
-    channel: 'pos_q1',
-    channelLabel: 'Flagship Q.1',
-    channelType: 'pos',
-    channelIcon: 'storefront',
-    channelBadgeBg: 'bg-[#cae6ff]',
-    channelBadgeText: 'text-[#004b70]',
-    time: '14:28:15',
-    date: '16/10/2024',
-    staff: 'STF-088 (Trần M. Anh)',
-    customer: {
-      name: 'Nguyễn Hoàng Nam',
-      phone: '0903.882.190',
-      tier: 'VIP Gold',
-      tierBg: 'bg-[#c5e7ff]',
-      tierText: 'text-[#001e2d]',
-      history: '4 đơn đã mua',
-      address: 'Quận 1, TP. Hồ Chí Minh'
-    },
-    product: {
-      frameName: 'Gọng Bolon Vintage Classic BJ3120-B10',
-      frameSku: 'BOL-BJ3120-BLK',
-      frameShelf: 'A-04-12',
-      framePrice: 2980000,
-      lensName: 'Cặp tròng Essilor Crizal Rock 1.67 Blue UV Capture',
-      lensSku: 'ESL-CR-167-UV',
-      lensShelf: 'Ngăn tròng: L-167-2',
-      lensPrice: 2500000,
-      lensShort: 'Crizal Rock 1.67 Blue UV',
-      rxShort: '[OD -3.25 / OS -2.75]',
-      doctorApproved: 'BS: Lâm Hoàng Phúc đã ký duyệt'
-    },
-    rx: {
-      doctorName: 'BS. Lâm Hoàng Phúc đã ký',
-      od: { sph: '-3.25', cyl: '-0.50', axis: '175°', add: '—', pd: '63.0 mm' },
-      os: { sph: '-2.75', cyl: '-0.75', axis: '05°', add: '—', pd: '63.0 mm' },
-      sh: '21.5 mm',
-      cvd: '12.0 mm'
-    },
-    payment: {
-      totalItems: 5480000,
-      discount: -250000,
-      discountLabel: 'Chiết khấu VIP Gold (10% tròng)',
-      labFeeLabel: 'Miễn phí (Ưu đãi)',
-      finalTotal: 5230000,
-      method: 'VNPay-QR',
-      methodBadgeBg: 'bg-[#cae6ff]',
-      methodBadgeText: 'text-[#005881]',
-      status: 'Đã thanh toán',
-      transactionRef: 'VietQR Techcombank (Giao dịch #TCB8921820) - Đã hạch toán'
-    },
-    techStatus: {
-      label: 'Đang mài Essilor',
-      badgeBg: 'bg-[#c5e7ff]',
-      badgeText: 'text-[#001e2d]',
-      icon: 'refresh',
-      spin: true,
-      eta: 'Dự kiến xong: 15:45',
-      machine: 'Essilor Delta 200',
-      technician: 'KTV H. Tuấn',
-      techTime: '15:10'
-    },
-    statusCode: 'lab_processing', // all, pending_payment, paid, waiting_rx, lab_processing, qc_packaging, delivering_2h, completed, cancelled
-    auditStage: 4, // 1: Order, 2: Payment, 3: Rx verify, 4: Lab edging, 5: QC Packaging, 6: Completed/Delivery
-    auditLog: 'Giai đoạn 4/6'
-  },
-  {
-    id: '#OPT-8841-ONL',
-    channel: 'online',
-    channelLabel: 'Online App',
-    channelType: 'online',
-    channelIcon: 'smartphone',
-    channelBadgeBg: 'bg-[#c6e7ff]',
-    channelBadgeText: 'text-[#001e2d]',
-    time: '14:15:02',
-    date: '16/10/2024',
-    staff: 'OMS Bot Auto',
-    customer: {
-      name: 'Lê Thúy Kiều',
-      phone: '0988.124.551',
-      tier: 'Thành viên',
-      tierBg: 'bg-[#e7eeff]',
-      tierText: 'text-[#40484e]',
-      history: '2 đơn đã mua',
-      address: 'Q.3, TP. Hồ Chí Minh'
-    },
-    product: {
-      frameName: 'Gọng kính Ray-Ban Round Metal RB3447',
-      frameSku: 'RB-3447-001',
-      frameShelf: 'B-02-05',
-      framePrice: 2470000,
-      lensName: 'Cặp tròng Essilor Eyezen Start 1.60',
-      lensSku: 'ESL-EYEZEN-160',
-      lensShelf: 'Ngăn tròng: L-160-4',
-      lensPrice: 1650000,
-      lensShort: 'Essilor Eyezen Start 1.60',
-      rxShort: '[OD -2.00 / OS -1.75]',
-      doctorApproved: 'Toa từ hồ sơ khám gần nhất'
-    },
-    rx: {
-      doctorName: 'BS. Vũ Anh Tuấn duyệt tự động',
-      od: { sph: '-2.00', cyl: '-0.25', axis: '180°', add: '—', pd: '62.0 mm' },
-      os: { sph: '-1.75', cyl: '-0.50', axis: '10°', add: '—', pd: '62.0 mm' },
-      sh: '20.0 mm',
-      cvd: '12.0 mm'
-    },
-    payment: {
-      totalItems: 4120000,
-      discount: 0,
-      discountLabel: 'Không áp dụng',
-      labFeeLabel: 'Miễn phí tiêu chuẩn',
-      finalTotal: 4120000,
-      method: 'Apple Pay',
-      methodBadgeBg: 'bg-[#cae6ff]',
-      methodBadgeText: 'text-[#005881]',
-      status: 'Đã thanh toán',
-      transactionRef: 'Apple Pay Visa Platinum (#AP-991201)'
-    },
-    techStatus: {
-      label: 'Đang giao 2H (Aha)',
-      badgeBg: 'bg-[#dee8ff]',
-      badgeText: 'text-[#111c2d]',
-      icon: 'local_shipping',
-      spin: false,
-      eta: 'Mã vận đơn: AHA-882310',
-      machine: 'Shipper AhaMove',
-      technician: 'Điều phối viên giao vận',
-      techTime: '14:40'
-    },
-    statusCode: 'delivering_2h',
-    auditStage: 6,
-    auditLog: 'Giai đoạn 6/6'
-  },
-  {
-    id: '#OPT-8839-WEB',
-    channel: 'online',
-    channelLabel: 'Web E-com',
-    channelType: 'online',
-    channelIcon: 'language',
-    channelBadgeBg: 'bg-[#dee8ff]',
-    channelBadgeText: 'text-[#111c2d]',
-    time: '13:50:40',
-    date: '16/10/2024',
-    staff: 'Khách tự tải ảnh toa',
-    customer: {
-      name: 'Trịnh Minh Quang',
-      phone: '0912.449.002',
-      tier: 'Mới',
-      tierBg: 'bg-[#dee8ff]',
-      tierText: 'text-[#40484e]',
-      history: '1 đơn',
-      address: 'Cầu Giấy, Hà Nội (Giao bưu cục)'
-    },
-    product: {
-      frameName: 'Gọng Titan Molsion MO5089',
-      frameSku: 'MOL-5089-TITAN',
-      frameShelf: 'C-01-09',
-      framePrice: 2850000,
-      lensName: 'Tròng Chiết Suất Siêu Mỏng 1.74 [Cận -7.50 / Loạn -2.50]',
-      lensSku: 'ESL-174-RX',
-      lensShelf: 'Chờ phôi đặt riêng',
-      lensPrice: 4000000,
-      lensShort: 'Tròng Siêu Mỏng 1.74',
-      rxShort: '[Cận -7.50 / Loạn -2.50]',
-      doctorApproved: 'Lệch tâm PD > 68mm, cần Bác sĩ gọi xác nhận',
-      isWarning: true
-    },
-    rx: {
-      doctorName: 'Chờ Bác sĩ xác nhận PD',
-      od: { sph: '-7.50', cyl: '-2.50', axis: '165°', add: '—', pd: '69.0 mm' },
-      os: { sph: '-7.00', cyl: '-2.25', axis: '15°', add: '—', pd: '69.0 mm' },
-      sh: '23.0 mm',
-      cvd: '11.5 mm'
-    },
-    payment: {
-      totalItems: 6850000,
-      discount: 0,
-      discountLabel: 'Không áp dụng',
-      labFeeLabel: 'Gia công độ cao (+0đ)',
-      finalTotal: 6850000,
-      method: 'Đã thanh toán thẻ',
-      methodBadgeBg: 'bg-[#cae6ff]',
-      methodBadgeText: 'text-[#005881]',
-      status: 'Đã thanh toán thẻ',
-      transactionRef: 'Thẻ Quốc tế JCB Online (#JCB-5541)'
-    },
-    techStatus: {
-      label: 'Chờ duyệt toa OD/OS',
-      badgeBg: 'bg-[#ffdad6]',
-      badgeText: 'text-[#93000a]',
-      icon: 'medical_services',
-      spin: false,
-      eta: 'Chờ xác nhận lại PD',
-      machine: 'Bác sĩ Khúc xạ',
-      technician: 'Chờ phân công',
-      techTime: '13:55'
-    },
-    statusCode: 'waiting_rx',
-    auditStage: 3,
-    auditLog: 'Giai đoạn 3/6'
-  },
-  {
-    id: '#OPT-8835-HN',
-    channel: 'pos_tt',
-    channelLabel: 'POS Tràng Tiền',
-    channelType: 'pos',
-    channelIcon: 'storefront',
-    channelBadgeBg: 'bg-[#c5e7ff]',
-    channelBadgeText: 'text-[#001e2d]',
-    time: '13:10:18',
-    date: '16/10/2024',
-    staff: 'STF-012 (Lê V. Hà)',
-    customer: {
-      name: 'Phạm Thị Bích Ngọc',
-      phone: '0977.898.332',
-      tier: 'Platinum',
-      tierBg: 'bg-[#8ecef6]',
-      tierText: 'text-[#001e2d]',
-      history: '6 đơn đã mua',
-      address: 'Hoàn Kiếm, Hà Nội'
-    },
-    product: {
-      frameName: 'Gọng Charmant Titanium Z ZT2233',
-      frameSku: 'CHM-ZT2233-SIL',
-      frameShelf: 'VIP-01-02',
-      framePrice: 5200000,
-      lensName: 'Tròng Đa Tròng Essilor Varilux Comfort Max',
-      lensSku: 'ESL-VARILUX-CFM',
-      lensShelf: 'Ngăn tròng: L-PAL-01',
-      lensPrice: 7300000,
-      lensShort: 'Đa Tròng Varilux Comfort Max',
-      rxShort: '[Viễn +1.50 / Add +2.00]',
-      doctorApproved: 'Đo bằng máy Visioffice 3D'
-    },
-    rx: {
-      doctorName: 'BS. Hoàng Văn Toàn ký số',
-      od: { sph: '+1.50', cyl: '-0.50', axis: '90°', add: '+2.00', pd: '61.5 mm' },
-      os: { sph: '+1.25', cyl: '-0.25', axis: '85°', add: '+2.00', pd: '61.5 mm' },
-      sh: '19.5 mm',
-      cvd: '12.5 mm'
-    },
-    payment: {
-      totalItems: 12500000,
-      discount: 0,
-      discountLabel: 'Voucher Khách VIP',
-      labFeeLabel: 'Gia công đa tròng Free',
-      finalTotal: 12500000,
-      method: 'Quẹt thẻ POS',
-      methodBadgeBg: 'bg-[#cae6ff]',
-      methodBadgeText: 'text-[#005881]',
-      status: 'Đã thanh toán',
-      transactionRef: 'MPOS SmartPOS Vietcombank (#POS-8823)'
-    },
-    techStatus: {
-      label: 'Chờ đóng gói QC',
-      badgeBg: 'bg-[#dee8ff]',
-      badgeText: 'text-[#111c2d]',
-      icon: 'inventory_2',
-      spin: false,
-      eta: 'Đã mài xong - Đạt chuẩn',
-      machine: 'Bàn QC Tràng Tiền',
-      technician: 'KTV Phạm Hùng',
-      techTime: '14:05'
-    },
-    statusCode: 'qc_packaging',
-    auditStage: 5,
-    auditLog: 'Giai đoạn 5/6'
-  },
-  {
-    id: '#OPT-8830-ONL',
-    channel: 'online',
-    channelLabel: 'Online App',
-    channelType: 'online',
-    channelIcon: 'smartphone',
-    channelBadgeBg: 'bg-[#c6e7ff]',
-    channelBadgeText: 'text-[#001e2d]',
-    time: '12:35:10',
-    date: '16/10/2024',
-    staff: 'CSKH Telesales',
-    customer: {
-      name: 'Đỗ Tuấn Kiệt',
-      phone: '0938.552.191',
-      tier: 'Mới',
-      tierBg: 'bg-[#e7eeff]',
-      tierText: 'text-[#40484e]',
-      history: '1 đơn',
-      address: 'Bình Thạnh, TP. HCM'
-    },
-    product: {
-      frameName: 'Kính Mát Oakley Holbrook Matte Black Prizm Sapphire',
-      frameSku: 'OAK-OO9102-55',
-      frameShelf: 'SUN-OAK-04',
-      framePrice: 3950000,
-      lensName: 'Tròng Prizm Sapphire Polarized chống chói',
-      lensSku: 'OAK-LENS-SAP',
-      lensShelf: 'Kính Mát Nguyên Hộp',
-      lensPrice: 0,
-      lensShort: 'Kính Mát Không Độ (Plano)',
-      rxShort: 'Không độ (Plano)',
-      doctorApproved: 'Có sẵn nguyên hộp tại kho Flagship'
-    },
-    rx: {
-      doctorName: 'Đơn kính mát thời trang',
-      od: { sph: '0.00', cyl: '0.00', axis: '0°', add: '—', pd: '64.0 mm' },
-      os: { sph: '0.00', cyl: '0.00', axis: '0°', add: '—', pd: '64.0 mm' },
-      sh: '—',
-      cvd: '—'
-    },
-    payment: {
-      totalItems: 3950000,
-      discount: 0,
-      discountLabel: 'Không',
-      labFeeLabel: 'Không áp dụng',
-      finalTotal: 3950000,
-      method: 'COD (Thu tiền tận nơi)',
-      methodBadgeBg: 'bg-[#d8e3fb]',
-      methodBadgeText: 'text-[#40484e]',
-      status: 'Chờ thanh toán khi nhận',
-      transactionRef: 'COD Shipper giao thu tiền mặt tận nơi'
-    },
-    techStatus: {
-      label: 'Đã xác nhận',
-      badgeBg: 'bg-[#e7eeff]',
-      badgeText: 'text-[#40484e]',
-      icon: 'schedule',
-      spin: false,
-      eta: 'Chờ lấy hàng AhaMove',
-      machine: 'Kho Flagship Q.1',
-      technician: 'Thủ kho NV. Long',
-      techTime: '13:00'
-    },
-    statusCode: 'pending_payment',
-    auditStage: 2,
-    auditLog: 'Giai đoạn 2/6'
-  }
-];
-
 export default function OrdersOmsPage() {
   const [orders, setOrders] = useState([]);
   const [selectedOrderId, setSelectedOrderId] = useState('');
@@ -384,12 +44,12 @@ export default function OrdersOmsPage() {
                 address: bo.shippingAddress || 'TP. Hồ Chí Minh'
               },
               product: {
-                frameName: firstItem.productName || 'Gọng Bolon Titanium',
-                frameSku: firstItem.skuId || 'FRM-BOLON-BJ3120',
+                frameName: firstItem.productName || 'Gọng Kính Chính Hãng',
+                frameSku: firstItem.skuId || 'FRM-DEFAULT',
                 frameShelf: 'A-04-12',
                 framePrice: Number(firstItem.unitPrice || 3250000),
-                lensName: secondItem.productName || 'Cặp tròng Essilor Crizal Rock 1.67',
-                lensSku: secondItem.skuId || 'LNS-ESS-CRIZAL-167',
+                lensName: secondItem.productName || 'Tròng Kính Khúc Xạ',
+                lensSku: secondItem.skuId || 'LNS-DEFAULT',
                 lensShelf: 'Ngăn tròng: L-167-2',
                 lensPrice: Number(secondItem.unitPrice || 1980000),
                 lensShort: secondItem.productName || 'Essilor Crizal',
@@ -397,7 +57,7 @@ export default function OrdersOmsPage() {
                 doctorApproved: 'BS. Vũ Anh Tuấn đã ký duyệt'
               },
               rx: {
-                doctorName: 'BS. Vũ Anh Tuấn',
+                doctorName: bo.doctorName || 'BS. Khúc Xạ',
                 od: { sph: '-3.25', cyl: '-0.50', axis: '180°', add: '—', pd: '63.0 mm' },
                 os: { sph: '-2.75', cyl: '-0.75', axis: '175°', add: '—', pd: '63.0 mm' },
                 sh: '21.5 mm',
@@ -423,7 +83,7 @@ export default function OrdersOmsPage() {
                 spin: bo.status === 'PROCESSING',
                 eta: 'Dự kiến: Hôm nay',
                 machine: 'Essilor Kappa 200',
-                technician: 'KTV Trần Văn Bách',
+                technician: bo.staffName || 'KTV Xưởng Lab',
                 techTime: '15:10'
               },
               statusCode: bo.status === 'COMPLETED' ? 'completed' : bo.status === 'SHIPPING' ? 'delivering_2h' : 'lab_processing',
@@ -597,9 +257,7 @@ export default function OrdersOmsPage() {
             </span>
           </div>
           <div className="mt-3 pt-2.5 bg-[#f0f3ff] px-3 py-1.5 rounded-lg flex items-center justify-between text-[13px] font-semibold text-[#40484e]">
-            <span>POS Q.1: <strong className="text-[#111c2d] font-bold">84</strong></span>
-            <span className="text-[#c0c7cf]">|</span>
-            <span>Online App: <strong className="text-[#111c2d] font-bold">44</strong></span>
+            <span>POS Q.1: <strong className="text-[#111c2d] font-bold">{orders.filter(o => o.channelType === 'pos').length}</strong></span><span className="text-[#c0c7cf]">|</span><span>Online App: <strong className="text-[#111c2d] font-bold">{orders.filter(o => o.channelType === 'online').length}</strong></span>
           </div>
         </div>
 
@@ -613,13 +271,13 @@ export default function OrdersOmsPage() {
             </span>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-[36px] font-bold text-[#ba1a1a] tracking-tight leading-none">{orders.filter(o => o.status === 'Chờ xác nhận').length}</span>
+            <span className="text-[36px] font-bold text-[#ba1a1a] tracking-tight leading-none">{orders.filter(o => o.statusCode === 'waiting_rx').length}</span>
             <span className="text-[12px] font-semibold px-2 py-0.5 rounded-full bg-[#ffdad6] text-[#93000a]">Cần KTV duyệt</span>
           </div>
           <div className="mt-3 pt-2.5 bg-[#f0f3ff] px-3 py-1.5 rounded-lg flex items-center justify-between text-[13px] font-semibold text-[#40484e]">
-            <span>Độ cận cao (&gt;6.0D): <strong className="text-[#ba1a1a] font-bold">6</strong></span>
+            <span>Độ cận cao (&gt;6.0D): <strong className="text-[#ba1a1a] font-bold">{orders.filter(o => o.statusCode === 'waiting_rx').length > 0 ? 1 : 0}</strong></span>
             <span className="text-[#c0c7cf]">|</span>
-            <span>Loạn thị phức: <strong className="text-[#111c2d] font-bold">8</strong></span>
+            <span>Loạn thị phức: <strong className="text-[#111c2d] font-bold">{orders.filter(o => o.statusCode === 'waiting_rx').length > 1 ? 1 : 0}</strong></span>
           </div>
         </div>
 
@@ -633,13 +291,13 @@ export default function OrdersOmsPage() {
             </span>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-[36px] font-bold text-[#004967] tracking-tight leading-none">{orders.filter(o => o.status === 'Đang mài').length}</span>
+            <span className="text-[36px] font-bold text-[#004967] tracking-tight leading-none">{orders.filter(o => o.statusCode === 'lab_processing').length}</span>
             <span className="text-[12px] text-[#19648f] font-semibold">Tự động Essilor Delta 200</span>
           </div>
           <div className="mt-3 pt-2.5 bg-[#f0f3ff] px-3 py-1.5 rounded-lg flex items-center justify-between text-[13px] font-semibold text-[#40484e]">
-            <span>Lab Trực tiếp: <strong className="text-[#111c2d] font-bold">12</strong></span>
+            <span>Lab Trực tiếp: <strong className="text-[#111c2d] font-bold">{orders.filter(o => o.statusCode === 'lab_processing').length}</strong></span>
             <span className="text-[#c0c7cf]">|</span>
-            <span>Chờ gia công RX: <strong className="text-[#111c2d] font-bold">6</strong></span>
+            <span>Chờ gia công RX: <strong className="text-[#111c2d] font-bold">0</strong></span>
           </div>
         </div>
 
@@ -653,15 +311,15 @@ export default function OrdersOmsPage() {
             </span>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-[36px] font-bold text-[#111c2d] tracking-tight leading-none">26</span>
+            <span className="text-[36px] font-bold text-[#111c2d] tracking-tight leading-none">{orders.filter(o => o.statusCode === 'delivering_2h').length}</span>
             <span className="text-[12px] text-[#146285] font-semibold flex items-center">
               AhaMove &amp; Ahamove Lab
             </span>
           </div>
           <div className="mt-3 pt-2.5 bg-[#f0f3ff] px-3 py-1.5 rounded-lg flex items-center justify-between text-[13px] font-semibold text-[#40484e]">
-            <span className="text-[#004967] font-bold">Hỏa tốc 2H: 12</span>
+            <span className="text-[#004967] font-bold">Hỏa tốc 2H: {orders.filter(o => o.statusCode === 'delivering_2h').length}</span>
             <span className="text-[#c0c7cf]">|</span>
-            <span>Tiêu chuẩn: 14</span>
+            <span>Tiêu chuẩn: 0</span>
           </div>
         </div>
       </div>
@@ -785,7 +443,7 @@ export default function OrdersOmsPage() {
                 : 'bg-[#f0f3ff] hover:bg-[#e7eeff] text-[#40484e]'
             }`}
           >
-            Chờ thanh toán (8)
+            Chờ thanh toán ({orders.filter(o => o.statusCode === 'pending_payment').length})
           </button>
           <button
             onClick={() => setStatusFilter('paid')}
@@ -1092,10 +750,6 @@ export default function OrdersOmsPage() {
                 <span className="material-symbols-outlined text-[16px] align-middle">chevron_left</span>
               </button>
               <button className="px-3 py-1 rounded-lg bg-[#004967] text-white text-xs font-semibold">1</button>
-              <button className="px-3 py-1 rounded-lg bg-white text-[#111c2d] hover:bg-[#e7eeff] text-xs font-semibold">2</button>
-              <button className="px-3 py-1 rounded-lg bg-white text-[#111c2d] hover:bg-[#e7eeff] text-xs font-semibold">3</button>
-              <span className="px-1 text-[#70787f]">...</span>
-              <button className="px-3 py-1 rounded-lg bg-white text-[#111c2d] hover:bg-[#e7eeff] text-xs font-semibold">13</button>
               <button className="px-2.5 py-1 rounded-lg bg-white text-[#70787f] hover:text-[#111c2d] text-xs font-semibold shadow-sm">
                 <span className="material-symbols-outlined text-[16px] align-middle">chevron_right</span>
               </button>
@@ -1369,4 +1023,5 @@ export default function OrdersOmsPage() {
     </div>
   );
 }
+
 
