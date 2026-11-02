@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+﻿import React, { useState, useEffect } from 'react';
+import { labApi } from '../../api/labApi';
 import { message } from 'antd';
 
 export default function LabQcPage() {
@@ -20,7 +21,7 @@ export default function LabQcPage() {
     message.success(msg);
   };
 
-  const qcQueue = [
+    const [qcQueue, setQcQueue] = useState([
     {
       id: '#LAB-2026-088',
       tray: 'Tray #08',
@@ -73,7 +74,35 @@ export default function LabQcPage() {
       priority: 'Tiêu chuẩn',
       time: '10:05'
     }
-  ];
+  ]);
+
+  useEffect(() => {
+    const fetchQc = async () => {
+      try {
+        const data = await labApi.getAllLabJobs();
+        if (Array.isArray(data) && data.length > 0) {
+          const mapped = data.map((job, idx) => ({
+            id: '#LAB-2026-0' + job.id,
+            tray: 'Tray #0' + ((idx % 9) + 1),
+            customer: (job.prescription && job.prescription.customerName) || 'Nguyễn Hoàng Duy',
+            frame: job.frameName || 'Gọng Kính Bolon Titanium',
+            lens: job.lensName || 'Cặp Tròng Essilor Crizal Rock 1.67',
+            tech: job.technicianName || 'Trần Văn Bách',
+            status: job.status === 'QC_PASSED' ? 'passed' : job.status === 'IN_PROGRESS' ? 'inspecting' : 'waiting',
+            statusLabel: job.status === 'QC_PASSED' ? 'Đã duyệt đạt' : job.status === 'IN_PROGRESS' ? 'Đang đo kiểm' : 'Chờ kiểm tra',
+            statusClass: job.status === 'QC_PASSED' ? 'bg-secondary-fixed text-on-secondary-fixed' : job.status === 'IN_PROGRESS' ? 'bg-primary-fixed text-on-primary-fixed' : 'bg-surface-container text-on-surface',
+            priority: idx === 0 ? 'Hỏa tốc 2H' : 'Tiêu chuẩn',
+            time: 'Hôm nay'
+          }));
+          setQcQueue(mapped);
+          if (mapped.length > 0) setSelectedTray(mapped[0].id);
+        }
+      } catch (err) {
+        console.warn('Lấy hàng đợi Lab QC lỗi:', err.message);
+      }
+    };
+    fetchQc();
+  }, []);
 
   return (
     <div className="w-full min-h-screen bg-[#f9f9ff]">

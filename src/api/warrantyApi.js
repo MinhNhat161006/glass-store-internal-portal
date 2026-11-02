@@ -12,3 +12,4 @@ export const warrantyApi = {
     body: JSON.stringify(updateData)
   })
 };
+

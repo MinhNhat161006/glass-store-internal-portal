@@ -12,3 +12,4 @@ export const appointmentApi = {
     body: JSON.stringify(updateData)
   })
 };
+

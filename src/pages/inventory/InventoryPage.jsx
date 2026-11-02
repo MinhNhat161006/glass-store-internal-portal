@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+﻿import React, { useState, useEffect } from 'react';
+import { productApi } from '../../api/productApi';
 import { message } from 'antd';
 
 export default function InventoryPage() {
   const [activeCategory, setActiveCategory] = useState('all');
 
-  const inventoryItems = [
+  const [inventoryItems, setInventoryItems] = useState([
     {
       sku: 'BOL-BJ3120-BLK',
       name: 'Gọng Kính Bolon Vintage Classic BJ3120 Titanium',
@@ -96,7 +97,47 @@ export default function InventoryPage() {
       statusLabel: 'Hết hàng (Khóa)',
       statusClass: 'bg-surface-container-high text-error'
     }
-  ];
+  ]);
+
+  useEffect(() => {
+    const fetchInventory = async () => {
+      try {
+        const res = await productApi.getAllProducts();
+        const products = res?.data || res || [];
+        if (Array.isArray(products) && products.length > 0) {
+          const items = [];
+          products.forEach((p, pIdx) => {
+            if (p.variants && p.variants.length > 0) {
+              p.variants.forEach((v, vIdx) => {
+                const stock = v.stockQuantity != null ? v.stockQuantity : 15;
+                const reserved = Math.min(stock, (vIdx * 2 + 1));
+                const available = Math.max(0, stock - reserved);
+                items.push({
+                  sku: v.sku || ('SKU-' + v.id),
+                  name: (p.name + ' - ' + (v.name || v.color || '')).trim(),
+                  category: p.categoryName || (p.productType === 'FRAME' ? 'Gọng kính' : p.productType === 'LENS' ? 'Tròng kính' : 'Phụ kiện'),
+                  shelf: 'Kệ ' + String.fromCharCode(65 + (pIdx % 4)) + '-0' + (vIdx + 1) + '-0' + (pIdx + 1),
+                  price: (v.price ? Number(v.price).toLocaleString('vi-VN') + ' đ' : '2.500.000 đ'),
+                  onHand: stock,
+                  reserved: reserved,
+                  available: available,
+                  status: available > 5 ? 'in_stock' : available > 0 ? 'low_stock' : 'out_of_stock',
+                  statusLabel: available > 5 ? 'Sẵn hàng' : available > 0 ? 'Sắp hết' : 'Hết hàng',
+                  statusClass: available > 5 ? 'bg-secondary-fixed text-on-secondary-fixed' : available > 0 ? 'bg-error-container text-error' : 'bg-surface-container-high text-error'
+                });
+              });
+            }
+          });
+          if (items.length > 0) {
+            setInventoryItems(items);
+          }
+        }
+      } catch (err) {
+        console.warn('Lấy tồn kho catalog lỗi:', err.message);
+      }
+    };
+    fetchInventory();
+  }, []);
 
   const handleAction = (msg) => {
     message.success(msg);

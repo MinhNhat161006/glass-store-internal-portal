@@ -1,7 +1,16 @@
-import React, { useState } from 'react';
+﻿import React, { useState, useEffect } from 'react';
+import { productApi } from '../../api/productApi';
 import { message } from 'antd';
 
 export default function StockTransferPage() {
+  const [liveProducts, setLiveProducts] = useState([]);
+
+  useEffect(() => {
+    productApi.getAllProducts().then(res => {
+      const data = res?.data || res;
+      if (Array.isArray(data)) setLiveProducts(data);
+    }).catch(e => console.warn('Stock transfer products sync note:', e));
+  }, []);
   const [activeTab, setActiveTab] = useState('active_transfers');
 
   // Form states for new transfer

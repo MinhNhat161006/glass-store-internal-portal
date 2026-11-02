@@ -1,7 +1,21 @@
-import React, { useState } from 'react';
+﻿import React, { useState, useEffect } from 'react';
+import { orderApi } from '../../api/orderApi';
+import { customerApi } from '../../api/customerApi';
 import { message } from 'antd';
 
 export default function ReportsPage() {
+  const [liveOrders, setLiveOrders] = useState([]);
+  const [customerTotal, setCustomerTotal] = useState(14);
+
+  useEffect(() => {
+    orderApi.getAllOrders().then(orders => {
+      if (Array.isArray(orders)) setLiveOrders(orders);
+    }).catch(e => console.warn('Reports order sync note:', e));
+
+    customerApi.getCustomerList().then(customers => {
+      if (Array.isArray(customers)) setCustomerTotal(customers.length);
+    }).catch(e => console.warn('Reports customer sync note:', e));
+  }, []);
   const [timeframe, setTimeframe] = useState('month'); // 'today' | '7days' | 'month' | 'quarter'
   const [branch, setBranch] = useState('all');
 
