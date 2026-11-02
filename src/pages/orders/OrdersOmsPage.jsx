@@ -812,8 +812,8 @@ export default function OrdersOmsPage() {
                   <th className="py-3 px-3 whitespace-nowrap min-w-[145px]">Thời gian / Nhân viên</th>
                   <th className="py-3 px-3 whitespace-nowrap min-w-[160px]">Khách hàng</th>
                   <th className="py-3 px-4 min-w-[280px]">Sản phẩm &amp; Toa kính y khoa</th>
-                  <th className="py-3 px-3 whitespace-nowrap min-w-[140px]">Thanh toán</th>
-                  <th className="py-3 px-3 whitespace-nowrap min-w-[170px]">Tiến độ kỹ thuật</th>
+                  <th className="py-3 px-3 whitespace-nowrap min-w-[165px]">Thanh toán</th>
+                  <th className="py-3 px-3 whitespace-nowrap min-w-[190px]">Tiến độ kỹ thuật</th>
                   <th className="py-3 px-3 whitespace-nowrap min-w-[90px] text-right">Tác vụ</th>
                 </tr>
               </thead>
@@ -912,7 +912,7 @@ export default function OrdersOmsPage() {
                       {/* Thanh toán */}
                       <td className="py-3 px-3 whitespace-nowrap">
                         <div className="text-[13px] font-mono font-bold text-[#004967] whitespace-nowrap">
-                          {order.payment.finalTotal.toLocaleString('vi-VN')} đ
+                          {order.payment.finalTotal.toLocaleString('vi-VN')}&nbsp;₫
                         </div>
                         <div className="mt-1">
                           <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full ${order.payment.methodBadgeBg} ${order.payment.methodBadgeText} text-[11px] font-semibold whitespace-nowrap`}>
