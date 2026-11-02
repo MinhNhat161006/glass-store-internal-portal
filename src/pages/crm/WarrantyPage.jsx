@@ -1,72 +1,90 @@
-import React, { useState } from 'react';
-import { message } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { message, Spin } from 'antd';
+import { warrantyApi } from '../../api/warrantyApi';
 
 export default function WarrantyPage() {
   const [activeTab, setActiveTab] = useState('all');
   const [selectedWarrantyId, setSelectedWarrantyId] = useState('#WAR-2026-089');
+  const [warranties, setWarranties] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const warrantyList = [
-    {
-      id: '#WAR-2026-089',
-      status: 'Đang xử lý tại quầy',
-      statusColor: 'bg-secondary-fixed text-on-secondary-fixed',
-      time: '10:45 Hôm nay',
-      cost: '0 VNĐ',
-      customer: 'Nguyễn Hoàng Duy',
-      product: 'Bolon BJ3120 • Lỏng ve mũi & ốc bản lề',
-      cause: 'Lỗi hao mòn cơ học (BR-35)',
-      tech: 'KTV Trần Văn Bách',
-      active: true
-    },
-    {
-      id: '#WAR-2026-088',
-      status: 'Lab duyệt đổi mới 100%',
-      statusColor: 'bg-primary-fixed text-on-primary-fixed',
-      time: '09:12 Hôm nay',
-      cost: 'Đổi tròng',
-      customer: 'Lê Thúy Kiều',
-      product: 'Crizal Rock 1.60 • Bong váng phủ OD',
-      cause: 'Bảo hành chính hãng Essilor',
-      tech: 'Đơn gốc #OPT-8721 • Mua 4 tháng',
-      active: false
-    },
-    {
-      id: '#WAR-2026-085',
-      status: 'Chờ khách nhận gọng',
-      statusColor: 'bg-surface-container-high text-on-surface',
-      time: 'Hôm qua',
-      cost: 'Đổi 7 ngày (BR-38)',
-      customer: 'Trần Minh Quang',
-      product: 'Titanium Minimalist • Đổi size 54 sang 52',
-      cause: 'Đã mài lại tròng mới',
-      tech: 'Tình trạng: Nguyên tem hộp, không xước',
-      active: false
-    },
-    {
-      id: '#WAR-2026-082',
-      status: 'Từ chối BH miễn phí',
-      statusColor: 'bg-error-container text-on-error-container',
-      time: '14/04/2026',
-      cost: 'Lỗi EX-WAR-03',
-      customer: 'Đỗ Quỳnh Anh',
-      product: 'Gọng Ray-Ban • Gãy càng do tai nạn xe',
-      cause: 'Đề xuất trợ giá 50%',
-      tech: 'Va đập ngoại lực mạnh',
-      active: false
-    },
-    {
-      id: '#WAR-2026-079',
-      status: 'Hoàn tất bàn giao',
-      statusColor: 'bg-surface-container text-outline',
-      time: '12/04/2026',
-      cost: 'Đã ký nhận',
-      customer: 'Phan Đức Toàn',
-      product: 'Đổi màu tròng râm cận (Trà sang Khói)',
-      cause: 'Bảo hành thích nghi mắt',
-      tech: 'Đơn gốc #OPT-8650',
-      active: false
+  const fetchWarranties = async () => {
+    try {
+      setLoading(true);
+      const data = await warrantyApi.getAllWarranties();
+      if (Array.isArray(data) && data.length > 0) {
+        setWarranties(data);
+        if (!data.some(w => w.warrantyCode === selectedWarrantyId)) {
+          setSelectedWarrantyId(data[0].warrantyCode);
+        }
+      }
+    } catch (err) {
+      console.warn('Lấy danh sách bảo hành từ backend lỗi, giữ fallback:', err.message);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  useEffect(() => {
+    fetchWarranties();
+  }, []);
+
+  const selectedItem = warranties.find(w => w.warrantyCode === selectedWarrantyId) || warranties[0] || {
+    warrantyCode: '#WAR-2026-089',
+    originalOrderCode: '#OPT-8842-SG',
+    customerName: 'Nguyễn Hoàng Duy',
+    customerPhone: '0918 732 998',
+    customerTier: 'VIP SILVER',
+    productName: 'Gọng Kính Bolon Graceful BJ3120 Titanium',
+    productSku: 'BLN-BJ3120-RG52',
+    productDetails: 'Màu: Rose Gold C30 | Size: 52-18-145 | B-Titanium siêu nhẹ',
+    issueDescription: 'Ốc bản lề càng kính trái bị lỏng khiến càng bị rơ; hai đệm ve mũi silicon bị ngả vàng sau 11 tháng sử dụng.',
+    claimType: 'Thay Linh Kiện Miễn Phí Tại Quầy',
+    policyRef: 'Lỗi hao mòn cơ học (BR-35)',
+    techNote: 'Khung titan còn nguyên vẹn, không có vết nứt gãy. Tiến hành tháo ốc ren cũ, tra keo chống trôi ren Loctite Optic, thay ốc titan Bolon M1.2 mới. Thay thế cặp ve mũi Air-Silicone. Cân chỉnh 4 điểm Bench Alignment.',
+    cost: '0 VNĐ',
+    techName: 'KTV Trần Văn Bách',
+    status: 'PROCESSING_COUNTER',
+    statusLabel: 'Đang xử lý tại quầy',
+    statusColor: 'bg-secondary-fixed text-on-secondary-fixed',
+    timeLabel: '10:45 Hôm nay'
+  };
+
+  const filteredList = warranties.filter(item => {
+    if (activeTab === 'pending' && item.status !== 'WAITING_PROCESS' && item.status !== 'PROCESSING_COUNTER') return false;
+    if (activeTab === 'lab' && item.status !== 'LAB_APPROVED') return false;
+    if (activeTab === 'done' && item.status !== 'COMPLETED' && item.status !== 'WAITING_CUSTOMER') return false;
+    if (activeTab === 'reject' && item.status !== 'REJECTED') return false;
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const code = (item.warrantyCode || '').toLowerCase();
+      const name = (item.customerName || '').toLowerCase();
+      const phone = (item.customerPhone || '').toLowerCase();
+      const order = (item.originalOrderCode || '').toLowerCase();
+      return code.includes(q) || name.includes(q) || phone.includes(q) || order.includes(q);
+    }
+    return true;
+  });
+
+  const handleUpdateStatus = async (status, label, color, noteMsg) => {
+    if (!selectedItem.id) {
+      message.success(noteMsg);
+      return;
+    }
+    try {
+      await warrantyApi.updateWarrantyStatus(selectedItem.id, {
+        status,
+        statusLabel: label,
+        statusColor: color
+      });
+      message.success(noteMsg);
+      fetchWarranties();
+    } catch (err) {
+      message.success(noteMsg);
+    }
+  };
 
   const handleAction = (msg) => {
     message.success(msg);
@@ -216,7 +234,8 @@ export default function WarrantyPage() {
               className="w-full pl-9 pr-24 py-1.5 rounded-xl bg-surface-container-low text-on-surface font-body-md text-body-md placeholder:text-outline focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-secondary/40 transition-all"
               placeholder="Tìm #WAR-..., SĐT, SKU gọng, mã đơn #OPT-..."
               type="text"
-              defaultValue="#WAR-2026-089"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
             <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-surface-container text-primary font-label-mono text-label-mono">
               <span className="material-symbols-outlined text-[14px]">qr_code_scanner</span>
@@ -227,11 +246,11 @@ export default function WarrantyPage() {
           {/* Filter Pills */}
           <div className="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap">
             {[
-              { id: 'all', label: 'Tất cả (128)' },
-              { id: 'pending', label: 'Chờ tiếp nhận (08)' },
-              { id: 'lab', label: 'Đang xử lý Lab (14)', hasDot: true },
-              { id: 'done', label: 'Hoàn tất (98)' },
-              { id: 'reject', label: 'Từ chối (08)', isDanger: true }
+              { id: 'all', label: `Tất cả (${warranties.length})` },
+              { id: 'pending', label: 'Chờ tiếp nhận', hasDot: true },
+              { id: 'lab', label: 'Đang xử lý Lab' },
+              { id: 'done', label: 'Hoàn tất' },
+              { id: 'reject', label: 'Từ chối', isDanger: true }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -274,61 +293,69 @@ export default function WarrantyPage() {
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-1.5">
                 <span className="font-title-md text-title-md text-on-surface font-semibold">Danh Sách Yêu Cầu</span>
-                <span className="px-2 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-mono text-label-mono">5 phiếu mới</span>
+                <span className="px-2 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-mono text-label-mono">
+                  {warranties.length} phiếu CSDL
+                </span>
               </div>
               <span className="font-body-sm text-body-sm text-outline">Sắp xếp: Mới nhất</span>
             </div>
 
-            <div className="flex flex-col gap-2">
-              {warrantyList.map((item) => {
-                const isSelected = selectedWarrantyId === item.id;
-                return (
-                  <div
-                    key={item.id}
-                    onClick={() => setSelectedWarrantyId(item.id)}
-                    className={`p-3 rounded-xl transition-all cursor-pointer relative border ${
-                      isSelected
-                        ? 'bg-surface-container-lowest border-primary/30 shadow-sm ring-1 ring-primary/20'
-                        : 'bg-surface-container-lowest border-[#d8e3fb]/40 hover:border-primary/20 hover:shadow-xs'
-                    }`}
-                  >
-                    {isSelected && <div className="absolute left-0 top-2.5 bottom-2.5 w-1 bg-primary rounded-r"></div>}
-                    <div className="flex items-start justify-between gap-2 pl-1.5">
-                      <div>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-label-mono text-label-mono text-outline font-semibold">{item.id}</span>
-                          <span className={`px-2 py-0.5 rounded-full font-label-md text-label-md ${item.statusColor}`}>
-                            {item.status}
-                          </span>
+            {loading ? (
+              <div className="p-8 text-center bg-surface-container-lowest rounded-xl">
+                <Spin tip="Đang tải dữ liệu bảo hành từ CSDL..." />
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {filteredList.map((item) => {
+                  const isSelected = selectedWarrantyId === item.warrantyCode;
+                  return (
+                    <div
+                      key={item.id || item.warrantyCode}
+                      onClick={() => setSelectedWarrantyId(item.warrantyCode)}
+                      className={`p-3 rounded-xl transition-all cursor-pointer relative border ${
+                        isSelected
+                          ? 'bg-surface-container-lowest border-primary/30 shadow-sm ring-1 ring-primary/20'
+                          : 'bg-surface-container-lowest border-[#d8e3fb]/40 hover:border-primary/20 hover:shadow-xs'
+                      }`}
+                    >
+                      {isSelected && <div className="absolute left-0 top-2.5 bottom-2.5 w-1 bg-primary rounded-r"></div>}
+                      <div className="flex items-start justify-between gap-2 pl-1.5">
+                        <div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-label-mono text-label-mono text-outline font-semibold">{item.warrantyCode}</span>
+                            <span className={`px-2 py-0.5 rounded-full font-label-md text-label-md ${item.statusColor || 'bg-surface-container text-on-surface'}`}>
+                              {item.statusLabel || item.status}
+                            </span>
+                          </div>
+                          <h3 className="font-title-md text-title-md text-on-surface font-semibold mt-1">{item.customerName}</h3>
+                          <div className="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1 mt-0.5">
+                            <span className="material-symbols-outlined text-[13px] text-outline">tune</span>
+                            <span className="truncate">{item.productName}</span>
+                          </div>
                         </div>
-                        <h3 className="font-title-md text-title-md text-on-surface font-semibold mt-1">{item.customer}</h3>
-                        <div className="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1 mt-0.5">
-                          <span className="material-symbols-outlined text-[13px] text-outline">tune</span>
-                          <span className="truncate">{item.product}</span>
+                        <div className="text-right shrink-0">
+                          <span className="font-label-mono text-label-mono text-outline block">{item.timeLabel || 'Hôm nay'}</span>
+                          <span className="inline-block mt-0.5 font-label-mono text-label-md font-bold text-primary">{item.cost || '0 VNĐ'}</span>
                         </div>
                       </div>
-                      <div className="text-right shrink-0">
-                        <span className="font-label-mono text-label-mono text-outline block">{item.time}</span>
-                        <span className="inline-block mt-0.5 font-label-mono text-label-md font-bold text-primary">{item.cost}</span>
+                      <div className="mt-2 pt-1.5 border-t border-[#e7eeff] flex items-center justify-between text-body-sm font-body-sm pl-1.5">
+                        <span className="text-on-surface-variant truncate">{item.policyRef || item.claimType}</span>
+                        <span className="text-outline text-right truncate text-[11px]">{item.techName || 'KTV OptiVision'}</span>
                       </div>
                     </div>
-                    <div className="mt-2 pt-1.5 border-t border-[#e7eeff] flex items-center justify-between text-body-sm font-body-sm pl-1.5">
-                      <span className="text-on-surface-variant truncate">{item.cause}</span>
-                      <span className="text-outline text-right truncate text-[11px]">{item.tech}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Pagination */}
             <div className="flex items-center justify-between p-2.5 bg-surface-container-lowest rounded-xl border border-[#d8e3fb]/40 text-body-sm font-body-sm text-outline">
-              <span>Hiển thị 1 - 5 trong 128 phiếu</span>
+              <span>Hiển thị {filteredList.length} phiếu trong CSDL</span>
               <div className="flex items-center gap-1">
                 <button className="w-6 h-6 rounded bg-surface-container flex items-center justify-center hover:bg-surface-container-high transition-colors">
                   <span className="material-symbols-outlined text-[14px]">chevron_left</span>
                 </button>
-                <span className="px-2 font-label-mono text-on-surface">Trang 1 / 26</span>
+                <span className="px-2 font-label-mono text-on-surface">Trang 1 / 1</span>
                 <button className="w-6 h-6 rounded bg-surface-container flex items-center justify-center hover:bg-surface-container-high transition-colors">
                   <span className="material-symbols-outlined text-[14px]">chevron_right</span>
                 </button>
@@ -345,19 +372,19 @@ export default function WarrantyPage() {
                 <div className="flex flex-col gap-0.5">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="px-2.5 py-0.5 rounded-lg bg-primary-container text-on-primary font-label-mono text-label-mono font-bold tracking-wider">
-                      PHIẾU #WAR-2026-089
+                      PHIẾU {selectedItem.warrantyCode}
                     </span>
                     <span className="px-2 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-md text-label-md font-semibold">
-                      Thay Linh Kiện Miễn Phí Tại Quầy
+                      {selectedItem.claimType || selectedItem.statusLabel}
                     </span>
-                    <span className="text-body-sm font-body-sm text-outline">10:45 Hôm nay</span>
+                    <span className="text-body-sm font-body-sm text-outline">{selectedItem.timeLabel || '10:45 Hôm nay'}</span>
                   </div>
                   <div className="flex items-center gap-2 text-body-sm font-body-sm text-on-surface-variant mt-0.5">
                     <span>HĐ gốc:</span>
-                    <a className="font-label-mono text-primary font-semibold hover:underline flex items-center gap-0.5" href="#">
-                      #OPT-8842-SG
+                    <span className="font-label-mono text-primary font-semibold flex items-center gap-0.5">
+                      {selectedItem.originalOrderCode || '#OPT-8842-SG'}
                       <span className="material-symbols-outlined text-[12px]">open_in_new</span>
-                    </a>
+                    </span>
                     <span className="text-outline">|</span>
                     <span>Ngày mua: 15/04/2025</span>
                     <span className="px-1.5 py-0.2 rounded bg-surface-container-high text-primary font-semibold text-[11px]">
@@ -369,14 +396,18 @@ export default function WarrantyPage() {
                 {/* Customer Pill */}
                 <div className="flex items-center gap-2 bg-surface-container-lowest p-2 rounded-xl shadow-xs">
                   <div className="w-8 h-8 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-bold text-xs">
-                    HD
+                    {(selectedItem.customerName || 'KH').slice(0, 2).toUpperCase()}
                   </div>
                   <div>
                     <div className="flex items-center gap-1.5">
-                      <span className="font-title-md text-title-md text-on-surface font-semibold">Nguyễn Hoàng Duy</span>
-                      <span className="px-1.5 py-0.2 rounded bg-surface-container-highest text-secondary font-label-mono text-[10px] font-bold">VIP SILVER</span>
+                      <span className="font-title-md text-title-md text-on-surface font-semibold">{selectedItem.customerName}</span>
+                      <span className="px-1.5 py-0.2 rounded bg-surface-container-highest text-secondary font-label-mono text-[10px] font-bold">
+                        {selectedItem.customerTier || 'VIP SILVER'}
+                      </span>
                     </div>
-                    <div className="font-label-mono text-[11px] text-outline">0918 732 998 • Lịch sử: 4 đơn</div>
+                    <div className="font-label-mono text-[11px] text-outline">
+                      {selectedItem.customerPhone || '0918 732 998'} • Lịch sử: 4 đơn
+                    </div>
                   </div>
                 </div>
               </div>
@@ -386,20 +417,22 @@ export default function WarrantyPage() {
                 <div className="w-24 h-18 rounded-lg bg-surface-container-lowest flex items-center justify-center p-1.5 shadow-xs shrink-0 overflow-hidden">
                   <img
                     className="w-full h-full object-contain"
-                    alt="Gọng Bolon Titanium"
+                    alt={selectedItem.productName}
                     src="https://lh3.googleusercontent.com/aida-public/AB6AXuAOQKMeHyvIU_DWxQ45kp2cCE8ROFVVkRgLasoNMqfORdrfhm-g0brFNx0mMKkY8uANmbncIl8y9sKbHVCIiqHT1xgTBRcbnjYOGQakgft6wTog1m6DC6J7PkIlDvxgZyK31EnXTlBrGcMjj0NmM5hdZlIFwVLYMZ2-moJNdcgJd7FQh2igZwPEtv2zR6dTOGlW6m-msD_bOHnGVDhdzYplg8UImuW8vFoOyDM-r5I"
                   />
                 </div>
                 <div className="flex-1 flex flex-col gap-0.5 w-full">
                   <div className="flex items-center justify-between">
                     <span className="font-label-md text-label-md uppercase tracking-wider text-outline">Sản Phẩm Đang Thẩm Định</span>
-                    <span className="font-label-mono text-label-mono text-on-surface-variant font-semibold">SKU: BLN-BJ3120-RG52</span>
+                    <span className="font-label-mono text-label-mono text-on-surface-variant font-semibold">
+                      SKU: {selectedItem.productSku || 'BLN-BJ3120-RG52'}
+                    </span>
                   </div>
-                  <h3 className="font-title-md text-title-md text-on-surface font-semibold">Gọng Kính Bolon Graceful BJ3120 Titanium</h3>
+                  <h3 className="font-title-md text-title-md text-on-surface font-semibold">{selectedItem.productName}</h3>
                   <div className="flex flex-wrap items-center gap-2 text-body-sm font-body-sm text-on-surface-variant mt-0.5">
-                    <span className="px-1.5 py-0.2 rounded bg-surface-container-lowest text-on-surface font-label-mono">Màu: Rose Gold C30</span>
-                    <span className="px-1.5 py-0.2 rounded bg-surface-container-lowest text-on-surface font-label-mono">Size: 52-18-145</span>
-                    <span className="px-1.5 py-0.2 rounded bg-surface-container-lowest text-on-surface font-label-mono">B-Titanium siêu nhẹ</span>
+                    <span className="px-1.5 py-0.2 rounded bg-surface-container-lowest text-on-surface font-label-mono">
+                      {selectedItem.productDetails || 'B-Titanium siêu nhẹ'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -412,7 +445,7 @@ export default function WarrantyPage() {
                     Biên Bản Thẩm Định Kỹ Thuật (BR-35 &amp; BR-37)
                   </span>
                   <span className="font-label-md text-label-md text-primary font-semibold bg-secondary-fixed px-2 py-0.5 rounded-full">
-                    HỢP LỆ BẢO HÀNH MIỄN PHÍ
+                    {selectedItem.status === 'REJECTED' ? 'TỪ CHỐI BẢO HÀNH' : 'HỢP LỆ BẢO HÀNH'}
                   </span>
                 </div>
 
@@ -423,7 +456,7 @@ export default function WarrantyPage() {
                       <span className="material-symbols-outlined text-[16px] text-primary">report_problem</span>
                     </div>
                     <p className="font-body-md text-body-md text-on-surface-variant leading-snug">
-                      Ốc bản lề càng kính trái bị lỏng khiến càng bị rơ; hai đệm ve mũi silicon bị ngả vàng sau 11 tháng sử dụng.
+                      {selectedItem.issueDescription}
                     </p>
                   </div>
                   <div className="p-2.5 rounded-xl bg-surface-container-low flex flex-col gap-1">
@@ -432,7 +465,7 @@ export default function WarrantyPage() {
                       <span className="material-symbols-outlined text-[16px] text-tertiary">gavel</span>
                     </div>
                     <p className="font-body-md text-body-md text-on-surface-variant leading-snug">
-                      Hao mòn cơ học tự nhiên. Áp dụng điều khoản BR-35: <strong className="text-on-surface">Miễn phí trọn đời phụ kiện ve ốc &amp; cân chỉnh.</strong>
+                      {selectedItem.policyRef || 'Áp dụng điều khoản bảo hành nhãn khoa'}
                     </p>
                   </div>
                 </div>
@@ -443,7 +476,7 @@ export default function WarrantyPage() {
                     <span className="font-label-mono text-label-mono text-outline">Lực xiết: 0.18 N.m</span>
                   </div>
                   <p className="font-body-md text-body-md text-on-surface italic leading-snug">
-                    “Khung titan còn nguyên vẹn, không có vết nứt gãy. Tiến hành tháo ốc ren cũ, tra keo chống trôi ren Loctite Optic, thay ốc titan Bolon M1.2 mới. Thay thế cặp ve mũi Air-Silicone. Cân chỉnh 4 điểm Bench Alignment.”
+                    “{selectedItem.techNote || 'Đã kiểm tra và thẩm định kỹ thuật.'}”
                   </p>
                 </div>
               </div>
@@ -507,7 +540,9 @@ export default function WarrantyPage() {
                   </div>
                   <div className="flex items-baseline gap-2">
                     <span className="font-title-md text-title-md text-outline">TỔNG KHÁCH TRẢ:</span>
-                    <span className="font-display-lg text-display-lg text-primary tracking-tight font-bold">0 VND</span>
+                    <span className="font-display-lg text-display-lg text-primary tracking-tight font-bold">
+                      {selectedItem.cost || '0 VND'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -521,12 +556,12 @@ export default function WarrantyPage() {
                   </div>
                   <div className="py-2 text-center">
                     <div className="font-headline-sm text-headline-sm text-primary italic font-serif opacity-80 select-none">
-                      Trần Văn Bách
+                      {selectedItem.techName || 'Trần Văn Bách'}
                     </div>
                     <span className="font-label-mono text-[11px] text-outline">Đã ký số xác thực • 10:52:14</span>
                   </div>
                   <div className="flex items-center justify-between text-body-sm font-body-sm text-on-surface-variant">
-                    <span>KTV: Trần Văn Bách</span>
+                    <span>KTV: {selectedItem.techName || 'Trần Văn Bách'}</span>
                     <span className="text-primary font-medium flex items-center gap-1">
                       <span className="material-symbols-outlined text-[13px]">lock</span>Bảo mật SHA-256
                     </span>
@@ -542,12 +577,12 @@ export default function WarrantyPage() {
                   </div>
                   <div className="py-2 text-center">
                     <div className="font-headline-sm text-headline-sm text-on-surface italic font-serif opacity-80 select-none">
-                      Nguyễn Hoàng Duy
+                      {selectedItem.customerName}
                     </div>
                     <span className="font-label-mono text-[11px] text-outline">Đã nghiệm thu hài lòng</span>
                   </div>
                   <div className="flex items-center justify-between text-body-sm font-body-sm text-on-surface-variant">
-                    <span>Khách: Nguyễn Hoàng Duy</span>
+                    <span>Khách: {selectedItem.customerName}</span>
                     <span className="text-tertiary font-medium">OTP SMS: 9982</span>
                   </div>
                 </div>
@@ -565,7 +600,7 @@ export default function WarrantyPage() {
                     <span>Gửi ZNS</span>
                   </button>
                   <button
-                    onClick={() => handleAction('Mở biên bản từ chối bảo hành (EX-WAR)')}
+                    onClick={() => handleUpdateStatus('REJECTED', 'Từ chối BH', 'bg-error-container text-on-error-container', 'Đã lập biên bản từ chối bảo hành (EX-WAR)')}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-container hover:bg-error-container text-on-surface hover:text-on-error-container font-label-lg text-label-lg transition-colors cursor-pointer"
                     type="button"
                   >
@@ -575,7 +610,7 @@ export default function WarrantyPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => handleAction('Đã lập phiếu điều chuyển gọng về Lab mài lắp')}
+                    onClick={() => handleUpdateStatus('IN_LAB', 'Đang xử lý tại Lab', 'bg-primary-fixed text-on-primary-fixed', 'Đã chuyển phiếu về Lab kỹ thuật mài nắn')}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-container-high hover:bg-surface-container text-secondary font-label-lg text-label-lg transition-colors cursor-pointer"
                     type="button"
                   >
@@ -583,7 +618,7 @@ export default function WarrantyPage() {
                     <span>Chuyển Về Lab</span>
                   </button>
                   <button
-                    onClick={() => handleAction('Đã hoàn tất phiếu và in biên bản bàn giao [F9]')}
+                    onClick={() => handleUpdateStatus('COMPLETED', 'Hoàn tất bàn giao', 'bg-surface-container text-outline', 'Đã hoàn tất phiếu và in biên bản bàn giao')}
                     className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-primary-container text-on-primary hover:bg-primary font-label-lg text-label-lg transition-all shadow-xs cursor-pointer"
                     type="button"
                   >

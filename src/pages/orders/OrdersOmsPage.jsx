@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { message, Modal } from 'antd';
+import { orderApi } from '../../api/orderApi';
 
 // Mock initial OMS order dataset matching clinical & omnichannel specs
 const INITIAL_ORDERS = [
@@ -350,6 +351,96 @@ export default function OrdersOmsPage() {
   const [timeFilter, setTimeFilter] = useState('today');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState(['#OPT-8842-SG']);
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const liveOrders = await orderApi.getAllOrders();
+        if (Array.isArray(liveOrders) && liveOrders.length > 0) {
+          const mapped = liveOrders.map((bo, idx) => {
+            const firstItem = (bo.items && bo.items[0]) || {};
+            const secondItem = (bo.items && bo.items[1]) || {};
+            const code = bo.orderCode.startsWith('#') ? bo.orderCode : `#${bo.orderCode}`;
+            return {
+              dbId: bo.id,
+              id: code,
+              channel: bo.channel === 'POS' ? 'pos_q1' : 'online',
+              channelLabel: bo.channel === 'POS' ? (bo.branchName || 'Flagship Q.1') : 'Online App',
+              channelType: bo.channel === 'POS' ? 'pos' : 'online',
+              channelIcon: bo.channel === 'POS' ? 'storefront' : 'smartphone',
+              channelBadgeBg: bo.channel === 'POS' ? 'bg-[#cae6ff]' : 'bg-[#c6e7ff]',
+              channelBadgeText: bo.channel === 'POS' ? 'text-[#004b70]' : 'text-[#001e2d]',
+              time: '14:28:15',
+              date: 'Hôm nay',
+              staff: bo.staffName || 'STF-088',
+              customer: {
+                name: bo.customerName,
+                phone: bo.customerPhone,
+                tier: 'VIP Member',
+                tierBg: 'bg-[#c5e7ff]',
+                tierText: 'text-[#001e2d]',
+                history: `${idx * 2 + 1} đơn đã mua`,
+                address: bo.shippingAddress || 'TP. Hồ Chí Minh'
+              },
+              product: {
+                frameName: firstItem.productName || 'Gọng Bolon Titanium',
+                frameSku: firstItem.skuId || 'FRM-BOLON-BJ3120',
+                frameShelf: 'A-04-12',
+                framePrice: Number(firstItem.unitPrice || 3250000),
+                lensName: secondItem.productName || 'Cặp tròng Essilor Crizal Rock 1.67',
+                lensSku: secondItem.skuId || 'LNS-ESS-CRIZAL-167',
+                lensShelf: 'Ngăn tròng: L-167-2',
+                lensPrice: Number(secondItem.unitPrice || 1980000),
+                lensShort: secondItem.productName || 'Essilor Crizal',
+                rxShort: '[OD -3.25 / OS -2.75]',
+                doctorApproved: 'BS. Vũ Anh Tuấn đã ký duyệt'
+              },
+              rx: {
+                doctorName: 'BS. Vũ Anh Tuấn',
+                od: { sph: '-3.25', cyl: '-0.50', axis: '180°', add: '—', pd: '63.0 mm' },
+                os: { sph: '-2.75', cyl: '-0.75', axis: '175°', add: '—', pd: '63.0 mm' },
+                sh: '21.5 mm',
+                cvd: '12.0 mm'
+              },
+              payment: {
+                totalItems: Number(bo.totalAmount || 5230000),
+                discount: Number(bo.discountAmount || 0),
+                discountLabel: 'Ưu đãi thành viên',
+                labFeeLabel: 'Miễn phí gia công',
+                finalTotal: Number(bo.finalAmount || 5230000),
+                method: bo.paymentMethod || 'VietQR',
+                methodBadgeBg: 'bg-[#cae6ff]',
+                methodBadgeText: 'text-[#005881]',
+                status: bo.status === 'PAID' || bo.status === 'PROCESSING' || bo.status === 'COMPLETED' ? 'Đã thanh toán' : 'Chờ thanh toán',
+                transactionRef: `Giao dịch ${bo.paymentMethod || 'VietQR'} - Đã hạch toán`
+              },
+              techStatus: {
+                label: bo.status === 'COMPLETED' ? 'Hoàn tất bàn giao' : bo.status === 'SHIPPING' ? 'Đang giao hàng' : 'Đang mài xưởng Lab',
+                badgeBg: 'bg-[#c5e7ff]',
+                badgeText: 'text-[#001e2d]',
+                icon: 'refresh',
+                spin: bo.status === 'PROCESSING',
+                eta: 'Dự kiến: Hôm nay',
+                machine: 'Essilor Kappa 200',
+                technician: 'KTV Trần Văn Bách',
+                techTime: '15:10'
+              },
+              statusCode: bo.status === 'COMPLETED' ? 'completed' : bo.status === 'SHIPPING' ? 'delivering_2h' : 'lab_processing',
+              auditStage: bo.status === 'COMPLETED' ? 6 : 4,
+              auditLog: 'Giai đoạn 4/6'
+            };
+          });
+          setOrders(mapped);
+          if (mapped.length > 0) {
+            setSelectedOrderId(mapped[0].id);
+          }
+        }
+      } catch (err) {
+        console.warn('Lấy đơn hàng backend lỗi:', err.message);
+      }
+    };
+    fetchOrders();
+  }, []);
 
   // Selected order details object
   const activeOrder = useMemo(() => {

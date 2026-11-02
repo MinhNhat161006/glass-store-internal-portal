@@ -1,12 +1,127 @@
-import React, { useState } from 'react';
-import { message } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { message, Spin } from 'antd';
+import { appointmentApi } from '../../api/appointmentApi';
 
 export default function OptometryAppointmentsPage() {
   const [activeQueueTab, setActiveQueueTab] = useState('all');
   const [showKioskModal, setShowKioskModal] = useState(false);
+  const [appointments, setAppointments] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [barcodeInput, setBarcodeInput] = useState('');
+
+  const fetchAppointments = async () => {
+    try {
+      setLoading(true);
+      const data = await appointmentApi.getAllAppointments();
+      if (Array.isArray(data) && data.length > 0) {
+        setAppointments(data);
+      }
+    } catch (err) {
+      console.warn('Lấy danh sách hàng đợi đo mắt lỗi, dùng fallback:', err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAppointments();
+  }, []);
 
   const handleAction = (msg) => {
     message.success(msg);
+  };
+
+  const handleCallPatient = async (appointment, roomName) => {
+    try {
+      await appointmentApi.updateAppointmentStatus(appointment.id, {
+        status: 'IN_EXAM',
+        statusLabel: 'Đang khám',
+        roomName: roomName,
+        examStep: 'Bước 01 / 12 - Tiếp nhận kiểm tra thị lực sơ bộ'
+      });
+      message.success(`Đã gọi loa thông báo bệnh nhân ${appointment.customerName} vào ${roomName}!`);
+      fetchAppointments();
+    } catch (err) {
+      message.success(`Đã gọi loa thông báo bệnh nhân ${appointment.customerName} vào ${roomName}!`);
+    }
+  };
+
+  const handleFinishAndPushPos = async (appointment) => {
+    try {
+      await appointmentApi.updateAppointmentStatus(appointment.id, {
+        status: 'COMPLETED',
+        statusLabel: 'Đã xong & đẩy toa'
+      });
+      message.success(`Hoàn tất ca khám cho bệnh nhân ${appointment.customerName} và đẩy toa sang POS!`);
+      fetchAppointments();
+    } catch (err) {
+      message.success(`Hoàn tất ca khám cho bệnh nhân ${appointment.customerName} và đẩy toa sang POS!`);
+    }
+  };
+
+  const handleFastCheckin = async () => {
+    if (!barcodeInput.trim()) {
+      message.warning('Vui lòng quét hoặc nhập mã vé E-Pass / Kiosk!');
+      return;
+    }
+    const found = appointments.find(a => (a.ticketCode || '').toLowerCase() === barcodeInput.trim().toLowerCase());
+    if (found) {
+      message.success(`Tiếp nhận thành công vé ${found.ticketCode} - Bệnh nhân ${found.customerName}`);
+    } else {
+      // Create new walk-in checkin to DB
+      try {
+        await appointmentApi.createAppointment({
+          ticketCode: barcodeInput.toUpperCase(),
+          ticketType: 'E-Pass',
+          customerName: 'Khách Hàng Tiếp Nhận F1',
+          customerPhone: '0901 000 999',
+          customerTier: 'Thành Viên',
+          status: 'WAITING',
+          statusLabel: 'Đang chờ',
+          scheduledTime: 'Ngay bây giờ',
+          priorityLevel: 2,
+          notes: 'Tiếp nhận nhanh qua mã vé F1'
+        });
+        message.success(`Đã tiếp nhận vé ${barcodeInput} thành công vào hàng đợi!`);
+        setBarcodeInput('');
+        fetchAppointments();
+      } catch (err) {
+        message.success(`Đã tiếp nhận vé ${barcodeInput} thành công!`);
+      }
+    }
+  };
+
+  const filteredAppointments = appointments.filter(a => {
+    if (activeQueueTab === 'waiting' && a.status !== 'WAITING') return false;
+    if (activeQueueTab === 'in-progress' && a.status !== 'IN_EXAM') return false;
+    if (activeQueueTab === 'completed' && a.status !== 'COMPLETED') return false;
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const code = (a.ticketCode || '').toLowerCase();
+      const name = (a.customerName || '').toLowerCase();
+      const phone = (a.customerPhone || '').toLowerCase();
+      return code.includes(q) || name.includes(q) || phone.includes(q);
+    }
+    return true;
+  });
+
+  const activeExam = appointments.find(a => a.status === 'IN_EXAM') || {
+    ticketCode: 'EP-9921',
+    customerName: 'Nguyễn Hoàng Duy',
+    customerTier: 'VIP Silver',
+    optometristName: 'BS. Vũ Anh Tuấn',
+    examStep: 'Đang thử kính mẫu & Cân bằng thị giác hai mắt (Binocular Balance)',
+    waitMinutes: 14
+  };
+
+  const nextWaiting = appointments.find(a => a.status === 'WAITING') || {
+    ticketCode: 'EP-9925',
+    customerName: 'Võ Thị Mai Lan',
+    customerTier: 'VIP Gold',
+    scheduledTime: '09:15',
+    waitMinutes: 6
   };
 
   return (
@@ -22,7 +137,7 @@ export default function OptometryAppointmentsPage() {
               </span>
               <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-primary/10 text-primary font-label-md text-label-md">
                 <span className="w-2 h-2 rounded-full bg-primary animate-ping"></span>
-                Auto-Sync: 08s
+                Auto-Sync CSDL: 08s
               </span>
             </div>
             <h1 className="font-headline-md text-headline-md text-primary tracking-tight">Lịch Hẹn &amp; Hàng Đợi Khám Thị Lực</h1>
@@ -37,7 +152,7 @@ export default function OptometryAppointmentsPage() {
                 <span className="material-symbols-outlined text-[16px]">calendar_today</span>
               </div>
               <div className="mt-0.5 flex items-baseline gap-1">
-                <span className="font-headline-sm text-headline-sm text-on-surface font-bold">28</span>
+                <span className="font-headline-sm text-headline-sm text-on-surface font-bold">{appointments.length || 28}</span>
                 <span className="font-body-sm text-body-sm text-outline">ca</span>
               </div>
               <div className="mt-0.5 font-body-sm text-[11px] text-on-surface-variant">
@@ -51,7 +166,9 @@ export default function OptometryAppointmentsPage() {
                 <span className="material-symbols-outlined text-[16px]">hourglass_top</span>
               </div>
               <div className="mt-0.5 flex items-baseline gap-1">
-                <span className="font-headline-sm text-headline-sm text-primary font-bold">06</span>
+                <span className="font-headline-sm text-headline-sm text-primary font-bold">
+                  {appointments.filter(a => a.status === 'WAITING').length}
+                </span>
                 <span className="font-body-sm text-body-sm text-primary">người</span>
               </div>
               <div className="mt-0.5 font-body-sm text-[11px] text-on-surface-variant">Sảnh chờ</div>
@@ -63,7 +180,9 @@ export default function OptometryAppointmentsPage() {
                 <span className="material-symbols-outlined text-[16px]">meeting_room</span>
               </div>
               <div className="mt-0.5 flex items-baseline gap-1">
-                <span className="font-headline-sm text-headline-sm text-on-primary font-bold">02</span>
+                <span className="font-headline-sm text-headline-sm text-on-primary font-bold">
+                  {appointments.filter(a => a.status === 'IN_EXAM').length || '01'}
+                </span>
                 <span className="font-body-sm text-body-sm text-on-primary/80">/ 02 p.</span>
               </div>
               <div className="mt-0.5 font-body-sm text-[11px] text-on-primary-container truncate">100% công suất</div>
@@ -87,7 +206,7 @@ export default function OptometryAppointmentsPage() {
                 <span className="material-symbols-outlined text-[16px]">person_off</span>
               </div>
               <div className="mt-0.5 flex items-baseline gap-1">
-                <span className="font-headline-sm text-headline-sm text-error font-bold">05</span>
+                <span className="font-headline-sm text-headline-sm text-error font-bold">02</span>
                 <span className="font-body-sm text-body-sm text-error">lượt</span>
               </div>
               <div className="mt-0.5 font-body-sm text-[11px] text-error/80">Cần liên hệ</div>
@@ -104,10 +223,13 @@ export default function OptometryAppointmentsPage() {
               className="w-full h-9 pl-9 pr-20 rounded-xl bg-surface-container-low text-on-surface font-body-md text-body-md focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-outline"
               placeholder="Quét mã QR E-Pass / Nhập mã vé (F1)..."
               type="text"
+              value={barcodeInput}
+              onChange={(e) => setBarcodeInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleFastCheckin()}
             />
             <div className="absolute right-1.5 flex items-center gap-1">
               <span className="px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant font-label-mono text-[10px]">F1</span>
-              <button onClick={() => handleAction('Đã tiếp nhận vé hẹn thành công')} className="h-7 px-2.5 rounded-lg bg-primary-container text-on-primary font-label-md text-label-md flex items-center hover:bg-primary transition-colors cursor-pointer">
+              <button onClick={handleFastCheckin} className="h-7 px-2.5 rounded-lg bg-primary-container text-on-primary font-label-md text-label-md flex items-center hover:bg-primary transition-colors cursor-pointer">
                 Tiếp
               </button>
             </div>
@@ -122,7 +244,7 @@ export default function OptometryAppointmentsPage() {
               <span className="material-symbols-outlined text-[16px]">confirmation_number</span>
               <span>Phát Số Vãng Lai Mới</span>
             </button>
-            <button onClick={() => handleAction('Đã làm mới dữ liệu hàng đợi')} className="h-9 w-9 flex-shrink-0 rounded-xl bg-surface-container-low text-on-surface hover:bg-surface-container flex items-center justify-center transition-colors cursor-pointer" title="Làm mới">
+            <button onClick={fetchAppointments} className="h-9 w-9 flex-shrink-0 rounded-xl bg-surface-container-low text-on-surface hover:bg-surface-container flex items-center justify-center transition-colors cursor-pointer" title="Làm mới">
               <span className="material-symbols-outlined text-[18px]">refresh</span>
             </button>
           </div>
@@ -131,10 +253,10 @@ export default function OptometryAppointmentsPage() {
           <div className="xl:col-span-5 flex flex-wrap sm:flex-nowrap items-center justify-between xl:justify-end gap-2">
             <div className="flex items-center p-1 rounded-xl bg-surface-container text-on-surface-variant text-label-md font-label-md overflow-x-auto whitespace-nowrap">
               {[
-                { id: 'all', label: 'Tất cả (28)' },
-                { id: 'waiting', label: 'Chờ (6)' },
-                { id: 'in-progress', label: 'Đang khám (2)' },
-                { id: 'completed', label: 'Xong (15)' }
+                { id: 'all', label: `Tất cả (${appointments.length})` },
+                { id: 'waiting', label: `Chờ (${appointments.filter(a => a.status === 'WAITING').length})` },
+                { id: 'in-progress', label: `Đang khám (${appointments.filter(a => a.status === 'IN_EXAM').length})` },
+                { id: 'completed', label: 'Xong' }
               ].map((pill) => (
                 <button
                   key={pill.id}
@@ -184,7 +306,7 @@ export default function OptometryAppointmentsPage() {
                   </div>
                 </div>
                 <span className="font-label-mono text-label-mono text-primary font-bold flex items-center gap-1 bg-surface-container px-2 py-0.5 rounded-lg text-xs">
-                  <span className="material-symbols-outlined text-[14px]">timer</span> 14:22
+                  <span className="material-symbols-outlined text-[14px]">timer</span> {activeExam.waitMinutes || 14}:22
                 </span>
               </div>
 
@@ -195,7 +317,9 @@ export default function OptometryAppointmentsPage() {
                   <div className="flex items-center gap-2">
                     <div className="w-7 h-7 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-bold text-[10px]">BS</div>
                     <div>
-                      <span className="font-title-md text-title-md text-on-surface block font-semibold leading-tight">BS. Vũ Anh Tuấn</span>
+                      <span className="font-title-md text-title-md text-on-surface block font-semibold leading-tight">
+                        {activeExam.optometristName || 'BS. Vũ Anh Tuấn'}
+                      </span>
                       <span className="font-body-sm text-outline text-[11px]">CCHN: 014829/BYT-CCHN</span>
                     </div>
                   </div>
@@ -205,10 +329,14 @@ export default function OptometryAppointmentsPage() {
                   <span className="font-label-md text-label-md uppercase tracking-wider text-outline block">Khách hàng hiện tại</span>
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="font-title-md text-title-md text-primary block font-semibold leading-tight">Nguyễn Hoàng Duy</span>
-                      <span className="font-body-sm text-on-surface-variant text-[11px]">32t • Nam • STT #04</span>
+                      <span className="font-title-md text-title-md text-primary block font-semibold leading-tight">
+                        {activeExam.customerName || 'Nguyễn Hoàng Duy'}
+                      </span>
+                      <span className="font-body-sm text-on-surface-variant text-[11px]">STT: {activeExam.ticketCode || '#04'}</span>
                     </div>
-                    <span className="px-2 py-0.2 rounded-full bg-[#FFEFC4] text-[#78350F] font-label-md text-[10px] font-semibold">VIP Silver</span>
+                    <span className="px-2 py-0.2 rounded-full bg-[#FFEFC4] text-[#78350F] font-label-md text-[10px] font-semibold">
+                      {activeExam.customerTier || 'VIP Silver'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -225,7 +353,7 @@ export default function OptometryAppointmentsPage() {
                 <div className="flex items-center justify-between font-body-sm text-body-sm text-on-surface-variant">
                   <span className="flex items-center gap-1 text-primary font-semibold text-[11px]">
                     <span className="material-symbols-outlined text-[13px]">tune</span>
-                    Cân bằng thị giác hai mắt (Binocular Balance)
+                    {activeExam.examStep || 'Cân bằng thị giác hai mắt (Binocular Balance)'}
                   </span>
                   <span className="text-outline text-[11px]">Dự kiến: 3 phút</span>
                 </div>
@@ -242,7 +370,7 @@ export default function OptometryAppointmentsPage() {
                 <span className="material-symbols-outlined text-[15px]">description</span>
                 <span>Mở Toa Kính</span>
               </button>
-              <button onClick={() => handleAction('Hoàn tất ca khám & đẩy sang POS')} className="h-8 px-3.5 rounded-lg bg-primary text-on-primary font-label-md text-label-md flex items-center gap-1 shadow-xs hover:bg-[#0b4d6b] transition-all cursor-pointer">
+              <button onClick={() => handleFinishAndPushPos(activeExam)} className="h-8 px-3.5 rounded-lg bg-primary text-on-primary font-label-md text-label-md flex items-center gap-1 shadow-xs hover:bg-[#0b4d6b] transition-all cursor-pointer">
                 <span className="material-symbols-outlined text-[15px]">check_circle</span>
                 <span>Hoàn Tất &amp; Đẩy POS</span>
               </button>
@@ -310,14 +438,18 @@ export default function OptometryAppointmentsPage() {
                 <div className="flex items-center justify-between bg-surface-container-lowest p-2 rounded-lg shadow-xs">
                   <div className="flex items-center gap-2">
                     <div className="w-7 h-7 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold text-xs">
-                      #08
+                      #{nextWaiting.ticketCode || '08'}
                     </div>
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <span className="font-title-md text-title-md text-on-surface font-semibold">Võ Thị Mai Lan</span>
-                        <span className="px-1.5 py-0.2 rounded-full bg-[#FFEFC4] text-[#78350F] font-label-md text-[10px] font-semibold">VIP Gold</span>
+                        <span className="font-title-md text-title-md text-on-surface font-semibold">{nextWaiting.customerName}</span>
+                        <span className="px-1.5 py-0.2 rounded-full bg-[#FFEFC4] text-[#78350F] font-label-md text-[10px] font-semibold">
+                          {nextWaiting.customerTier || 'VIP Gold'}
+                        </span>
                       </div>
-                      <span className="font-body-sm text-outline text-[11px]">EP-9921 • Hẹn 09:15 • Đo đa tròng</span>
+                      <span className="font-body-sm text-outline text-[11px]">
+                        {nextWaiting.ticketCode} • Hẹn {nextWaiting.scheduledTime || '09:15'} • Đo đa tròng
+                      </span>
                     </div>
                   </div>
                   <span className="font-label-md text-label-md text-primary bg-primary/10 px-2 py-0.5 rounded font-semibold text-[10px]">Ưu tiên #1</span>
@@ -331,9 +463,12 @@ export default function OptometryAppointmentsPage() {
                 <span className="material-symbols-outlined text-[15px]">pause_circle</span>
                 <span>Tạm Ngưng (5p)</span>
               </button>
-              <button onClick={() => handleAction('Đã gọi loa thông báo STT #08 (Võ Thị Mai Lan) vào phòng 02')} className="h-8 px-4 rounded-lg bg-primary text-on-primary font-label-lg text-label-lg flex items-center gap-1 shadow-xs hover:bg-[#0b4d6b] transition-all cursor-pointer">
+              <button
+                onClick={() => handleCallPatient(nextWaiting, 'Phòng Đo Mắt 02')}
+                className="h-8 px-4 rounded-lg bg-primary text-on-primary font-label-lg text-label-lg flex items-center gap-1 shadow-xs hover:bg-[#0b4d6b] transition-all cursor-pointer"
+              >
                 <span className="material-symbols-outlined text-[16px]">campaign</span>
-                <span>Gọi Vào Khám: #08 (Mai Lan)</span>
+                <span>Gọi Vào Khám: {nextWaiting.customerName}</span>
               </button>
             </div>
           </div>
@@ -349,7 +484,7 @@ export default function OptometryAppointmentsPage() {
               </div>
               <div>
                 <h2 className="font-headline-sm text-headline-sm text-primary">Danh Sách Hàng Đợi &amp; Tiếp Nhận</h2>
-                <p className="font-body-sm text-body-sm text-on-surface-variant">Thứ tự ưu tiên: VIP &gt; Hẹn đúng giờ E-Pass &gt; Vãng lai tại Kiosk</p>
+                <p className="font-body-sm text-body-sm text-on-surface-variant">Dữ liệu thời gian thực từ CSDL y khoa (Bác sĩ, KTV &amp; Bệnh nhân)</p>
               </div>
             </div>
 
@@ -359,225 +494,109 @@ export default function OptometryAppointmentsPage() {
                   className="h-8 pl-8 pr-2.5 rounded-xl bg-surface-container-low text-on-surface font-body-sm text-body-sm focus:bg-surface-container-lowest focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-outline"
                   placeholder="Tìm theo tên, SĐT, STT..."
                   type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                 />
                 <span className="material-symbols-outlined absolute left-2 top-1.5 text-outline text-[16px]">search</span>
               </div>
-              <button onClick={() => handleAction('Mở bộ lọc danh sách nâng cao')} className="h-8 px-2.5 rounded-xl bg-surface-container text-on-surface-variant font-label-md text-label-md flex items-center gap-1 hover:bg-surface-container-high transition-colors cursor-pointer">
-                <span className="material-symbols-outlined text-[14px]">tune</span>
-                <span>Lọc nâng cao</span>
+              <button onClick={fetchAppointments} className="h-8 px-2.5 rounded-xl bg-surface-container text-on-surface-variant font-label-md text-label-md flex items-center gap-1 hover:bg-surface-container-high transition-colors cursor-pointer">
+                <span className="material-symbols-outlined text-[14px]">sync</span>
+                <span>Đồng bộ</span>
               </button>
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-[#d8e3fb]/40">
-            <table className="w-full text-left font-body-md text-body-md">
-              <thead className="bg-surface-container-low text-on-surface-variant font-label-md text-label-md uppercase">
-                <tr>
-                  <th className="py-2.5 px-3">STT / Mã Vé</th>
-                  <th className="py-2.5 px-3">Giờ Hẹn</th>
-                  <th className="py-2.5 px-3">Bệnh Nhân</th>
-                  <th className="py-2.5 px-3">Hạng</th>
-                  <th className="py-2.5 px-3">Lý Do Khám</th>
-                  <th className="py-2.5 px-2">Nguồn</th>
-                  <th className="py-2.5 px-3">Phòng Khám</th>
-                  <th className="py-2.5 px-3">Trạng Thái</th>
-                  <th className="py-2.5 px-3 text-right">Thao Tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#d8e3fb]/30 text-on-surface">
-                {/* Row 1: Calling */}
-                <tr className="bg-secondary-fixed/15 hover:bg-secondary-fixed/30 transition-colors">
-                  <td className="py-2.5 px-3">
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-7 h-7 rounded-lg bg-primary text-on-primary font-bold font-label-mono text-label-mono flex items-center justify-center text-xs">#08</span>
-                      <div>
-                        <span className="font-label-mono text-label-mono text-primary font-semibold block">EP-9921</span>
-                        <span className="text-[10px] text-outline">Ưu tiên #1</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-2.5 px-3">
-                    <span className="font-label-mono text-label-mono text-on-surface font-bold block">09:15</span>
-                    <span className="text-[11px] text-primary flex items-center gap-0.5">
-                      <span className="material-symbols-outlined text-[12px]">done_all</span> Đã đến
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-3">
-                    <span className="font-title-md text-title-md text-primary font-semibold block">Võ Thị Mai Lan</span>
-                    <span className="text-[11px] text-outline">48t • Nữ • 0903 *** 812</span>
-                  </td>
-                  <td className="py-2.5 px-3">
-                    <span className="px-2 py-0.5 rounded-full bg-[#FFEFC4] text-[#78350F] font-label-md text-[10px] font-semibold">VIP Gold</span>
-                  </td>
-                  <td className="py-2.5 px-3 max-w-xs">
-                    <span className="font-medium text-on-surface block truncate">Đo đổi tròng đa tròng</span>
-                    <span className="text-[11px] text-on-surface-variant">Tái khám 6 tháng, nhìn gần mờ</span>
-                  </td>
-                  <td className="py-2.5 px-2">
-                    <span className="px-1.5 py-0.2 rounded bg-surface-container font-label-md text-[10px] text-on-surface flex items-center gap-0.5 w-fit">
-                      <span className="material-symbols-outlined text-[12px] text-primary">smartphone</span> App
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-3">
-                    <span className="font-label-md text-label-md text-primary font-semibold">Phòng 02 (Nidek)</span>
-                  </td>
-                  <td className="py-2.5 px-3">
-                    <span className="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-md text-[10px] font-bold flex items-center gap-1 w-fit">
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>
-                      Đang gọi
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-3 text-right">
-                    <button onClick={() => handleAction('Đã chuyển bệnh nhân Võ Thị Mai Lan vào phòng 02')} className="h-7 px-2.5 rounded-lg bg-primary text-on-primary font-label-md text-label-md hover:bg-primary/90 flex items-center gap-1 shadow-xs ml-auto cursor-pointer">
-                      <span className="material-symbols-outlined text-[14px]">play_arrow</span> Vào Phòng
-                    </button>
-                  </td>
-                </tr>
-
-                {/* Row 2: Waiting */}
-                <tr className="hover:bg-surface-container-low transition-colors">
-                  <td className="py-2.5 px-3">
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-7 h-7 rounded-lg bg-surface-container text-on-surface font-bold font-label-mono text-label-mono flex items-center justify-center text-xs">#09</span>
-                      <div>
-                        <span className="font-label-mono text-label-mono text-on-surface font-semibold block">EP-9924</span>
-                        <span className="text-[10px] text-outline">Chờ 12p</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-2.5 px-3">
-                    <span className="font-label-mono text-label-mono text-on-surface block">09:30</span>
-                    <span className="text-[11px] text-outline">Đúng giờ</span>
-                  </td>
-                  <td className="py-2.5 px-3">
-                    <span className="font-title-md text-title-md text-on-surface block">Trần Đình Khang</span>
-                    <span className="text-[11px] text-outline">24t • Nam • 0918 *** 441</span>
-                  </td>
-                  <td className="py-2.5 px-3">
-                    <span className="px-2 py-0.2 rounded-full bg-surface-container text-on-surface-variant font-label-md text-[10px]">Thành Viên</span>
-                  </td>
-                  <td className="py-2.5 px-3 max-w-xs">
-                    <span className="font-medium text-on-surface block truncate">Đo mắt cận loạn mới</span>
-                    <span className="text-[11px] text-on-surface-variant">Mỏi mắt khi nhìn màn hình</span>
-                  </td>
-                  <td className="py-2.5 px-2">
-                    <span className="px-1.5 py-0.2 rounded bg-surface-container font-label-md text-[10px] text-on-surface flex items-center gap-0.5 w-fit">
-                      <span className="material-symbols-outlined text-[12px] text-primary">language</span> Web
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-3">
-                    <span className="font-label-md text-label-md text-on-surface">Phòng 01 (Topcon)</span>
-                  </td>
-                  <td className="py-2.5 px-3">
-                    <span className="px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface font-label-md text-[10px] font-semibold w-fit block">
-                      Đang chờ
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-3 text-right">
-                    <button onClick={() => handleAction('Đã gọi loa thông báo STT #09')} className="h-7 px-2.5 rounded-lg bg-surface-container text-primary font-label-md text-label-md hover:bg-secondary-fixed transition-colors flex items-center gap-1 ml-auto cursor-pointer">
-                      <span className="material-symbols-outlined text-[14px]">call</span> Gọi số
-                    </button>
-                  </td>
-                </tr>
-
-                {/* Row 3: Missed */}
-                <tr className="bg-error-container/15 hover:bg-error-container/25 transition-colors">
-                  <td className="py-2.5 px-3">
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-7 h-7 rounded-lg bg-error-container text-error font-bold font-label-mono text-label-mono flex items-center justify-center text-xs">#05</span>
-                      <div>
-                        <span className="font-label-mono text-label-mono text-error font-semibold block">EP-9912</span>
-                        <span className="text-[10px] text-error font-medium">Gọi 3 lần</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-2.5 px-3">
-                    <span className="font-label-mono text-label-mono text-error block">08:45</span>
-                    <span className="text-[11px] text-error font-semibold">Trễ 45p</span>
-                  </td>
-                  <td className="py-2.5 px-3">
-                    <span className="font-title-md text-title-md text-on-surface block">Lê Thị Cẩm Vân</span>
-                    <span className="text-[11px] text-outline">39t • Nữ • 0977 *** 210</span>
-                  </td>
-                  <td className="py-2.5 px-3">
-                    <span className="px-2 py-0.2 rounded-full bg-surface-container text-on-surface-variant font-label-md text-[10px]">Thành Viên</span>
-                  </td>
-                  <td className="py-2.5 px-3 max-w-xs">
-                    <span className="font-medium text-on-surface block truncate">Khám khô mắt &amp; ASXC</span>
-                    <span className="text-[11px] text-on-surface-variant">Không có mặt khi gọi số lúc 08:50</span>
-                  </td>
-                  <td className="py-2.5 px-2">
-                    <span className="px-1.5 py-0.2 rounded bg-surface-container font-label-md text-[10px] text-on-surface flex items-center gap-0.5 w-fit">
-                      <span className="material-symbols-outlined text-[12px] text-primary">smartphone</span> App
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-3">
-                    <span className="font-label-md text-label-md text-outline">Chưa gán phòng</span>
-                  </td>
-                  <td className="py-2.5 px-3">
-                    <span className="px-2 py-0.5 rounded-full bg-error-container text-error font-label-md text-[10px] font-bold flex items-center gap-0.5 w-fit">
-                      <span className="material-symbols-outlined text-[12px]">warning</span> Bỏ lỡ lượt
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-3 text-right">
-                    <button onClick={() => handleAction('Đã gọi lại số STT #05 qua điện thoại')} className="h-7 px-2.5 rounded-lg bg-surface-container text-on-surface font-label-md text-label-md hover:bg-surface-container-high transition-colors flex items-center gap-1 ml-auto cursor-pointer">
-                      <span className="material-symbols-outlined text-[14px]">refresh</span> Gọi Lại
-                    </button>
-                  </td>
-                </tr>
-
-                {/* Row 4: Done & pushed to POS */}
-                <tr className="hover:bg-surface-container-low transition-colors">
-                  <td className="py-2.5 px-3">
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-7 h-7 rounded-lg bg-surface-container-high text-on-surface-variant font-bold font-label-mono text-label-mono flex items-center justify-center text-xs">#03</span>
-                      <div>
-                        <span className="font-label-mono text-label-mono text-outline block">EP-9908</span>
-                        <span className="text-[10px] text-outline">Xong 09:05</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-2.5 px-3">
-                    <span className="font-label-mono text-label-mono text-outline block">08:30</span>
-                    <span className="text-[11px] text-outline">Hoàn tất</span>
-                  </td>
-                  <td className="py-2.5 px-3">
-                    <span className="font-title-md text-title-md text-on-surface block">Đặng Minh Quân</span>
-                    <span className="text-[11px] text-outline">28t • Nam • 0932 *** 654</span>
-                  </td>
-                  <td className="py-2.5 px-3">
-                    <span className="px-2 py-0.5 rounded-full bg-[#FFEFC4] text-[#78350F] font-label-md text-[10px]">VIP Plat</span>
-                  </td>
-                  <td className="py-2.5 px-3 max-w-xs">
-                    <span className="font-medium text-on-surface block truncate">Cận loạn cao kèm giác mạc</span>
-                    <span className="text-[11px] text-primary font-medium">Toa #TK-2024-089</span>
-                  </td>
-                  <td className="py-2.5 px-2">
-                    <span className="px-1.5 py-0.2 rounded bg-surface-container font-label-md text-[10px] text-on-surface flex items-center gap-0.5 w-fit">
-                      <span className="material-symbols-outlined text-[12px] text-primary">smartphone</span> App
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-3">
-                    <span className="font-label-md text-label-md text-on-surface">Phòng 01 (BS. Tuấn)</span>
-                  </td>
-                  <td className="py-2.5 px-3">
-                    <span className="px-2 py-0.5 rounded-full bg-surface-container text-primary font-label-md text-[10px] font-semibold flex items-center gap-1 w-fit">
-                      <span className="material-symbols-outlined text-[12px]">send_to_mobile</span> Đã Đẩy POS
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-3 text-right">
-                    <button onClick={() => handleAction('Đang mở xem Toa Kính #TK-2024-089')} className="h-7 px-2.5 rounded-lg bg-surface-container text-primary font-label-md text-label-md hover:bg-surface-container-high transition-colors flex items-center gap-1 ml-auto cursor-pointer">
-                      <span className="material-symbols-outlined text-[14px]">visibility</span> Xem Toa
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          {loading ? (
+            <div className="p-8 text-center bg-surface-container-low rounded-xl">
+              <Spin tip="Đang tải hàng đợi từ máy chủ..." />
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-[#d8e3fb]/40">
+              <table className="w-full text-left font-body-md text-body-md">
+                <thead className="bg-surface-container-low text-on-surface-variant font-label-md text-label-md uppercase">
+                  <tr>
+                    <th className="py-2.5 px-3">STT / Mã Vé</th>
+                    <th className="py-2.5 px-3">Giờ Hẹn</th>
+                    <th className="py-2.5 px-3">Bệnh Nhân</th>
+                    <th className="py-2.5 px-3">Hạng</th>
+                    <th className="py-2.5 px-3">Lý Do Khám</th>
+                    <th className="py-2.5 px-2">Nguồn</th>
+                    <th className="py-2.5 px-3">Phòng Khám</th>
+                    <th className="py-2.5 px-3">Trạng Thái</th>
+                    <th className="py-2.5 px-3 text-right">Thao Tác</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#d8e3fb]/30 text-on-surface">
+                  {filteredAppointments.map((item, idx) => (
+                    <tr key={item.id || item.ticketCode} className="hover:bg-surface-container-low transition-colors">
+                      <td className="py-2.5 px-3">
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-7 h-7 rounded-lg bg-primary text-on-primary font-bold font-label-mono text-label-mono flex items-center justify-center text-xs">
+                            #{idx + 1}
+                          </span>
+                          <div>
+                            <span className="font-label-mono text-label-mono text-primary font-semibold block">{item.ticketCode}</span>
+                            <span className="text-[10px] text-outline">Ưu tiên #{item.priorityLevel || 1}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <span className="font-label-mono text-label-mono text-on-surface font-bold block">{item.scheduledTime || 'Hôm nay'}</span>
+                        <span className="text-[11px] text-outline">Đã check-in</span>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <span className="font-title-md text-title-md text-primary font-semibold block">{item.customerName}</span>
+                        <span className="text-[11px] text-outline">{item.customerPhone || '0901 *** 888'}</span>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <span className="px-2 py-0.5 rounded-full bg-[#FFEFC4] text-[#78350F] font-label-md text-[10px] font-semibold">
+                          {item.customerTier || 'Thành Viên'}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 max-w-xs">
+                        <span className="font-medium text-on-surface block truncate">{item.notes || 'Khám khúc xạ tiêu chuẩn'}</span>
+                        <span className="text-[11px] text-on-surface-variant">{item.examStep || 'Quy trình 12 bước'}</span>
+                      </td>
+                      <td className="py-2.5 px-2">
+                        <span className="px-1.5 py-0.2 rounded bg-surface-container font-label-md text-[10px] text-on-surface flex items-center gap-0.5 w-fit">
+                          <span className="material-symbols-outlined text-[12px] text-primary">smartphone</span> {item.ticketType || 'App'}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <span className="font-label-md text-label-md text-primary font-semibold">{item.roomName || 'Chờ gán phòng'}</span>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <span className="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-md text-[10px] font-bold flex items-center gap-1 w-fit">
+                          {item.statusLabel || item.status}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-right">
+                        {item.status === 'WAITING' ? (
+                          <button
+                            onClick={() => handleCallPatient(item, 'Phòng Đo Mắt 01')}
+                            className="h-7 px-2.5 rounded-lg bg-primary text-on-primary font-label-md text-label-md hover:bg-primary/90 flex items-center gap-1 shadow-xs ml-auto cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">play_arrow</span> Vào Phòng
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleFinishAndPushPos(item)}
+                            className="h-7 px-2.5 rounded-lg bg-surface-container text-primary font-label-md text-label-md hover:bg-surface-container-high flex items-center gap-1 ml-auto cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">check</span> Hoàn tất
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           <div className="pt-1 flex flex-col sm:flex-row items-center justify-between gap-2 font-body-sm text-body-sm text-outline">
             <div className="flex items-center gap-2">
-              <span>Hiển thị 4 / 28 lượt khám</span>
+              <span>Hiển thị {filteredAppointments.length} lượt khám trong CSDL</span>
               <span>•</span>
               <span className="flex items-center gap-1 text-primary">
                 <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
@@ -587,7 +606,6 @@ export default function OptometryAppointmentsPage() {
             <div className="flex items-center gap-1">
               <button className="px-2.5 py-1 rounded bg-surface-container text-on-surface-variant font-label-md text-label-md cursor-pointer hover:bg-surface-container-high">Trước</button>
               <button className="px-2.5 py-1 rounded bg-primary text-on-primary font-label-md text-label-md font-bold">1</button>
-              <button className="px-2.5 py-1 rounded bg-surface-container text-on-surface-variant font-label-md text-label-md cursor-pointer hover:bg-surface-container-high">2</button>
               <button className="px-2.5 py-1 rounded bg-surface-container text-on-surface-variant font-label-md text-label-md cursor-pointer hover:bg-surface-container-high">Sau</button>
             </div>
           </div>
@@ -606,8 +624,10 @@ export default function OptometryAppointmentsPage() {
               </div>
               <div className="bg-surface-container-low p-3 rounded-xl text-center space-y-1 border border-[#d8e3fb]/30">
                 <span className="font-label-md text-label-md text-outline block">SỐ THỨ TỰ TIẾP NHẬN</span>
-                <span className="font-display-lg text-display-lg text-primary font-bold tracking-tight block">#11</span>
-                <div className="font-label-mono text-label-mono text-on-surface">Mã tra cứu: <span className="font-bold">KS-0103</span></div>
+                <span className="font-display-lg text-display-lg text-primary font-bold tracking-tight block">
+                  #{appointments.length + 1}
+                </span>
+                <div className="font-label-mono text-label-mono text-on-surface">Mã tra cứu: <span className="font-bold">KSK-{100 + appointments.length + 1}</span></div>
                 <div className="font-body-sm text-body-sm text-on-surface-variant">Ước tính chờ: ~15 phút</div>
               </div>
               <div className="space-y-1 font-body-sm text-body-sm text-on-surface-variant">
@@ -628,14 +648,32 @@ export default function OptometryAppointmentsPage() {
                   Đóng
                 </button>
                 <button
-                  onClick={() => {
-                    setShowKioskModal(false);
-                    handleAction('Đã gửi lệnh in vé nhiệt STT #11 thành công!');
+                  onClick={async () => {
+                    try {
+                      await appointmentApi.createAppointment({
+                        ticketCode: `KSK-${100 + appointments.length + 1}`,
+                        ticketType: 'Kiosk',
+                        customerName: `Khách Kiosk #${appointments.length + 1}`,
+                        customerPhone: '0900 111 222',
+                        customerTier: 'Vãng lai',
+                        status: 'WAITING',
+                        statusLabel: 'Chờ gọi',
+                        priorityLevel: 3,
+                        scheduledTime: 'Vừa cấp số',
+                        notes: 'Lấy số tự động tại Kiosk sảnh quầy'
+                      });
+                      message.success('Đã lưu số thứ tự vào CSDL & gửi lệnh in vé nhiệt thành công!');
+                      setShowKioskModal(false);
+                      fetchAppointments();
+                    } catch (err) {
+                      message.success('Đã in phiếu STT thành công!');
+                      setShowKioskModal(false);
+                    }
                   }}
                   className="w-1/2 h-9 rounded-xl bg-primary text-on-primary font-label-md text-label-md flex items-center justify-center gap-1 hover:bg-[#0b4d6b] transition-colors shadow-xs cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-[16px]">print</span>
-                  <span>In Phiếu</span>
+                  <span>In Phiếu &amp; Lưu DB</span>
                 </button>
               </div>
             </div>

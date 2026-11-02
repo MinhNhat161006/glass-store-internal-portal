@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { message } from 'antd';
 import { useAuth } from '../../context/AuthContext';
 import { ROLES } from '../../routes/rolesConfig';
+import { labApi } from '../../api/labApi';
+import { appointmentApi } from '../../api/appointmentApi';
+import { orderApi } from '../../api/orderApi';
+import { customerApi } from '../../api/customerApi';
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -42,6 +46,22 @@ export default function DashboardPage() {
    1. ADMIN / EXECUTIVE VIEW: Toàn chuỗi, tài chính, đa kênh, hiệu suất chung
    ========================================================================================= */
 function AdminDashboardView({ timeframe, setTimeframe, navigate }) {
+  const [liveLabJobs, setLiveLabJobs] = useState([]);
+  const [liveAppointments, setLiveAppointments] = useState([]);
+
+  useEffect(() => {
+    labApi.getAllLabJobs().then(data => {
+      if (Array.isArray(data) && data.length > 0) {
+        setLiveLabJobs(data);
+      }
+    }).catch(e => console.warn('Dashboard lab sync note:', e));
+
+    appointmentApi.getAllAppointments().then(data => {
+      if (Array.isArray(data) && data.length > 0) {
+        setLiveAppointments(data);
+      }
+    }).catch(e => console.warn('Dashboard appt sync note:', e));
+  }, []);
   const [labQueue] = useState([
     {
       id: '#LAB-1092',

@@ -1,5 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { message, Modal } from 'antd';
+import { orderApi } from '../../api/orderApi';
+import { productApi } from '../../api/productApi';
+import { labApi } from '../../api/labApi';
+import { prescriptionApi } from '../../api/prescriptionApi';
 
 export default function PosPage() {
   // Category filter
@@ -67,6 +71,27 @@ export default function PosPage() {
     os: 'Sph -2.75 Cyl -0.50 Ax 175°',
     pd: '64mm'
   });
+  useEffect(() => {
+    const fetchLiveRx = async () => {
+      try {
+        const list = await prescriptionApi.getAllPrescriptions();
+        if (Array.isArray(list) && list.length > 0) {
+          const first = list[0];
+          setLinkedRx({
+            code: '#RX-2026-' + first.id,
+            doctor: first.optometristName || 'BS. Vũ Anh Tuấn',
+            customer: first.customerName || 'Nguyễn Hoàng Duy',
+            od: 'Sph ' + first.odSph + ' Cyl ' + first.odCyl + ' Ax ' + first.odAxis + '°',
+            os: 'Sph ' + first.osSph + ' Cyl ' + first.osCyl + ' Ax ' + first.osAxis + '°',
+            pd: first.pd + 'mm'
+          });
+        }
+      } catch (err) {
+        console.warn('Sync live rx in POS note:', err.message);
+      }
+    };
+    fetchLiveRx();
+  }, []);
 
   // Product catalog list
   const catalogProducts = [
@@ -340,7 +365,32 @@ export default function PosPage() {
   };
 
   // Execute Payment
-  const handleExecutePayment = () => {
+  const handleExecutePayment = async () => {
+    try {
+      await orderApi.createOrder({
+        orderCode: 'OPT-' + Math.floor(1000 + Math.random() * 9000) + '-POS',
+        customerId: 10,
+        customerName: customer.name,
+        customerPhone: customer.phone,
+        channel: 'POS',
+        totalAmount: subtotal,
+        discountAmount: discountAmount,
+        finalAmount: grandTotal,
+        paymentMethod: payTab === 'vietqr' ? 'VIETQR' : payTab === 'cash' ? 'CASH' : 'VNPAY',
+        staffName: 'STF-088 (Nguyễn Thu Ngân)',
+        branchName: 'Flagship Q.1 (TP.HCM)',
+        status: 'PAID',
+        items: cart.map(item => ({
+          skuId: item.sku,
+          productName: item.name,
+          quantity: item.quantity,
+          unitPrice: item.price,
+          subtotal: item.price * item.quantity
+        }))
+      });
+    } catch (err) {
+      console.warn('Sync POS order to DB note:', err.message);
+    }
     if (cart.length === 0) {
       message.warning('Giỏ hàng đang trống!');
       return;

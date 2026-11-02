@@ -36,3 +36,4 @@ export const prescriptionApi = {
     return res?.data;
   }
 };
+

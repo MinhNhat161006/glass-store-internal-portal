@@ -29,3 +29,4 @@ export const labApi = {
     return res?.data;
   }
 };
+
