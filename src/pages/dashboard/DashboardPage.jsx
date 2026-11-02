@@ -68,12 +68,12 @@ function AdminDashboardView({ timeframe, setTimeframe, navigate, user }) {
 
   const displayLabQueue = liveLabJobs.map((j) => ({
     id: '#LAB-2026-0' + j.id,
-    customer: (j.prescription && j.prescription.customerName) || 'Nguyễn Hoàng Duy',
+    customer: (j.prescription && j.prescription.customerName) || j.customerName || 'Khách Hàng',
     status: j.status === 'QC_PASSED' ? 'QC Đạt' : j.status === 'IN_PROGRESS' ? 'Đang mài' : 'Chờ xử lý',
     statusTag: j.status === 'QC_PASSED' ? 'bg-[#c6e7ff]/70 text-[#004967]' : j.status === 'IN_PROGRESS' ? 'bg-[#8fcdfd]/40 text-[#004b70]' : 'bg-[#e7eeff] text-[#19648f]',
-    frame: j.frameName || 'Bolon Titanium',
-    lens: j.lensName || 'Essilor Crizal Rock',
-    technician: 'KTV: ' + (j.technicianName || 'Trần Văn Kỹ Thuật'),
+    frame: j.frameName || 'Gọng Kính',
+    lens: j.lensName || 'Tròng Kính Khúc Xạ',
+    technician: 'KTV: ' + (j.technicianName || 'KTV Xưởng Lab'),
     deliveryTime: 'Hôm nay',
     btnLabel: j.status === 'QC_PASSED' ? 'Bàn giao kính' : 'Cập nhật tiến độ',
     btnStyle: 'bg-[#004967] text-white hover:bg-[#086288]'
@@ -424,8 +424,8 @@ function LabDashboardView({ navigate, user }) {
                 labJobs.map(job => (
                   <tr key={job.id} className="hover:bg-[#f0f3ff]/50">
                     <td className="py-3 px-4 font-mono font-bold text-[#004967]">#LAB-2026-0{job.id}</td>
-                    <td className="py-3 px-4 font-semibold">{job.customerName || 'Nguyễn Hoàng Duy'}</td>
-                    <td className="py-3 px-4">{job.frameName || 'Bolon Titanium'} - {job.lensName || 'Essilor Crizal'}</td>
+                    <td className="py-3 px-4 font-semibold">{job.customerName || 'Khách Hàng'}</td>
+                    <td className="py-3 px-4">{job.frameName || 'Gọng Kính'} - {job.lensName || 'Tròng Kính'}</td>
                     <td className="py-3 px-4">
                       <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
                         {job.status || 'Chờ nạp'}

@@ -142,7 +142,7 @@ export default function OptometryAppointmentsPage() {
                 <span className="font-body-sm text-body-sm text-outline">ca</span>
               </div>
               <div className="mt-0.5 font-body-sm text-[11px] text-on-surface-variant">
-                <strong className="text-primary">18</strong> App • <strong>10</strong> Kiosk
+                <span>Đồng bộ từ CSDL y khoa</span>
               </div>
             </div>
 
@@ -171,7 +171,7 @@ export default function OptometryAppointmentsPage() {
                 </span>
                 <span className="font-body-sm text-body-sm text-on-primary/80">/ 02 p.</span>
               </div>
-              <div className="mt-0.5 font-body-sm text-[11px] text-on-primary-container truncate">100% công suất</div>
+              <div className="mt-0.5 font-body-sm text-[11px] text-on-primary-container truncate">Phòng đo chuẩn</div>
             </div>
 
             <div className="bg-surface-container-low p-2.5 rounded-xl border border-[#d8e3fb]/40">
@@ -516,7 +516,18 @@ export default function OptometryAppointmentsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#d8e3fb]/30 text-on-surface">
-                  {filteredAppointments.map((item, idx) => (
+                  {filteredAppointments.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="py-12 text-center text-outline">
+                        <div className="flex flex-col items-center justify-center">
+                          <span className="material-symbols-outlined text-3xl text-slate-300 mb-1">event_busy</span>
+                          <span className="text-sm font-medium text-on-surface">Chưa có lượt khám nào trong hàng đợi</span>
+                          <span className="text-xs text-outline mt-0.5">Bấm "Phát Số Vãng Lai Mới" hoặc quét mã vé để tiếp nhận bệnh nhân</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredAppointments.map((item, idx) => (
                     <tr key={item.id || item.ticketCode} className="hover:bg-surface-container-low transition-colors">
                       <td className="py-2.5 px-3">
                         <div className="flex items-center gap-1.5">
@@ -577,7 +588,7 @@ export default function OptometryAppointmentsPage() {
                         )}
                       </td>
                     </tr>
-                  ))}
+                  )))}
                 </tbody>
               </table>
             </div>

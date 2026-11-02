@@ -618,7 +618,7 @@ export default function OptometryPage() {
 
                   <div className="flex justify-between items-end pt-1 border-t border-[#e7eeff]">
                     <div className="text-[10px] text-outline">
-                      <div>Total PD: 64mm</div>
+                      <div>Total PD: {livePrescription?.pd || 63}mm</div>
                     </div>
                     <div className="text-right">
                       <span className="text-[10px] text-outline block">Bác sĩ khúc xạ</span>

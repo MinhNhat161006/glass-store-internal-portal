@@ -44,12 +44,12 @@ export default function OrdersOmsPage() {
                 address: bo.shippingAddress || 'TP. Hồ Chí Minh'
               },
               product: {
-                frameName: firstItem.productName || 'Gọng Bolon Titanium',
-                frameSku: firstItem.skuId || 'FRM-BOLON-BJ3120',
+                frameName: firstItem.productName || 'Gọng Kính Chính Hãng',
+                frameSku: firstItem.skuId || 'FRM-DEFAULT',
                 frameShelf: 'A-04-12',
                 framePrice: Number(firstItem.unitPrice || 3250000),
-                lensName: secondItem.productName || 'Cặp tròng Essilor Crizal Rock 1.67',
-                lensSku: secondItem.skuId || 'LNS-ESS-CRIZAL-167',
+                lensName: secondItem.productName || 'Tròng Kính Khúc Xạ',
+                lensSku: secondItem.skuId || 'LNS-DEFAULT',
                 lensShelf: 'Ngăn tròng: L-167-2',
                 lensPrice: Number(secondItem.unitPrice || 1980000),
                 lensShort: secondItem.productName || 'Essilor Crizal',
@@ -57,7 +57,7 @@ export default function OrdersOmsPage() {
                 doctorApproved: 'BS. Vũ Anh Tuấn đã ký duyệt'
               },
               rx: {
-                doctorName: 'BS. Vũ Anh Tuấn',
+                doctorName: bo.doctorName || 'BS. Khúc Xạ',
                 od: { sph: '-3.25', cyl: '-0.50', axis: '180°', add: '—', pd: '63.0 mm' },
                 os: { sph: '-2.75', cyl: '-0.75', axis: '175°', add: '—', pd: '63.0 mm' },
                 sh: '21.5 mm',
@@ -83,7 +83,7 @@ export default function OrdersOmsPage() {
                 spin: bo.status === 'PROCESSING',
                 eta: 'Dự kiến: Hôm nay',
                 machine: 'Essilor Kappa 200',
-                technician: 'KTV Trần Văn Bách',
+                technician: bo.staffName || 'KTV Xưởng Lab',
                 techTime: '15:10'
               },
               statusCode: bo.status === 'COMPLETED' ? 'completed' : bo.status === 'SHIPPING' ? 'delivering_2h' : 'lab_processing',

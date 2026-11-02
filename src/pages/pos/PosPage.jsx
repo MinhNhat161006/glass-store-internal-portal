@@ -35,14 +35,7 @@ export default function PosPage() {
 
   // Rx Modal state
   const [isRxModalOpen, setIsRxModalOpen] = useState(false);
-  const [linkedRx, setLinkedRx] = useState({
-    code: '#RX-2026-889',
-    doctor: 'BS. Vũ Anh Tuấn',
-    customer: 'Nguyễn Hoàng Duy',
-    od: 'Sph -3.25 Cyl -0.75 Ax 180°',
-    os: 'Sph -2.75 Cyl -0.50 Ax 175°',
-    pd: '64mm'
-  });
+  const [linkedRx, setLinkedRx] = useState(null);
   useEffect(() => {
     const fetchLiveRx = async () => {
       try {
@@ -51,8 +44,8 @@ export default function PosPage() {
           const first = list[0];
           setLinkedRx({
             code: '#RX-2026-' + first.id,
-            doctor: first.optometristName || 'BS. Vũ Anh Tuấn',
-            customer: first.customerName || 'Nguyễn Hoàng Duy',
+            doctor: first.optometristName || 'BS. Khúc Xạ',
+            customer: first.customerName || 'Khách hàng',
             od: 'Sph ' + first.odSph + ' Cyl ' + first.odCyl + ' Ax ' + first.odAxis + '°',
             os: 'Sph ' + first.osSph + ' Cyl ' + first.osCyl + ' Ax ' + first.osAxis + '°',
             pd: first.pd + 'mm'
@@ -66,96 +59,7 @@ export default function PosPage() {
   }, []);
 
   // Product catalog list
-  const [catalogProducts, setCatalogProducts] = useState([
-    {
-      sku: 'BL-BJ3120-C10',
-      shortSku: 'BL-BJ3120',
-      name: 'Bolon Graceful BJ3120 Rose Gold',
-      brand: 'Bolon Eyewear',
-      category: 'TITAN',
-      price: 3280000,
-      stock: '12',
-      image:
-        'https://images.unsplash.com/photo-1591076482161-42ce6da69f67?auto=format&fit=crop&w=500&q=80'
-    },
-    {
-      sku: 'LZ-CRIZAL-HR167',
-      shortSku: 'LZ-CRIZAL',
-      name: 'Tròng Crizal Sapphire HR 1.67',
-      brand: 'Essilor France',
-      category: 'LENS_CRIZAL',
-      price: 2950000,
-      stock: '48 cặp',
-      image:
-        'https://images.unsplash.com/photo-1572635196237-14b3f281503f?auto=format&fit=crop&w=500&q=80'
-    },
-    {
-      sku: 'LZ-ZEISS-PFX-160',
-      shortSku: 'LZ-ZEISS-160',
-      name: 'Zeiss PhotoFusion X 1.60 Grey',
-      brand: 'Carl Zeiss Germany',
-      category: 'TRANSITIONS',
-      price: 4380000,
-      stock: '18 cặp',
-      image:
-        'https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&w=500&q=80'
-    },
-    {
-      sku: 'RB-TITAN-802',
-      shortSku: 'RB-TITAN',
-      name: 'Ray-Ban Titanium RB8727D',
-      brand: 'Ray-Ban Italy',
-      category: 'TITAN',
-      price: 4550000,
-      stock: '8 cái',
-      image:
-        'https://images.unsplash.com/photo-1508296695146-257a814070b4?auto=format&fit=crop&w=500&q=80'
-    },
-    {
-      sku: 'CH-LINEART-211',
-      shortSku: 'CH-LINEART',
-      name: 'Charmant LineArt Excellence',
-      brand: 'Charmant Japan',
-      category: 'TITAN',
-      price: 8900000,
-      stock: '3 cái',
-      image:
-        'https://images.unsplash.com/photo-1577803645773-f96470509666?auto=format&fit=crop&w=500&q=80'
-    },
-    {
-      sku: 'ACC-NANO-FOG',
-      shortSku: 'NANO-FOG',
-      name: 'Khăn lau Nano chống bám sương',
-      brand: 'OptiCare Solution',
-      category: 'ACCESSORY',
-      price: 100000,
-      stock: '156 cái',
-      image:
-        'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=500&q=80'
-    },
-    {
-      sku: 'LZ-EYEZEN-159',
-      shortSku: 'EYEZEN-159',
-      name: 'Eyezen Start 1.59 Airwear',
-      brand: 'Essilor France',
-      category: 'LENS_CRIZAL',
-      price: 2150000,
-      stock: '22 cặp',
-      image:
-        'https://images.unsplash.com/photo-1574258495973-f010dfbb5371?auto=format&fit=crop&w=500&q=80'
-    },
-    {
-      sku: 'ACC-CLEAN-60ML',
-      shortSku: 'CLEAN-60',
-      name: 'Xịt Vệ Sinh Kính Nano 60ml',
-      brand: 'OptiCare Solution',
-      category: 'ACCESSORY',
-      price: 65000,
-      stock: '85 chai',
-      image:
-        'https://images.unsplash.com/photo-1583947215259-38e31be8751f?auto=format&fit=crop&w=500&q=80'
-    }
-  ]);
+  const [catalogProducts, setCatalogProducts] = useState([]);
 
   useEffect(() => {
     const fetchLiveCatalog = async () => {
@@ -191,29 +95,24 @@ export default function PosPage() {
     fetchLiveCatalog();
   }, []);
 
-  // Prescriptions available for linking
-  const availablePrescriptions = [
-    {
-      code: '#RX-2026-889',
-      customer: 'Nguyễn Hoàng Duy',
-      phone: '0918 732 998',
-      timeAgo: 'Đo cách đây 15 phút',
-      od: 'Sph -3.25 | Cyl -0.75 | Ax 180°',
-      os: 'Sph -2.75 | Cyl -0.50 | Ax 175°',
-      pd: '64mm',
-      doctor: 'BS. Vũ Anh Tuấn'
-    },
-    {
-      code: '#RX-2026-888',
-      customer: 'Lê Thu Trang',
-      phone: '0903 112 455',
-      timeAgo: 'Đo cách đây 40 phút',
-      od: 'Sph -1.50 | Cyl 0.00 | Ax --',
-      os: 'Sph -1.75 | Cyl -0.25 | Ax 90°',
-      pd: '62mm',
-      doctor: 'BS. Lê Thị Ánh Tuyết'
-    }
-  ];
+  const [availablePrescriptions, setAvailablePrescriptions] = useState([]);
+  useEffect(() => {
+    prescriptionApi.getAllPrescriptions().then(list => {
+      if (Array.isArray(list)) {
+        const mapped = list.map(rx => ({
+          code: '#RX-2026-' + rx.id,
+          customer: rx.customerName || 'Khách hàng',
+          phone: rx.customerPhone || '0901 000 000',
+          timeAgo: 'Hôm nay',
+          od: 'Sph ' + (rx.odSph || 0) + ' | Cyl ' + (rx.odCyl || 0) + ' | Ax ' + (rx.odAxis || 180) + '°',
+          os: 'Sph ' + (rx.osSph || 0) + ' | Cyl ' + (rx.osCyl || 0) + ' | Ax ' + (rx.osAxis || 180) + '°',
+          pd: (rx.pd || 63) + 'mm',
+          doctor: rx.optometristName || 'BS. Khúc Xạ'
+        }));
+        setAvailablePrescriptions(mapped);
+      }
+    }).catch(e => console.warn('Sync rx modal error:', e));
+  }, []);
 
   // Calculation of totals
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -677,16 +576,16 @@ export default function PosPage() {
                   type="button"
                   onClick={() =>
                     setCustomer({
-                      name: 'Nguyễn Hoàng Duy',
-                      tier: 'VIP 3 Silver',
-                      phone: '0918 732 998',
-                      points: 450,
-                      pointValue: 45000
+                      name: linkedRx?.customer || 'Khách Hàng Tiếp Nhận',
+                      tier: 'Thành Viên',
+                      phone: '0901 000 999',
+                      points: 0,
+                      pointValue: 0
                     })
                   }
                   className="px-2 py-0.5 rounded-lg bg-[#004967] text-white font-bold hover:bg-[#086288] transition-colors"
                 >
-                  + Mới
+                  + Tiếp nhận
                 </button>
               </div>
             </div>

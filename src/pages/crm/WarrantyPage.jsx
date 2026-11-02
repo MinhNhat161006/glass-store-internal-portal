@@ -140,10 +140,7 @@ export default function WarrantyPage() {
               </div>
             </div>
             <div className="mt-2 pt-2 border-t border-[#e7eeff] flex items-center justify-between text-body-sm font-body-sm text-on-surface-variant">
-              <span className="text-primary font-semibold flex items-center gap-0.5">
-                <span className="material-symbols-outlined text-[13px]">trending_up</span>+4.2% so T3
-              </span>
-              <span className="text-outline">Tỷ lệ xử lý: <strong className="text-on-surface">96.8%</strong></span>
+              <span className="text-outline">Đồng bộ từ CSDL hệ thống</span>
             </div>
           </div>
 
@@ -152,7 +149,7 @@ export default function WarrantyPage() {
               <div>
                 <span className="font-label-md text-label-md text-outline uppercase tracking-wider block">Đang Xử Lý Lab/Kho</span>
                 <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className="font-display-lg text-display-lg text-secondary tracking-tight">0</span>
+                  <span className="font-display-lg text-display-lg text-secondary tracking-tight">{warranties.filter(w => w.status === 'PROCESSING_COUNTER' || w.status === 'LAB_APPROVED').length}</span>
                   <span className="font-label-md text-label-md text-on-surface-variant font-medium">chờ xử lý</span>
                 </div>
               </div>
@@ -161,19 +158,17 @@ export default function WarrantyPage() {
               </div>
             </div>
             <div className="mt-2 pt-2 border-t border-[#e7eeff] flex items-center justify-between text-body-sm font-body-sm text-on-surface-variant">
-              <span>Đổi tròng: <strong className="text-primary">8</strong></span>
-              <span>Nắn gọng: <strong className="text-secondary">4</strong></span>
-              <span>Linh kiện: <strong className="text-error">2</strong></span>
+              <span className="text-outline">Đang trong quy trình xử lý kỹ thuật</span>
             </div>
           </div>
 
           <div className="bg-surface-container-lowest p-3.5 rounded-xl shadow-xs border border-[#d8e3fb]/40 flex flex-col justify-between">
             <div className="flex items-start justify-between">
               <div>
-                <span className="font-label-md text-label-md text-outline uppercase tracking-wider block">Đủ ĐK Đổi Mới (Pass)</span>
+                <span className="font-label-md text-label-md text-outline uppercase tracking-wider block">Đã Hoàn Tất (Pass)</span>
                 <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className="font-display-lg text-display-lg text-tertiary-container tracking-tight">0</span>
-                  <span className="font-label-md text-label-md text-on-surface-variant font-medium">phiếu 100%</span>
+                  <span className="font-display-lg text-display-lg text-tertiary-container tracking-tight">{warranties.filter(w => w.status === 'COMPLETED').length}</span>
+                  <span className="font-label-md text-label-md text-on-surface-variant font-medium">phiếu xong</span>
                 </div>
               </div>
               <div className="w-8 h-8 rounded-lg bg-tertiary-fixed text-tertiary flex items-center justify-center">
@@ -181,18 +176,17 @@ export default function WarrantyPage() {
               </div>
             </div>
             <div className="mt-2 pt-2 border-t border-[#e7eeff] flex items-center justify-between text-body-sm font-body-sm text-on-surface-variant">
-              <span className="font-medium text-tertiary">Chính sách 7 ngày</span>
-              <span className="text-outline">Lỗi NSX BR-38</span>
+              <span className="text-outline">Đã hoàn tất nghiệm thu & bàn giao</span>
             </div>
           </div>
 
           <div className="bg-surface-container-lowest p-3.5 rounded-xl shadow-xs border border-[#d8e3fb]/40 flex flex-col justify-between">
             <div className="flex items-start justify-between">
               <div>
-                <span className="font-label-md text-label-md text-outline uppercase tracking-wider block">Tỷ Lệ Bồi Hoàn / Lỗi</span>
+                <span className="font-label-md text-label-md text-outline uppercase tracking-wider block">Từ Chối Bảo Hành</span>
                 <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className="font-display-lg text-display-lg text-on-surface tracking-tight">0%</span>
-                  <span className="font-label-md text-label-md text-outline font-medium">&lt; hạn mức 1.5%</span>
+                  <span className="font-display-lg text-display-lg text-on-surface tracking-tight">{warranties.filter(w => w.status === 'REJECTED').length}</span>
+                  <span className="font-label-md text-label-md text-outline font-medium">phiếu</span>
                 </div>
               </div>
               <div className="w-8 h-8 rounded-lg bg-surface-container-high text-on-surface-variant flex items-center justify-center">
@@ -200,8 +194,7 @@ export default function WarrantyPage() {
               </div>
             </div>
             <div className="mt-2 pt-2 border-t border-[#e7eeff] flex items-center justify-between text-body-sm font-body-sm text-on-surface-variant">
-              <span className="text-on-surface font-semibold">01 GD VNPay</span>
-              <span className="text-outline font-label-mono text-label-mono">Mã BR-39</span>
+              <span className="text-outline">Yêu cầu không đủ điều kiện theo chính sách</span>
             </div>
           </div>
         </div>
@@ -228,10 +221,10 @@ export default function WarrantyPage() {
           <div className="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap">
             {[
               { id: 'all', label: `Tất cả (${warranties.length})` },
-              { id: 'pending', label: 'Chờ tiếp nhận', hasDot: true },
-              { id: 'lab', label: 'Đang xử lý Lab' },
-              { id: 'done', label: 'Hoàn tất' },
-              { id: 'reject', label: 'Từ chối', isDanger: true }
+              { id: 'pending', label: `Chờ tiếp nhận (${warranties.filter(w => w.status === 'WAITING_PROCESS' || w.status === 'PROCESSING_COUNTER').length})`, hasDot: true },
+              { id: 'lab', label: `Đang xử lý Lab (${warranties.filter(w => w.status === 'LAB_APPROVED').length})` },
+              { id: 'done', label: `Hoàn tất (${warranties.filter(w => w.status === 'COMPLETED' || w.status === 'WAITING_CUSTOMER').length})` },
+              { id: 'reject', label: `Từ chối (${warranties.filter(w => w.status === 'REJECTED').length})`, isDanger: true }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -550,12 +543,12 @@ export default function WarrantyPage() {
                   </div>
                   <div className="py-2 text-center">
                     <div className="font-headline-sm text-headline-sm text-primary italic font-serif opacity-80 select-none">
-                      {selectedItem.techName || 'Trần Văn Bách'}
+                      {selectedItem.techName || 'KTV Xưởng Lab'}
                     </div>
                     <span className="font-label-mono text-[11px] text-outline">Đã ký số xác thực • 10:52:14</span>
                   </div>
                   <div className="flex items-center justify-between text-body-sm font-body-sm text-on-surface-variant">
-                    <span>KTV: {selectedItem.techName || 'Trần Văn Bách'}</span>
+                    <span>KTV: {selectedItem.techName || 'KTV Xưởng Lab'}</span>
                     <span className="text-primary font-medium flex items-center gap-1">
                       <span className="material-symbols-outlined text-[13px]">lock</span>Bảo mật SHA-256
                     </span>
