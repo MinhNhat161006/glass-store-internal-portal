@@ -10,6 +10,7 @@ import PosPage from './pages/pos/PosPage';
 import OptometryPage from './pages/optometry/OptometryPage';
 import LabPage from './pages/lab/LabPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
+import OrdersOmsPage from './pages/orders/OrdersOmsPage';
 import NotFound404 from './pages/common/NotFound404';
 
 // Component to handle root redirection based on user's auth status and role
@@ -58,6 +59,16 @@ export default function App() {
                 </ProtectedRoute>
               }
             >
+              {/* Omnichannel Order Management (OMS) */}
+              <Route
+                path="/orders"
+                element={
+                  <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.POS, ROLES.OPTOMETRY, ROLES.LAB]}>
+                    <OrdersOmsPage />
+                  </RoleGuard>
+                }
+              />
+
               {/* POS / Cashier Terminal: Allowed for Admin & POS */}
               <Route
                 path="/pos"
@@ -92,7 +103,7 @@ export default function App() {
               <Route
                 path="/dashboard"
                 element={
-                  <RoleGuard allowedRoles={[ROLES.ADMIN]}>
+                  <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.POS, ROLES.OPTOMETRY, ROLES.LAB]}>
                     <DashboardPage />
                   </RoleGuard>
                 }
