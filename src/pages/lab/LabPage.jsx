@@ -1,9 +1,50 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { labApi } from '../../api/labApi';
 import { message } from 'antd';
 
 export default function LabPage() {
   const [activeTab, setActiveTab] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchLiveLabJobs = async () => {
+      try {
+        setLoading(true);
+        const jobs = await labApi.getAllLabJobs();
+        if (Array.isArray(jobs) && jobs.length > 0) {
+          const mapped = jobs.map((j, idx) => {
+            const isQc = j.status === 'QC_PASSED';
+            const isInProgress = j.status === 'IN_PROGRESS';
+            return {
+              id: '#LAB-2026-0' + j.id,
+              dbId: j.id,
+              tray: 'Khay Xanh #' + (idx + 4),
+              orderId: '#OPT-' + j.orderId + '-VN',
+              customer: j.prescription?.customerName || 'Nguyễn Hoàng Duy',
+              phone: '0918 732 998',
+              frame: j.frameName || j.frameSku,
+              lens: j.lensName || j.lensSku,
+              rxSummary: j.prescription ? ('OD ' + j.prescription.odSph + ' / OS ' + j.prescription.osSph) : 'OD -3.25 / OS -2.75',
+              machine: 'Essilor Delta #' + (idx + 1),
+              tech: j.technicianName || 'Trần Văn Bách',
+              status: isInProgress ? 'in_progress' : isQc ? 'qc' : 'waiting',
+              statusLabel: isInProgress ? 'Đang mài (68%)' : isQc ? 'Đã duyệt QC' : 'Chờ nạp máy',
+              statusClass: isInProgress ? 'bg-primary-fixed text-on-primary-fixed' : isQc ? 'bg-secondary-fixed text-on-secondary-fixed' : 'bg-surface-container-high text-primary',
+              priority: 'Tiêu chuẩn',
+              timeRemaining: isQc ? 'Sẵn sàng giao' : '05 phút'
+            };
+          });
+          setQueueOrders(mapped);
+        }
+      } catch (err) {
+        console.warn('Real lab jobs fetch notice:', err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchLiveLabJobs();
+  }, []);
 
   const [queueOrders, setQueueOrders] = useState([
     {
