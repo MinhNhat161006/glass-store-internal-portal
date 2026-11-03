@@ -45,7 +45,8 @@
 .pos-sku { display: block; color: #7d8898; font-size: 10px; overflow-wrap: anywhere; }
 .pos-product-bottom { padding: 10px 2px 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
 .pos-product-bottom > strong { font-size: 16px; letter-spacing: -.4px; color: #004967; }
-.pos-add { width: 30px; height: 30px; border: 0; border-radius: 7px; background: #004967; color: white; font-size: 22px !important; line-height: 1; }
+.pos-add { display: grid; place-items: center; flex: 0 0 32px; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 8px; background: #004967; color: white; line-height: 0; }
+.pos-add svg { display: block; width: 18px; height: 18px; }
 .pos-add:hover:not(:disabled), .pos-pay:hover:not(:disabled) { background: #086288; }
 .pos-checkout { min-width: 0; padding: 16px; border: 1px solid #e1e7ef; border-radius: 14px; background: white; box-shadow: 0 2px 10px #26475e04; }
 .pos-checkout-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 14px; }
