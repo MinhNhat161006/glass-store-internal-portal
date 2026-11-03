@@ -13,6 +13,7 @@ import { customerApi } from '../../api/customerApi';
 export default function PosPage() {
   const { user } = useAuth();
   const paymentLock = useRef(false);
+  const paymentRequestRef = useRef(null);
   const [paying, setPaying] = useState(false);
   const [lastOrder, setLastOrder] = useState(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
@@ -308,7 +309,7 @@ export default function PosPage() {
     paymentLock.current = true;
     setPaying(true);
     try {
-      const saved = await orderApi.createOrder({
+      const orderPayload = {
         customerId: customer.id || null,
         customerName: customer.name,
         customerPhone: customer.phone,
@@ -325,11 +326,26 @@ export default function PosPage() {
           quantity: item.quantity, unitPrice: item.price,
           subtotal: item.price * item.quantity
         }))
-      });
+      };
+      const requestFingerprint = JSON.stringify(orderPayload);
+      if (paymentRequestRef.current?.fingerprint !== requestFingerprint) {
+        paymentRequestRef.current = {
+          fingerprint: requestFingerprint,
+          key: crypto.randomUUID()
+        };
+      }
+      const saved = await orderApi.createOrder(orderPayload, paymentRequestRef.current.key);
       if (!saved?.id || !saved?.orderCode) throw new Error('API chưa trả về đơn hàng đã lưu.');
+      paymentRequestRef.current = null;
       setLastOrder({ ...saved, cashGiven: payTab === 'cash' ? Number(cashGiven) : null });
       setCart([]); setCashGiven(0); setVoucherCode(''); setVoucherDiscount(0); setLinkedRx(null);
-      message.success('Đã lưu đơn ' + saved.orderCode + '. Bạn có thể in hóa đơn.');
+      if (saved.inventorySyncStatus === 'FAILED') {
+        message.error(`Đơn ${saved.orderCode} đã thanh toán nhưng chưa trừ được tồn kho. Vui lòng liên hệ quản lý.`);
+      } else if (saved.inventorySyncStatus === 'PENDING') {
+        message.warning(`Đơn ${saved.orderCode} đã thanh toán; đồng bộ tồn kho đang chờ và sẽ được tự động thử lại.`);
+      } else {
+        message.success('Đã lưu đơn ' + saved.orderCode + '. Bạn có thể in hóa đơn.');
+      }
     } catch (err) {
       message.error('Chưa hoàn tất thanh toán: ' + err.message + '. Giỏ hàng được giữ nguyên.');
     } finally { paymentLock.current = false; setPaying(false); }
