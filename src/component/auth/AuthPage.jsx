@@ -67,10 +67,6 @@ export default function AuthPage({ onLoginSuccess }) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  // 6-digit OTP state
-  const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
-  const [otpTimer, setOtpTimer] = useState(28);
-  const otpRefs = useRef([]);
 
   // Registration Form States
   const [regFullName, setRegFullName] = useState('');
@@ -87,20 +83,6 @@ export default function AuthPage({ onLoginSuccess }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginFeedback, setLoginFeedback] = useState(false);
 
-  // OTP Countdown timer
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setOtpTimer((prev) => {
-        if (prev <= 1) {
-          const randomOtp = Math.floor(100000 + Math.random() * 900000).toString().split('');
-          setOtpDigits(randomOtp);
-          return 30;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   // Handle Quick Role Switching
   const handleRoleSelect = (roleKey) => {
@@ -112,49 +94,16 @@ export default function AuthPage({ onLoginSuccess }) {
     }
   };
 
-  // Handle OTP digit changes
-  const handleOtpInput = (index, value) => {
-    const char = value.slice(-1);
-    const newDigits = [...otpDigits];
-    newDigits[index] = char;
-    setOtpDigits(newDigits);
-
-    if (char && index < 5 && otpRefs.current[index + 1]) {
-      otpRefs.current[index + 1].focus();
-    }
-  };
-
-  const handleOtpKeyDown = (index, e) => {
-    if (e.key === 'Backspace' && !otpDigits[index] && index > 0) {
-      otpRefs.current[index - 1]?.focus();
-    }
-  };
-
-  const handleOtpPaste = (e) => {
-    e.preventDefault();
-    const pasted = e.clipboardData.getData('text').trim();
-    if (/^\d{6}$/.test(pasted)) {
-      setOtpDigits(pasted.split(''));
-      message.success('Đã dán mã Smart OTP 6 số thành công!');
-      otpRefs.current[5]?.focus();
-    }
-  };
-
   // Submit Login
   const handleStaffLogin = async (e) => {
     if (e) e.preventDefault();
 
     if (!staffId.trim()) {
-      message.error('Vui lòng nhập Mã định danh nhân viên (Staff ID)!');
+      message.error('Vui lòng nhập Tài khoản / Email / Mã nhân viên!');
       return;
     }
     if (!password.trim()) {
       message.error('Vui lòng nhập Mật khẩu tài khoản nội bộ!');
-      return;
-    }
-    const enteredOtp = otpDigits.join('');
-    if (enteredOtp.length < 6) {
-      message.error('Vui lòng nhập đủ 6 chữ số Smart OTP!');
       return;
     }
 
@@ -403,7 +352,7 @@ export default function AuthPage({ onLoginSuccess }) {
                     <span className="material-symbols-outlined text-[16px] text-[#19648f]">
                       {authMode === 'login' ? 'encrypted' : 'badge'}
                     </span>
-                    <span>{authMode === 'login' ? 'RBAC + 2FA Active' : 'Yêu cầu cấp phép'}</span>
+                    <span>{authMode === 'login' ? 'Phân Quyền RBAC' : 'Yêu cầu cấp phép'}</span>
                   </div>
 
                   {/* Mode Toggle Button */}
@@ -484,7 +433,7 @@ export default function AuthPage({ onLoginSuccess }) {
                       <span>
                         Mã định danh nhân viên (Staff ID) <span className="text-[#ba1a1a]">*</span>
                       </span>
-                      <span className="text-[#40484e] font-normal text-[11px]">Định dạng NV-OPT-XXXXXX</span>
+                      <span className="text-[#40484e] font-normal text-[11px]">Username, Email hoặc Staff ID</span>
                     </div>
                     <div className="relative">
                       <input
@@ -492,7 +441,7 @@ export default function AuthPage({ onLoginSuccess }) {
                         required
                         value={staffId}
                         onChange={(e) => setStaffId(e.target.value)}
-                        placeholder="Nhập mã nhân viên..."
+                        placeholder="admin, nv_pos hoặc email..."
                         className="w-full h-12 pl-11 pr-4 rounded-xl bg-[#f0f3ff] text-[#111c2d] text-sm focus:bg-white focus:ring-2 focus:ring-[#086288] focus:outline-none transition-all placeholder:text-[#70787f] border border-transparent focus:border-[#086288]"
                       />
                       <span className="material-symbols-outlined absolute left-3.5 top-3 text-[20px] text-[#004967]">
@@ -535,47 +484,6 @@ export default function AuthPage({ onLoginSuccess }) {
                         </span>
                       </button>
                     </div>
-                  </div>
-
-                  {/* 2FA Smart OTP */}
-                  <div className="flex flex-col gap-1.5 pt-1">
-                    <div className="flex items-center justify-between text-xs font-semibold text-[#111c2d]">
-                      <div className="flex items-center gap-1.5">
-                        <span>Mã Smart OTP xác thực 2 bước (2FA)</span>
-                        <span className="material-symbols-outlined text-[16px] text-[#19648f]">token</span>
-                      </div>
-                      <span
-                        className="font-mono text-[11px] text-[#40484e] hover:text-[#086288] cursor-pointer flex items-center gap-1"
-                        onClick={() => {
-                          const randomOtp = Math.floor(100000 + Math.random() * 900000).toString().split('');
-                          setOtpDigits(randomOtp);
-                          setOtpTimer(30);
-                          message.info('Đã tạo mã OTP mới từ YubiKey Authenticator');
-                        }}
-                      >
-                        <span className="material-symbols-outlined text-[14px]">refresh</span>
-                        Làm mới: {otpTimer}s
-                      </span>
-                    </div>
-
-                    {/* 6 OTP Boxes */}
-                    <div className="grid grid-cols-6 gap-2" onPaste={handleOtpPaste}>
-                      {otpDigits.map((digit, idx) => (
-                        <input
-                          key={idx}
-                          ref={(el) => (otpRefs.current[idx] = el)}
-                          type="text"
-                          maxLength={1}
-                          value={digit}
-                          onChange={(e) => handleOtpInput(idx, e.target.value)}
-                          onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                          className="h-12 text-center text-xl font-bold rounded-lg bg-[#f0f3ff] text-[#004967] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#086288] border border-transparent focus:border-[#086288] transition-all"
-                        />
-                      ))}
-                    </div>
-                    <span className="text-[11px] text-[#40484e]">
-                      Nhập chuỗi OTP từ ứng dụng OptiVision Authenticator hoặc khóa bảo mật phần cứng YubiKey.
-                    </span>
                   </div>
 
                   {/* Submit Button */}

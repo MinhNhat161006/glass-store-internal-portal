@@ -74,33 +74,6 @@ export default function LoginPage({ onLoginSuccess }) {
   const [password, setPassword] = useState('Secret2026@');
   const [showPassword, setShowPassword] = useState(false);
 
-  // 6-digit OTP
-  const [otpDigits, setOtpDigits] = useState(['7', '4', '1', '9', '0', '2']);
-  const [otpTimer, setOtpTimer] = useState(15);
-  const otpRefs = useRef([]);
-
-  // Registration Form States
-  const [regName, setRegName] = useState('');
-  const [regStaffId, setRegStaffId] = useState('');
-  const [regBranch, setRegBranch] = useState('branch_01');
-  const [regLicense, setRegLicense] = useState('');
-  const [regPass, setRegPass] = useState('');
-
-  // Countdown timer for 2FA OTP
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setOtpTimer((prev) => {
-        if (prev <= 1) {
-          const newCode = Math.floor(100000 + Math.random() * 900000).toString().split('');
-          setOtpDigits(newCode);
-          return 30;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
   // Handle Role Switch
   const handleRoleChange = (roleKey) => {
     setSelectedRole(roleKey);
@@ -109,31 +82,6 @@ export default function LoginPage({ onLoginSuccess }) {
       setStaffId(conf.staffId);
       if (conf.branch) setSelectedBranch(conf.branch);
     }
-  };
-
-  // Handle OTP digit box input
-  const handleOtpChange = (index, value) => {
-    const char = value.slice(-1);
-    const newDigits = [...otpDigits];
-    newDigits[index] = char;
-    setOtpDigits(newDigits);
-
-    if (char && index < 5 && otpRefs.current[index + 1]) {
-      otpRefs.current[index + 1].focus();
-    }
-  };
-
-  const handleOtpKeyDown = (index, e) => {
-    if (e.key === 'Backspace' && !otpDigits[index] && index > 0) {
-      otpRefs.current[index - 1]?.focus();
-    }
-  };
-
-  const handleRegenerateOtp = () => {
-    const newCode = Math.floor(100000 + Math.random() * 900000).toString().split('');
-    setOtpDigits(newCode);
-    setOtpTimer(30);
-    message.info('Đã cấp mã Smart OTP mới từ khóa token bảo mật.');
   };
 
   // Submit Login
