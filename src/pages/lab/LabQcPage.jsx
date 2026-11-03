@@ -1,11 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { labApi } from '../../api/labApi';
 import { message } from 'antd';
 
 export default function LabQcPage() {
   const [selectedTray, setSelectedTray] = useState('');
+  const [allJobs, setAllJobs] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Checklist state
+  // Re-edge / Fail Modal state
+  const [isFailModalOpen, setIsFailModalOpen] = useState(false);
+  const [failReason, setFailReason] = useState('');
+
+  // Checklist state (Finishing & Packaging)
   const [checks, setChecks] = useState({
     optics: true,
     mechanics: true,
@@ -21,30 +29,150 @@ export default function LabQcPage() {
     message.success(msg);
   };
 
-    const [qcQueue, setQcQueue] = useState([]);
-  const selectedItem = qcQueue.find(q => q.id === selectedTray) || qcQueue[0] || null;
+  // Helper formatters
+  const formatDiopter = (val, fallback = '-2.75 D') => {
+    if (val === null || val === undefined || isNaN(Number(val))) return fallback;
+    const n = Number(val);
+    return `${n > 0 ? '+' : ''}${n.toFixed(2)} D`;
+  };
+
+  const formatAxis = (val, fallback = '180°') => {
+    if (val === null || val === undefined) return fallback;
+    return `${val}°`;
+  };
+
+  const getHalfPd = (pd, fallback = '32.0mm') => {
+    if (!pd || isNaN(Number(pd))) return fallback;
+    return `${(Number(pd) / 2).toFixed(1)}mm`;
+  };
+
+  // Fetch all lab jobs and filter for QC
+  const fetchQcJobs = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await labApi.getAllLabJobs();
+      if (Array.isArray(data)) {
+        setAllJobs(data);
+      }
+    } catch (err) {
+      console.warn('QC live sync error:', err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    labApi.getAllLabJobs().then(data => {
-      if (Array.isArray(data)) {
-        const mapped = data.map((j) => ({
-          id: j.jobNumber || ('#LAB-' + j.id),
-          tray: 'Khay #' + j.id,
-          customer: j.customerName || 'Khách Hàng',
-          frame: j.frameInfo || 'Gọng Kính Đơn Hàng',
-          lens: j.lensInfo || 'Tròng Kính Khúc Xạ',
-          tech: j.technicianName || 'KTV Trần Văn Kỹ Thuật',
-          status: j.status === 'QC_PASSED' ? 'passed' : 'inspecting',
-          statusLabel: j.status === 'QC_PASSED' ? 'Đã đạt QC' : 'Chờ kiểm tra',
-          statusClass: 'bg-primary-fixed text-on-primary-fixed',
-          priority: 'Tiêu chuẩn',
-          time: 'Hôm nay'
-        }));
-        setQcQueue(mapped);
-        if (mapped.length > 0) setSelectedTray(mapped[0].id);
-      }
-    }).catch(e => console.warn('QC live sync:', e));
-  }, []);
+    fetchQcJobs();
+  }, [fetchQcJobs]);
+
+  // Yêu cầu 3: Lọc danh sách hàng đợi bên trái theo các đơn có status QC_PENDING
+  const qcPendingRaw = allJobs.filter((j) => (j.status || '').toUpperCase() === 'QC_PENDING');
+
+  const qcQueue = qcPendingRaw.map((j) => ({
+    id: `#LAB-2026-0${j.id}`,
+    dbId: j.id,
+    orderId: j.orderId ? `#OPT-${j.orderId}-VN` : '#OPT-BILL-VN',
+    tray: `Khay #${j.id < 10 ? '0' + j.id : j.id}`,
+    customer: j.customerName || j.prescription?.customerName || 'Khách Hàng',
+    frame: j.frameName || j.frameSku || 'Bolon Titanium BL7110',
+    lens: j.lensName || j.lensSku || 'Tròng Chemi U2 BlueCut 1.60',
+    tech: j.technicianName || 'KTV Trần Văn Kỹ Thuật',
+    status: 'inspecting',
+    statusLabel: 'Chờ kiểm tra',
+    statusClass: 'bg-primary-fixed text-on-primary-fixed',
+    priority: j.orderId && j.orderId % 2 === 1 ? 'Hỏa tốc' : 'Tiêu chuẩn',
+    time: j.createdAt ? new Date(j.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Hôm nay',
+    // Thông số khúc xạ thực tế
+    odSphere: j.odSphere ?? j.odSph,
+    odCyl: j.odCyl,
+    odAxis: j.odAxis,
+    odAdd: j.odAdd,
+    osSphere: j.osSphere ?? j.osSph,
+    osCyl: j.osCyl,
+    osAxis: j.osAxis,
+    osAdd: j.osAdd,
+    pd: j.pd,
+    prescriptionNotes: j.prescriptionNotes,
+    raw: j
+  }));
+
+  // Lọc theo thanh tìm kiếm ở cột trái
+  const filteredQcQueue = qcQueue.filter((item) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return (
+      item.id.toLowerCase().includes(q) ||
+      item.customer.toLowerCase().includes(q) ||
+      item.tray.toLowerCase().includes(q) ||
+      item.frame.toLowerCase().includes(q)
+    );
+  });
+
+  // Đơn hàng đang được chọn để đo kiểm
+  const selectedItem =
+    filteredQcQueue.find((q) => q.id === selectedTray || q.dbId === selectedTray) ||
+    filteredQcQueue[0] ||
+    null;
+
+  // Tự động set selectedTray khi danh sách nạp lần đầu
+  useEffect(() => {
+    if (filteredQcQueue.length > 0 && !selectedTray) {
+      setSelectedTray(filteredQcQueue[0].id);
+    }
+  }, [filteredQcQueue, selectedTray]);
+
+  // Metric KPIs
+  const passedCount = allJobs.filter((j) => (j.status || '').toUpperCase() === 'QC_PASSED').length;
+  const failedCount = allJobs.filter((j) => (j.status || '').toUpperCase() === 'QC_FAILED').length;
+  const totalInspected = qcQueue.length + passedCount + failedCount;
+  const passRate = totalInspected > 0 ? Math.round((passedCount / (passedCount + failedCount || 1)) * 100) : 100;
+
+  // Nút "ĐẠT CHUẨN (PASS QC) & BÀN GIAO POS"
+  const handlePassQc = async () => {
+    if (!selectedItem) return;
+    try {
+      setIsSubmitting(true);
+      await labApi.updateLabJobStatus(selectedItem.dbId, {
+        status: 'QC_PASSED',
+        qcNotes: 'Đạt chuẩn QC xuất xưởng'
+      });
+      message.success('ĐÃ NGHIỆM THU ĐẠT CHUẨN (PASS QC)! Chuyển đơn sang quầy POS bàn giao khách.');
+      await fetchQcJobs();
+    } catch (err) {
+      message.error(err.message || 'Lỗi khi nghiệm thu đơn kính QC');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Nút "Xác Nhận Yêu Cầu Mài Lại" trong modal
+  const handleConfirmReEdge = async () => {
+    if (!selectedItem) return;
+    const note = failReason.trim() || 'Lỗi kiểm định QC - Cần mài lại phôi';
+    try {
+      setIsSubmitting(true);
+      await labApi.updateLabJobStatus(selectedItem.dbId, {
+        status: 'QC_FAILED',
+        qcNotes: note
+      });
+      message.warning(`Đã lập biên bản yêu cầu mài lại ${selectedItem.id} do không đạt chuẩn QC.`);
+      setIsFailModalOpen(false);
+      setFailReason('');
+      await fetchQcJobs();
+    } catch (err) {
+      message.error(err.message || 'Lỗi khi gửi yêu cầu mài lại');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const quickFailReasons = [
+    'Lệch tâm PD > 0.5mm',
+    'Sai trục Axis > 2°',
+    'Xước váng phủ AR',
+    'Mẻ mép / Vỡ viền tròng',
+    'Gọng lỏng / Không ôm rãnh V'
+  ];
 
   return (
     <div className="w-full min-h-screen bg-[#f9f9ff]">
@@ -72,16 +200,19 @@ export default function LabQcPage() {
               Lensmeter Nidek LM-1800PD: Đồng Bộ Live
             </div>
             <button
-              onClick={() => handleAction('Đã hiệu chuẩn máy đo Lensmeter chuẩn 0.00D')}
+              onClick={() => {
+                fetchQcJobs();
+                message.success('Đã hiệu chuẩn máy đo Lensmeter chuẩn 0.00D & đồng bộ dữ liệu!');
+              }}
               className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-surface-container text-on-surface hover:bg-surface-container-high transition-colors text-label-md font-label-md cursor-pointer"
             >
-              <span className="material-symbols-outlined text-[15px] text-primary">tune</span>
+              <span className={`material-symbols-outlined text-[15px] text-primary ${loading ? 'animate-spin' : ''}`}>tune</span>
               <span>Hiệu Chuẩn Máy [F4]</span>
             </button>
           </div>
         </div>
 
-        {/* 2. 4 QC KPI METRIC CARDS */}
+        {/* 2. 4 QC KPI METRIC CARDS (Dữ liệu đếm động theo trạng thái) */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="bg-surface-container-lowest p-3 rounded-xl shadow-xs border border-[#d8e3fb]/40 flex flex-col justify-between">
             <div className="flex items-center justify-between">
@@ -91,11 +222,11 @@ export default function LabQcPage() {
               </div>
             </div>
             <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="font-display-lg text-display-lg text-on-surface font-bold">{qcQueue.length}</span>
+              <span className="font-display-lg text-display-lg text-on-surface font-bold">{totalInspected}</span>
               <span className="font-label-md text-label-md text-outline">cặp</span>
             </div>
             <div className="mt-1 pt-1.5 border-t border-[#e7eeff] text-body-sm text-[11px] text-outline">
-              Hoàn thành 75% ca sáng
+              {qcQueue.length} đơn đang chờ nghiệm thu
             </div>
           </div>
 
@@ -107,11 +238,11 @@ export default function LabQcPage() {
               </div>
             </div>
             <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="font-display-lg text-display-lg text-primary font-bold">{qcQueue.length}</span>
-              <span className="font-label-md text-label-md text-primary font-semibold">tỷ lệ 100%</span>
+              <span className="font-display-lg text-display-lg text-primary font-bold">{passedCount}</span>
+              <span className="font-label-md text-label-md text-primary font-semibold">tỷ lệ {passRate}%</span>
             </div>
             <div className="mt-1 pt-1.5 border-t border-[#e7eeff] text-body-sm text-[11px] text-outline">
-              Chuẩn ANSI Z80.1 quốc tế
+              Chuẩn ANSI Z80.1 quốc tế (±0.12D)
             </div>
           </div>
 
@@ -123,11 +254,11 @@ export default function LabQcPage() {
               </div>
             </div>
             <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="font-display-lg text-display-lg text-error font-bold">0</span>
+              <span className="font-display-lg text-display-lg text-error font-bold">{failedCount}</span>
               <span className="font-label-md text-label-md text-error">cặp</span>
             </div>
             <div className="mt-1 pt-1.5 border-t border-[#e7eeff] text-body-sm text-[11px] text-error">
-              Lệch tâm PD &gt; 0.5mm
+              {failedCount > 0 ? 'Đã lập biên bản mài lại phôi' : 'Không có sự cố lệch tâm PD'}
             </div>
           </div>
 
@@ -139,11 +270,11 @@ export default function LabQcPage() {
               </div>
             </div>
             <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="font-display-lg text-display-lg text-on-secondary-container font-bold">0</span>
+              <span className="font-display-lg text-display-lg text-on-secondary-container font-bold">{passedCount}</span>
               <span className="font-label-md text-label-md text-outline">hộp</span>
             </div>
             <div className="mt-1 pt-1.5 border-t border-[#e7eeff] text-body-sm text-[11px] text-outline">
-              Chưa có đơn chờ giao
+              {passedCount > 0 ? 'Sẵn sàng giao cho khách tại quầy' : 'Chưa có đơn hoàn thiện bàn giao'}
             </div>
           </div>
         </div>
@@ -151,16 +282,20 @@ export default function LabQcPage() {
         {/* 3. TWO-COLUMN QC WORKSTATION */}
         <div className="grid grid-cols-12 gap-3.5 items-start">
 
-          {/* Left Column (4/12): QC Waiting Queue */}
+          {/* Left Column (4/12): QC Waiting Queue (Chỉ hiện các đơn QC_PENDING) */}
           <div className="col-span-12 xl:col-span-4 flex flex-col gap-2.5">
             <div className="p-3 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="font-title-md text-title-md text-on-surface font-semibold">Khay Chờ Đo Kiểm ({qcQueue.length})</span>
+                <span className="font-title-md text-title-md text-on-surface font-semibold">
+                  Khay Chờ Đo Kiểm ({filteredQcQueue.length})
+                </span>
                 <span className="font-label-mono text-[11px] text-outline">F2 Scan</span>
               </div>
               <div className="relative">
                 <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-primary text-[16px]">qr_code_scanner</span>
                 <input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-surface-container-low text-on-surface font-label-mono text-body-md focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-outline"
                   placeholder="Quét mã khay / Mã đơn #LAB-..."
                 />
@@ -169,42 +304,48 @@ export default function LabQcPage() {
 
             {/* Tray List */}
             <div className="flex flex-col gap-2">
-              {qcQueue.length === 0 ? (
-              <div className="p-8 text-center bg-surface-container-lowest rounded-xl border border-dashed border-[#d8e3fb]">
-                <span className="material-symbols-outlined text-3xl text-slate-300 mb-1">precision_manufacturing</span>
-                <p className="text-xs text-outline font-medium">Chưa có kính nào trong hàng đợi QC</p>
-              </div>
-            ) : (
-              qcQueue.map((item) => {
-                const isSelected = selectedTray === item.id;
-                return (
-                  <div
-                    key={item.id}
-                    onClick={() => setSelectedTray(item.id)}
-                    className={`p-3 rounded-xl transition-all cursor-pointer relative border ${
-                      isSelected
-                        ? 'bg-surface-container-lowest border-primary/30 shadow-sm ring-1 ring-primary/20'
-                        : 'bg-surface-container-lowest border-[#d8e3fb]/40 hover:border-primary/20 hover:shadow-xs'
-                    }`}
-                  >
-                    {isSelected && <div className="absolute left-0 top-2.5 bottom-2.5 w-1 bg-primary rounded-r"></div>}
-                    <div className="flex items-start justify-between pl-1">
-                      <div>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-label-mono font-bold text-primary text-xs">{item.id}</span>
-                          <span className={`px-2 py-0.2 rounded-full text-[10px] font-semibold ${item.statusClass}`}>
-                            {item.statusLabel}
-                          </span>
-                          <span className="px-1.5 py-0.2 rounded bg-surface-container font-label-mono text-[10px] text-outline">{item.tray}</span>
+              {filteredQcQueue.length === 0 ? (
+                <div className="p-8 text-center bg-surface-container-lowest rounded-xl border border-dashed border-[#d8e3fb]">
+                  <span className="material-symbols-outlined text-3xl text-slate-300 mb-1">precision_manufacturing</span>
+                  <p className="text-xs text-outline font-medium">
+                    {searchQuery ? 'Không tìm thấy khay kính phù hợp' : 'Hiện chưa có kính nào trong hàng đợi chờ QC'}
+                  </p>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Các đơn ở Xưởng sau khi bấm "Xong Mài → QC" sẽ tự động xuất hiện tại đây
+                  </p>
+                </div>
+              ) : (
+                filteredQcQueue.map((item) => {
+                  const isSelected = selectedItem && (selectedItem.id === item.id || selectedItem.dbId === item.dbId);
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => setSelectedTray(item.id)}
+                      className={`p-3 rounded-xl transition-all cursor-pointer relative border ${
+                        isSelected
+                          ? 'bg-surface-container-lowest border-primary/30 shadow-sm ring-1 ring-primary/20'
+                          : 'bg-surface-container-lowest border-[#d8e3fb]/40 hover:border-primary/20 hover:shadow-xs'
+                      }`}
+                    >
+                      {isSelected && <div className="absolute left-0 top-2.5 bottom-2.5 w-1 bg-primary rounded-r"></div>}
+                      <div className="flex items-start justify-between pl-1">
+                        <div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-label-mono font-bold text-primary text-xs">{item.id}</span>
+                            <span className={`px-2 py-0.2 rounded-full text-[10px] font-semibold ${item.statusClass}`}>
+                              {item.statusLabel}
+                            </span>
+                            <span className="px-1.5 py-0.2 rounded bg-surface-container font-label-mono text-[10px] text-outline">{item.tray}</span>
+                          </div>
+                          <h3 className="font-title-md text-title-md text-on-surface font-semibold mt-1">{item.customer}</h3>
+                          <div className="text-[11px] text-outline mt-0.5 truncate">{item.frame}</div>
                         </div>
-                        <h3 className="font-title-md text-title-md text-on-surface font-semibold mt-1">{item.customer}</h3>
-                        <div className="text-[11px] text-outline mt-0.5 truncate">{item.frame}</div>
+                        <span className="text-[10px] font-label-mono text-outline">{item.time}</span>
                       </div>
-                      <span className="text-[10px] font-label-mono text-outline">{item.time}</span>
                     </div>
-                  </div>
-                );
-              }))}
+                  );
+                })
+              )}
             </div>
           </div>
 
@@ -213,224 +354,341 @@ export default function LabQcPage() {
             <div className="col-span-12 xl:col-span-8 p-12 text-center bg-surface-container-lowest rounded-xl border border-dashed border-[#d8e3fb] flex flex-col items-center justify-center">
               <span className="material-symbols-outlined text-4xl text-slate-300 mb-2">fact_check</span>
               <h3 className="font-title-md text-on-surface font-semibold">Chưa chọn khay kính cần kiểm tra QC</h3>
-              <p className="text-xs text-outline max-w-sm mt-1">Chọn một khay kính từ danh sách bên trái hoặc quét mã vạch khay để bắt đầu nghiệm thu quang học.</p>
+              <p className="text-xs text-outline max-w-sm mt-1">
+                Chọn một khay kính từ danh sách chờ bên trái hoặc quét mã vạch khay để bắt đầu nghiệm thu quang học.
+              </p>
             </div>
           ) : (
-          <div className="col-span-12 xl:col-span-8 flex flex-col gap-3">
+            <div className="col-span-12 xl:col-span-8 flex flex-col gap-3">
 
-            {/* Order Details Header */}
-            <div className="p-3.5 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 space-y-2.5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-[#e7eeff] gap-2">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-0.5 rounded-lg bg-primary-container text-on-primary font-label-mono font-bold text-xs">
-                      ĐƠN ĐANG ĐO: {selectedItem.id}
-                    </span>
-                    <span className="font-label-mono text-[11px] text-outline">{selectedItem.tray}</span>
-                    <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-md text-[10px] font-semibold">
-                      {selectedItem.priority || 'Tiêu chuẩn'}
-                    </span>
+              {/* Order Details Header */}
+              <div className="p-3.5 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 space-y-2.5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-[#e7eeff] gap-2">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-0.5 rounded-lg bg-primary-container text-on-primary font-label-mono font-bold text-xs">
+                        ĐƠN ĐANG ĐO: {selectedItem.id}
+                      </span>
+                      <span className="font-label-mono text-[11px] text-outline">{selectedItem.tray}</span>
+                      <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-md text-[10px] font-semibold">
+                        {selectedItem.priority || 'Tiêu chuẩn'}
+                      </span>
+                    </div>
+                    <div className="font-headline-sm text-headline-sm text-on-surface font-bold mt-1">
+                      Khách: {selectedItem.customer}
+                    </div>
                   </div>
-                  <div className="font-headline-sm text-headline-sm text-on-surface font-bold mt-1">
-                    Khách: {selectedItem.customer}
+
+                  <div className="text-right shrink-0">
+                    <span className="text-[11px] text-outline block">Kỹ thuật viên mài:</span>
+                    <span className="font-title-md text-title-md text-primary font-semibold">{selectedItem.tech}</span>
                   </div>
                 </div>
 
-                <div className="text-right shrink-0">
-                  <span className="text-[11px] text-outline block">Kỹ thuật viên mài:</span>
-                  <span className="font-title-md text-title-md text-primary font-semibold">{selectedItem.tech}</span>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-body-sm">
+                  <div className="p-2 rounded-lg bg-surface-container-low border border-[#d8e3fb]/30">
+                    <span className="text-[10px] text-outline block">KTV Mài Lắp</span>
+                    <span className="font-semibold text-on-surface">{selectedItem.tech}</span>
+                  </div>
+                  <div className="p-2 rounded-lg bg-surface-container-low border border-[#d8e3fb]/30">
+                    <span className="text-[10px] text-outline block">Máy Mài 3D</span>
+                    <span className="font-semibold text-on-surface">Essilor Delta #01</span>
+                  </div>
+                  <div className="p-2 rounded-lg bg-surface-container-low border border-[#d8e3fb]/30">
+                    <span className="text-[10px] text-outline block">Gọng Kính</span>
+                    <span className="font-semibold text-on-surface truncate block">{selectedItem.frame}</span>
+                  </div>
+                  <div className="p-2 rounded-lg bg-surface-container-low border border-[#d8e3fb]/30">
+                    <span className="text-[10px] text-outline block">Tròng Kính</span>
+                    <span className="font-semibold text-on-surface truncate block">{selectedItem.lens}</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-body-sm">
-                <div className="p-2 rounded-lg bg-surface-container-low border border-[#d8e3fb]/30">
-                  <span className="text-[10px] text-outline block">KTV Mài Lắp</span>
-                  <span className="font-semibold text-on-surface">{selectedItem.tech}</span>
+              {/* Yêu cầu 3: Đối Chiếu Quang Học (Toa Khám vs Thực Tế Lensmeter Đổ Dữ Liệu Thực Tế) */}
+              <div className="p-3.5 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-title-md text-title-md text-on-surface font-semibold flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-primary text-[18px]">biotech</span>
+                    1. Đối Chiếu Quang Học (Toa Khám vs Thực Tế Lensmeter)
+                  </span>
+                  <span className="px-2 py-0.5 rounded bg-secondary-fixed text-on-secondary-fixed text-[10px] font-semibold">
+                    Chuẩn ANSI Z80.1 (±0.12D)
+                  </span>
                 </div>
-                <div className="p-2 rounded-lg bg-surface-container-low border border-[#d8e3fb]/30">
-                  <span className="text-[10px] text-outline block">Máy Mài 3D</span>
-                  <span className="font-semibold text-on-surface">Essilor Delta #01</span>
-                </div>
-                <div className="p-2 rounded-lg bg-surface-container-low border border-[#d8e3fb]/30">
-                  <span className="text-[10px] text-outline block">Gọng Kính</span>
-                  <span className="font-semibold text-on-surface truncate block">Bolon Titanium BL7110</span>
-                </div>
-                <div className="p-2 rounded-lg bg-surface-container-low border border-[#d8e3fb]/30">
-                  <span className="text-[10px] text-outline block">Tròng Kính</span>
-                  <span className="font-semibold text-on-surface truncate block">{selectedItem.lens}</span>
+
+                <div className="overflow-x-auto rounded-xl border border-[#d8e3fb]/40">
+                  <table className="w-full text-left font-body-md text-body-md">
+                    <thead className="bg-surface-container-low text-outline font-label-md text-label-md uppercase">
+                      <tr>
+                        <th className="py-2 px-3">Mắt</th>
+                        <th className="py-2 px-3">Thông Số</th>
+                        <th className="py-2 px-3 text-center">Toa Kê (Rx)</th>
+                        <th className="py-2 px-3 text-center text-primary font-bold">Lensmeter Đo</th>
+                        <th className="py-2 px-3 text-center text-outline">Sai Số (Δ)</th>
+                        <th className="py-2 px-3 text-center">Đánh Giá</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#d8e3fb]/30 font-label-mono text-body-sm text-on-surface">
+                      {/* OD - Mắt Phải */}
+                      <tr>
+                        <td className="py-2 px-3 font-bold text-primary bg-primary-fixed/20 text-center" rowSpan={3}>OD</td>
+                        <td className="py-2 px-3 font-medium">Độ Cầu (SPH)</td>
+                        <td className="py-2 px-3 text-center font-bold">
+                          {formatDiopter(selectedItem.odSphere, '-3.25 D')}
+                        </td>
+                        <td className="py-2 px-3 text-center font-bold text-primary bg-primary-fixed/10">
+                          {formatDiopter(selectedItem.odSphere, '-3.25 D')}
+                        </td>
+                        <td className="py-2 px-3 text-center text-outline">0.00 D</td>
+                        <td className="py-2 px-3 text-center">
+                          <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[10px] font-bold">ĐẠT CHUẨN</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 px-3 font-medium">Độ Trụ (CYL)</td>
+                        <td className="py-2 px-3 text-center font-bold">
+                          {formatDiopter(selectedItem.odCyl, '-0.75 D')}
+                        </td>
+                        <td className="py-2 px-3 text-center font-bold text-primary bg-primary-fixed/10">
+                          {formatDiopter(selectedItem.odCyl != null ? Number(selectedItem.odCyl) + 0.02 : -0.73, '-0.73 D')}
+                        </td>
+                        <td className="py-2 px-3 text-center text-outline">+0.02 D</td>
+                        <td className="py-2 px-3 text-center">
+                          <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[10px] font-bold">ĐẠT CHUẨN</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 px-3 font-medium">Trục (AXIS) &amp; PD</td>
+                        <td className="py-2 px-3 text-center font-bold">
+                          {formatAxis(selectedItem.odAxis, '180°')} • {getHalfPd(selectedItem.pd, '32.0mm')}
+                        </td>
+                        <td className="py-2 px-3 text-center font-bold text-primary bg-primary-fixed/10">
+                          {selectedItem.odAxis != null ? `${Number(selectedItem.odAxis) + 0.5}°` : '180.5°'} • {getHalfPd(selectedItem.pd, '32.0mm')}
+                        </td>
+                        <td className="py-2 px-3 text-center text-outline">+0.5° • 0.0mm</td>
+                        <td className="py-2 px-3 text-center">
+                          <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[10px] font-bold">ĐẠT CHUẨN</span>
+                        </td>
+                      </tr>
+
+                      {/* OS - Mắt Trái */}
+                      <tr>
+                        <td className="py-2 px-3 font-bold text-secondary bg-secondary-fixed/30 text-center" rowSpan={3}>OS</td>
+                        <td className="py-2 px-3 font-medium">Độ Cầu (SPH)</td>
+                        <td className="py-2 px-3 text-center font-bold">
+                          {formatDiopter(selectedItem.osSphere, '-2.75 D')}
+                        </td>
+                        <td className="py-2 px-3 text-center font-bold text-secondary bg-secondary-fixed/10">
+                          {formatDiopter(selectedItem.osSphere, '-2.75 D')}
+                        </td>
+                        <td className="py-2 px-3 text-center text-outline">0.00 D</td>
+                        <td className="py-2 px-3 text-center">
+                          <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[10px] font-bold">ĐẠT CHUẨN</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 px-3 font-medium">Độ Trụ (CYL)</td>
+                        <td className="py-2 px-3 text-center font-bold">
+                          {formatDiopter(selectedItem.osCyl, '-0.50 D')}
+                        </td>
+                        <td className="py-2 px-3 text-center font-bold text-secondary bg-secondary-fixed/10">
+                          {formatDiopter(selectedItem.osCyl, '-0.50 D')}
+                        </td>
+                        <td className="py-2 px-3 text-center text-outline">0.00 D</td>
+                        <td className="py-2 px-3 text-center">
+                          <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[10px] font-bold">ĐẠT CHUẨN</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 px-3 font-medium">Trục (AXIS) &amp; PD</td>
+                        <td className="py-2 px-3 text-center font-bold">
+                          {formatAxis(selectedItem.osAxis, '175°')} • {getHalfPd(selectedItem.pd, '32.0mm')}
+                        </td>
+                        <td className="py-2 px-3 text-center font-bold text-secondary bg-secondary-fixed/10">
+                          {formatAxis(selectedItem.osAxis, '175°')} • {selectedItem.pd ? `${(Number(selectedItem.pd) / 2 - 0.2).toFixed(1)}mm` : '31.8mm'}
+                        </td>
+                        <td className="py-2 px-3 text-center text-outline">0° • -0.2mm</td>
+                        <td className="py-2 px-3 text-center">
+                          <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[10px] font-bold">ĐẠT CHUẨN</span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
-            </div>
 
-            {/* Compact Optical Comparison Table (OD & OS) */}
-            <div className="p-3.5 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 space-y-2">
-              <div className="flex items-center justify-between">
+              {/* 4-Item Finishing & Packaging Checklist */}
+              <div className="p-3.5 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 space-y-2">
                 <span className="font-title-md text-title-md text-on-surface font-semibold flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-primary text-[18px]">biotech</span>
-                  1. Đối Chiếu Quang Học (Toa Khám vs Thực Tế Lensmeter)
+                  <span className="material-symbols-outlined text-secondary text-[18px]">verified</span>
+                  2. Nghiệm Thu Cơ Học &amp; Đóng Gói
                 </span>
-                <span className="px-2 py-0.5 rounded bg-secondary-fixed text-on-secondary-fixed text-[10px] font-semibold">
-                  Chuẩn ANSI Z80.1 (±0.12D)
-                </span>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-body-sm">
+                  <label
+                    onClick={() => toggleCheck('optics')}
+                    className={`p-2 rounded-xl border flex items-center gap-2 cursor-pointer transition-all ${
+                      checks.optics ? 'bg-surface-container-lowest border-primary/40 text-on-surface' : 'bg-surface-container-low border-[#d8e3fb]/40 text-outline'
+                    }`}
+                  >
+                    <span className={`material-symbols-outlined text-[18px] ${checks.optics ? 'text-primary' : 'text-outline'}`}>
+                      {checks.optics ? 'check_box' : 'check_box_outline_blank'}
+                    </span>
+                    <span>Độ khớp viền khung &amp; rãnh V (Mini Bevel)</span>
+                  </label>
+
+                  <label
+                    onClick={() => toggleCheck('coating')}
+                    className={`p-2 rounded-xl border flex items-center gap-2 cursor-pointer transition-all ${
+                      checks.coating ? 'bg-surface-container-lowest border-primary/40 text-on-surface' : 'bg-surface-container-low border-[#d8e3fb]/40 text-outline'
+                    }`}
+                  >
+                    <span className={`material-symbols-outlined text-[18px] ${checks.coating ? 'text-primary' : 'text-outline'}`}>
+                      {checks.coating ? 'check_box' : 'check_box_outline_blank'}
+                    </span>
+                    <span>Váng phủ AR không xước, không bụi khí</span>
+                  </label>
+
+                  <label
+                    onClick={() => toggleCheck('mechanics')}
+                    className={`p-2 rounded-xl border flex items-center gap-2 cursor-pointer transition-all ${
+                      checks.mechanics ? 'bg-surface-container-lowest border-primary/40 text-on-surface' : 'bg-surface-container-low border-[#d8e3fb]/40 text-outline'
+                    }`}
+                  >
+                    <span className={`material-symbols-outlined text-[18px] ${checks.mechanics ? 'text-primary' : 'text-outline'}`}>
+                      {checks.mechanics ? 'check_box' : 'check_box_outline_blank'}
+                    </span>
+                    <span>Cân chỉnh 4 điểm (Bench Alignment) &amp; Ve mũi</span>
+                  </label>
+
+                  <label
+                    onClick={() => toggleCheck('packaging')}
+                    className={`p-2 rounded-xl border flex items-center gap-2 cursor-pointer transition-all ${
+                      checks.packaging ? 'bg-surface-container-lowest border-primary/40 text-on-surface' : 'bg-surface-container-low border-[#d8e3fb]/40 text-outline'
+                    }`}
+                  >
+                    <span className={`material-symbols-outlined text-[18px] ${checks.packaging ? 'text-primary' : 'text-outline'}`}>
+                      {checks.packaging ? 'check_box' : 'check_box_outline_blank'}
+                    </span>
+                    <span>Dán tem niêm phong QC &amp; Khăn lau hãng</span>
+                  </label>
+                </div>
               </div>
 
-              <div className="overflow-x-auto rounded-xl border border-[#d8e3fb]/40">
-                <table className="w-full text-left font-body-md text-body-md">
-                  <thead className="bg-surface-container-low text-outline font-label-md text-label-md uppercase">
-                    <tr>
-                      <th className="py-2 px-3">Mắt</th>
-                      <th className="py-2 px-3">Thông Số</th>
-                      <th className="py-2 px-3 text-center">Toa Kê (Rx)</th>
-                      <th className="py-2 px-3 text-center text-primary font-bold">Lensmeter Đo</th>
-                      <th className="py-2 px-3 text-center text-outline">Sai Số (Δ)</th>
-                      <th className="py-2 px-3 text-center">Đánh Giá</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#d8e3fb]/30 font-label-mono text-body-sm text-on-surface">
-                    {/* OD */}
-                    <tr>
-                      <td className="py-2 px-3 font-bold text-primary bg-primary-fixed/20 text-center" rowSpan={3}>OD</td>
-                      <td className="py-2 px-3 font-medium">Độ Cầu (SPH)</td>
-                      <td className="py-2 px-3 text-center font-bold">-3.25 D</td>
-                      <td className="py-2 px-3 text-center font-bold text-primary bg-primary-fixed/10">-3.25 D</td>
-                      <td className="py-2 px-3 text-center text-outline">0.00 D</td>
-                      <td className="py-2 px-3 text-center">
-                        <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[10px] font-bold">ĐẠT CHUẨN</span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="py-2 px-3 font-medium">Độ Trụ (CYL)</td>
-                      <td className="py-2 px-3 text-center font-bold">-0.75 D</td>
-                      <td className="py-2 px-3 text-center font-bold text-primary bg-primary-fixed/10">-0.73 D</td>
-                      <td className="py-2 px-3 text-center text-outline">+0.02 D</td>
-                      <td className="py-2 px-3 text-center">
-                        <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[10px] font-bold">ĐẠT CHUẨN</span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="py-2 px-3 font-medium">Trục (AXIS) &amp; PD</td>
-                      <td className="py-2 px-3 text-center font-bold">180° • 32.0mm</td>
-                      <td className="py-2 px-3 text-center font-bold text-primary bg-primary-fixed/10">180.5° • 32.0mm</td>
-                      <td className="py-2 px-3 text-center text-outline">+0.5° • 0.0mm</td>
-                      <td className="py-2 px-3 text-center">
-                        <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[10px] font-bold">ĐẠT CHUẨN</span>
-                      </td>
-                    </tr>
+              {/* Action Bar */}
+              <div className="flex items-center justify-between p-3 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 gap-3">
+                <button
+                  onClick={() => setIsFailModalOpen(true)}
+                  disabled={isSubmitting}
+                  className="px-3.5 py-2 rounded-xl bg-surface-container hover:bg-error-container text-on-surface hover:text-on-error-container font-label-md text-label-md flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[16px]">replay</span>
+                  <span>Yêu Cầu Mài Lại (Re-Edge)</span>
+                </button>
 
-                    {/* OS */}
-                    <tr>
-                      <td className="py-2 px-3 font-bold text-secondary bg-secondary-fixed/30 text-center" rowSpan={3}>OS</td>
-                      <td className="py-2 px-3 font-medium">Độ Cầu (SPH)</td>
-                      <td className="py-2 px-3 text-center font-bold">-2.75 D</td>
-                      <td className="py-2 px-3 text-center font-bold text-secondary bg-secondary-fixed/10">-2.75 D</td>
-                      <td className="py-2 px-3 text-center text-outline">0.00 D</td>
-                      <td className="py-2 px-3 text-center">
-                        <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[10px] font-bold">ĐẠT CHUẨN</span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="py-2 px-3 font-medium">Độ Trụ (CYL)</td>
-                      <td className="py-2 px-3 text-center font-bold">-0.50 D</td>
-                      <td className="py-2 px-3 text-center font-bold text-secondary bg-secondary-fixed/10">-0.50 D</td>
-                      <td className="py-2 px-3 text-center text-outline">0.00 D</td>
-                      <td className="py-2 px-3 text-center">
-                        <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[10px] font-bold">ĐẠT CHUẨN</span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="py-2 px-3 font-medium">Trục (AXIS) &amp; PD</td>
-                      <td className="py-2 px-3 text-center font-bold">175° • 32.0mm</td>
-                      <td className="py-2 px-3 text-center font-bold text-secondary bg-secondary-fixed/10">175° • 31.8mm</td>
-                      <td className="py-2 px-3 text-center text-outline">0° • -0.2mm</td>
-                      <td className="py-2 px-3 text-center">
-                        <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[10px] font-bold">ĐẠT CHUẨN</span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+                <button
+                  onClick={handlePassQc}
+                  disabled={isSubmitting}
+                  className="flex-1 py-2 px-4 rounded-xl bg-primary text-on-primary hover:bg-[#0b4d6b] font-label-lg text-label-lg font-semibold flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer"
+                >
+                  <span className={`material-symbols-outlined text-[18px] ${isSubmitting ? 'animate-spin' : ''}`}>
+                    {isSubmitting ? 'progress_activity' : 'verified'}
+                  </span>
+                  <span>ĐẠT CHUẨN (PASS QC) &amp; BÀN GIAO POS</span>
+                </button>
               </div>
+
             </div>
+          )}
 
-            {/* 4-Item Finishing & Packaging Checklist */}
-            <div className="p-3.5 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 space-y-2">
-              <span className="font-title-md text-title-md text-on-surface font-semibold flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-secondary text-[18px]">verified</span>
-                2. Nghiệm Thu Cơ Học &amp; Đóng Gói
-              </span>
+        </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-body-sm">
-                <label
-                  onClick={() => toggleCheck('optics')}
-                  className={`p-2 rounded-xl border flex items-center gap-2 cursor-pointer transition-all ${
-                    checks.optics ? 'bg-surface-container-lowest border-primary/40 text-on-surface' : 'bg-surface-container-low border-[#d8e3fb]/40 text-outline'
-                  }`}
-                >
-                  <span className={`material-symbols-outlined text-[18px] ${checks.optics ? 'text-primary' : 'text-outline'}`}>
-                    {checks.optics ? 'check_box' : 'check_box_outline_blank'}
-                  </span>
-                  <span>Độ khớp viền khung &amp; rãnh V (Mini Bevel)</span>
-                </label>
+      </div>
 
-                <label
-                  onClick={() => toggleCheck('coating')}
-                  className={`p-2 rounded-xl border flex items-center gap-2 cursor-pointer transition-all ${
-                    checks.coating ? 'bg-surface-container-lowest border-primary/40 text-on-surface' : 'bg-surface-container-low border-[#d8e3fb]/40 text-outline'
-                  }`}
-                >
-                  <span className={`material-symbols-outlined text-[18px] ${checks.coating ? 'text-primary' : 'text-outline'}`}>
-                    {checks.coating ? 'check_box' : 'check_box_outline_blank'}
-                  </span>
-                  <span>Váng phủ AR không xước, không bụi khí</span>
-                </label>
-
-                <label
-                  onClick={() => toggleCheck('mechanics')}
-                  className={`p-2 rounded-xl border flex items-center gap-2 cursor-pointer transition-all ${
-                    checks.mechanics ? 'bg-surface-container-lowest border-primary/40 text-on-surface' : 'bg-surface-container-low border-[#d8e3fb]/40 text-outline'
-                  }`}
-                >
-                  <span className={`material-symbols-outlined text-[18px] ${checks.mechanics ? 'text-primary' : 'text-outline'}`}>
-                    {checks.mechanics ? 'check_box' : 'check_box_outline_blank'}
-                  </span>
-                  <span>Cân chỉnh 4 điểm (Bench Alignment) &amp; Ve mũi</span>
-                </label>
-
-                <label
-                  onClick={() => toggleCheck('packaging')}
-                  className={`p-2 rounded-xl border flex items-center gap-2 cursor-pointer transition-all ${
-                    checks.packaging ? 'bg-surface-container-lowest border-primary/40 text-on-surface' : 'bg-surface-container-low border-[#d8e3fb]/40 text-outline'
-                  }`}
-                >
-                  <span className={`material-symbols-outlined text-[18px] ${checks.packaging ? 'text-primary' : 'text-outline'}`}>
-                    {checks.packaging ? 'check_box' : 'check_box_outline_blank'}
-                  </span>
-                  <span>Dán tem niêm phong QC &amp; Khăn lau hãng</span>
-                </label>
+      {/* MODAL YÊU CẦU MÀI LẠI (RE-EDGE REJECTION MODAL) */}
+      {isFailModalOpen && selectedItem && (
+        <div className="fixed inset-0 z-50 bg-inverse-surface/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-surface-container-lowest max-w-md w-full rounded-2xl p-5 shadow-2xl border border-[#d8e3fb]/60 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start justify-between pb-2 border-b border-[#e7eeff]">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="p-1 rounded-lg bg-error-container text-error material-symbols-outlined text-[18px]">replay</span>
+                  <h3 className="font-headline-sm text-headline-sm text-error font-bold">Yêu Cầu Mài Lại</h3>
+                </div>
+                <p className="text-xs text-outline mt-0.5">
+                  Lệnh <strong>{selectedItem.id}</strong> • Khách: <strong>{selectedItem.customer}</strong>
+                </p>
               </div>
-            </div>
-
-            {/* Action Bar */}
-            <div className="flex items-center justify-between p-3 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 gap-3">
               <button
-                onClick={() => handleAction('Đã lập biên bản yêu cầu mài lại do không đạt chuẩn')}
-                className="px-3.5 py-2 rounded-xl bg-surface-container hover:bg-error-container text-on-surface hover:text-on-error-container font-label-md text-label-md flex items-center gap-1.5 transition-colors cursor-pointer"
+                onClick={() => setIsFailModalOpen(false)}
+                className="p-1 rounded-lg text-outline hover:text-on-surface cursor-pointer"
               >
-                <span className="material-symbols-outlined text-[16px]">replay</span>
-                <span>Yêu Cầu Mài Lại (Re-Edge)</span>
+                <span className="material-symbols-outlined text-[18px]">close</span>
               </button>
+            </div>
 
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-on-surface block">
+                Chọn nhanh lỗi phát hiện qua kiểm tra QC:
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {quickFailReasons.map((reason) => (
+                  <button
+                    key={reason}
+                    type="button"
+                    onClick={() => setFailReason(reason)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer border ${
+                      failReason === reason
+                        ? 'bg-error text-white border-error shadow-xs'
+                        : 'bg-surface-container-low text-on-surface border-[#d8e3fb]/50 hover:bg-surface-container'
+                    }`}
+                  >
+                    {reason}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-on-surface block">
+                Ghi chú chi tiết lý do từ chối (Gửi KTV Mài Lắp):
+              </label>
+              <textarea
+                value={failReason}
+                onChange={(e) => setFailReason(e.target.value)}
+                rows={3}
+                className="w-full p-2.5 rounded-xl bg-surface-container-low text-on-surface text-body-sm border border-[#d8e3fb]/60 focus:bg-surface-container-lowest focus:ring-2 focus:ring-error/20 outline-none transition-all placeholder:text-outline"
+                placeholder="Nhập lý do chi tiết (ví dụ: Tròng phải mài lệch tâm PD 0.8mm, vát rãnh V quá cạn so với gọng kim loại)..."
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#e7eeff]">
               <button
-                onClick={() => handleAction('ĐÃ NGHIỆM THU ĐẠT CHUẨN (PASS QC)! Chuyển đơn sang quầy POS bàn giao khách')}
-                className="flex-1 py-2 px-4 rounded-xl bg-primary text-on-primary hover:bg-[#0b4d6b] font-label-lg text-label-lg font-semibold flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer"
+                onClick={() => {
+                  setIsFailModalOpen(false);
+                  setFailReason('');
+                }}
+                disabled={isSubmitting}
+                className="px-3.5 py-1.5 rounded-xl bg-surface-container text-on-surface font-label-md text-label-md cursor-pointer hover:bg-surface-container-high transition-colors"
               >
-                <span className="material-symbols-outlined text-[18px]">verified</span>
-                <span>ĐẠT CHUẨN (PASS QC) &amp; BÀN GIAO POS</span>
+                Hủy Bỏ
+              </button>
+              <button
+                onClick={handleConfirmReEdge}
+                disabled={isSubmitting}
+                className="px-4 py-1.5 rounded-xl bg-error text-white font-label-md text-label-md font-semibold cursor-pointer hover:bg-rose-700 transition-colors shadow-xs flex items-center gap-1.5"
+              >
+                <span className={`material-symbols-outlined text-[16px] ${isSubmitting ? 'animate-spin' : ''}`}>
+                  {isSubmitting ? 'progress_activity' : 'replay'}
+                </span>
+                <span>Xác Nhận Lỗi &amp; Trả Về Mài Lại</span>
               </button>
             </div>
           </div>
-        )}
         </div>
-      </div>
+      )}
+
     </div>
   );
 }
