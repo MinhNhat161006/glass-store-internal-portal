@@ -95,22 +95,23 @@ export default function AuthPage({ onLoginSuccess }) {
     }
   };
 
-    // Password Strength Evaluator
+    // Password Strength Evaluator (Simplified)
   const getPasswordStrength = (pwd) => {
     if (!pwd) return { score: 0, label: '', color: '', textColor: '', percent: 0 };
     let score = 0;
     if (pwd.length >= 8) score += 1;
     if (/[a-z]/.test(pwd) && /[A-Z]/.test(pwd)) score += 1;
     if (/\d/.test(pwd)) score += 1;
-    if (/[^a-zA-Z0-9]/.test(pwd)) score += 1;
 
-    if (score <= 1) return { score, label: 'Yếu (Cần thêm chữ hoa/thường/số)', color: 'bg-rose-500', textColor: 'text-rose-600', percent: 25 };
-    if (score === 2) return { score, label: 'Trung bình', color: 'bg-amber-500', textColor: 'text-amber-600', percent: 50 };
-    if (score === 3) return { score, label: 'Khá mạnh', color: 'bg-blue-500', textColor: 'text-blue-600', percent: 75 };
-    return { score, label: 'Rất mạnh (Chuẩn an toàn)', color: 'bg-emerald-500', textColor: 'text-emerald-600', percent: 100 };
+    if (score <= 1) return { score, label: 'Yếu', color: 'bg-rose-500', textColor: 'text-rose-600', percent: 33 };
+    if (score === 2) return { score, label: 'Trung bình', color: 'bg-amber-500', textColor: 'text-amber-600', percent: 66 };
+    return { score, label: 'Mạnh', color: 'bg-emerald-500', textColor: 'text-emerald-600', percent: 100 };
   };
 
   const passwordStrength = getPasswordStrength(regPassword);
+  const isConfirmEntered = regConfirmPassword.length > 0;
+  const isPasswordMatch = isConfirmEntered && regPassword === regConfirmPassword;
+  const isPasswordMismatch = isConfirmEntered && regPassword !== regConfirmPassword;
 // Submit Login
   const handleStaffLogin = async (e) => {
     if (e) e.preventDefault();
@@ -753,61 +754,46 @@ export default function AuthPage({ onLoginSuccess }) {
                   {/* Password & Confirm */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="flex flex-col gap-1">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-semibold text-[#111c2d]">
-                          Mật khẩu khởi tạo <span className="text-[#ba1a1a]">*</span>
-                        </label>
-                        <span className="text-[10px] text-[#70787f]">≥8 ký tự (hoa, thường, số)</span>
-                      </div>
+                      <label className="text-xs font-semibold text-[#111c2d]">
+                        Mật khẩu khởi tạo <span className="text-[#ba1a1a]">*</span>
+                      </label>
                       <div className="relative">
                         <input
                           type="password"
                           required
                           value={regPassword}
                           onChange={(e) => setRegPassword(e.target.value)}
-                          placeholder="Nhập mật khẩu (≥8 ký tự)..."
-                          className="w-full h-11 pl-10 pr-3 rounded-xl bg-[#f0f3ff] text-[#111c2d] text-sm focus:bg-white focus:ring-2 focus:ring-[#086288] focus:outline-none transition-all"
+                          placeholder="Nhập mật khẩu..."
+                          className="w-full h-11 pl-10 pr-3 rounded-xl bg-[#f0f3ff] text-[#111c2d] text-sm focus:bg-white focus:ring-2 focus:ring-[#086288] focus:outline-none transition-all border border-transparent focus:border-[#086288]"
                         />
                         <span className="material-symbols-outlined absolute left-3 top-2.5 text-[20px] text-[#004967]">
                           lock
                         </span>
                       </div>
 
-                      {/* Password strength visual meter */}
+                      {/* Password strength meter - clean & compact */}
                       {regPassword && (
-                        <div className="flex flex-col gap-1 pt-1 text-[11px]">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[#40484e]">Độ mạnh:</span>
-                            <span className={`font-semibold ${passwordStrength.textColor}`}>{passwordStrength.label}</span>
+                        <div className="flex flex-col gap-1 pt-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-slate-500 text-[11px]">
+                              Độ mạnh: <span className={`font-semibold ${passwordStrength.textColor}`}>{passwordStrength.label}</span>
+                            </span>
+                            <span className="text-[10px] text-slate-400">≥8 ký tự • Chữ hoa, thường • Số</span>
                           </div>
-                          <div className="w-full h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                          <div className="w-full h-1 rounded-full bg-slate-200 overflow-hidden">
                             <div
                               className={`h-full transition-all duration-300 ${passwordStrength.color}`}
                               style={{ width: `${passwordStrength.percent}%` }}
                             />
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2 text-[10px] text-[#70787f] pt-0.5">
-                            <span className={regPassword.length >= 8 ? 'text-emerald-600 font-semibold' : ''}>
-                              {regPassword.length >= 8 ? '✓' : '•'} ≥8 ký tự
-                            </span>
-                            <span className={/[a-z]/.test(regPassword) && /[A-Z]/.test(regPassword) ? 'text-emerald-600 font-semibold' : ''}>
-                              {/[a-z]/.test(regPassword) && /[A-Z]/.test(regPassword) ? '✓' : '•'} Chữ hoa &amp; thường
-                            </span>
-                            <span className={/\d/.test(regPassword) ? 'text-emerald-600 font-semibold' : ''}>
-                              {/\d/.test(regPassword) ? '✓' : '•'} Chữ số
-                            </span>
                           </div>
                         </div>
                       )}
                     </div>
 
                     <div className="flex flex-col gap-1">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-semibold text-[#111c2d]">
-                          Xác nhận mật khẩu <span className="text-[#ba1a1a]">*</span>
-                        </label>
-                        <span className="text-[10px] text-[#70787f]">Phải trùng khớp</span>
-                      </div>
+                      <label className="text-xs font-semibold text-[#111c2d]">
+                        Xác nhận mật khẩu <span className="text-[#ba1a1a]">*</span>
+                      </label>
                       <div className="relative">
                         <input
                           type="password"
@@ -815,29 +801,20 @@ export default function AuthPage({ onLoginSuccess }) {
                           value={regConfirmPassword}
                           onChange={(e) => setRegConfirmPassword(e.target.value)}
                           placeholder="Nhập lại mật khẩu..."
-                          className="w-full h-11 pl-10 pr-3 rounded-xl bg-[#f0f3ff] text-[#111c2d] text-sm focus:bg-white focus:ring-2 focus:ring-[#086288] focus:outline-none transition-all"
+                          className={`w-full h-11 pl-10 pr-3 rounded-xl text-sm transition-all focus:outline-none ${
+                            isPasswordMatch
+                              ? 'bg-emerald-50/50 border-2 border-emerald-500 text-slate-900 focus:border-emerald-600'
+                              : isPasswordMismatch
+                              ? 'bg-rose-50/50 border-2 border-rose-400 text-slate-900 focus:border-rose-500'
+                              : 'bg-[#f0f3ff] border border-transparent focus:bg-white focus:ring-2 focus:ring-[#086288]'
+                          }`}
                         />
-                        <span className="material-symbols-outlined absolute left-3 top-2.5 text-[20px] text-[#004967]">
-                          lock_reset
+                        <span className={`material-symbols-outlined absolute left-3 top-2.5 text-[20px] ${
+                          isPasswordMatch ? 'text-emerald-600' : 'text-[#004967]'
+                        }`}>
+                          {isPasswordMatch ? 'verified' : 'lock_reset'}
                         </span>
                       </div>
-
-                      {/* Confirm match indicator */}
-                      {regConfirmPassword && (
-                        <div className="pt-1 text-[11px]">
-                          {regPassword === regConfirmPassword ? (
-                            <span className="text-emerald-600 font-semibold flex items-center gap-1">
-                              <span className="material-symbols-outlined text-[14px]">check_circle</span>
-                              Mật khẩu trùng khớp 100%
-                            </span>
-                          ) : (
-                            <span className="text-rose-600 font-semibold flex items-center gap-1">
-                              <span className="material-symbols-outlined text-[14px]">cancel</span>
-                              Mật khẩu chưa trùng khớp!
-                            </span>
-                          )}
-                        </div>
-                      )}
                     </div>
                   </div>
 
