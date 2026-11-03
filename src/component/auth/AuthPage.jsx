@@ -4,44 +4,13 @@ import { useAuth } from '../../context/AuthContext';
 import { staffApi } from '../../api/staffApi';
 import { message, Modal } from 'antd';
 
-const ROLE_CONFIGS = {
-  pos: {
-    key: 'pos',
-    name: 'Thu Ngân / POS',
-    staffId: 'NV-OPT-202688',
-    staffName: 'Nguyễn Bán Hàng (Thu Ngân)',
-    branch: 'CN-01',
-    branchName: 'Chi nhánh 01 - Flagship Lê Thánh Tôn, Quận 1, TP.HCM',
-    defaultRoute: '/pos'
-  },
-  optometry: {
-    key: 'optometry',
-    name: 'KTV Khúc Xạ',
-    staffId: 'KTV-OPT-104592',
-    staffName: 'BS. Lê Thị Ánh Tuyết (Khúc Xạ)',
-    branch: 'CN-01',
-    branchName: 'Chi nhánh 01 - Flagship Lê Thánh Tôn, Quận 1, TP.HCM',
-    defaultRoute: '/optometry'
-  },
-  lab: {
-    key: 'lab',
-    name: 'KTV Lab Lens',
-    staffId: 'LAB-OPT-308115',
-    staffName: 'Trần Văn Kỹ Thuật (Lab Lens)',
-    branch: 'CN-LAB',
-    branchName: 'Trung tâm Gia công & Lab Lens Tân Bình, TP.HCM',
-    defaultRoute: '/lab'
-  },
-  admin: {
-    key: 'admin',
-    name: 'Quản Trị / Admin',
-    staffId: 'ADM-OPT-001099',
-    staffName: 'Phạm Quản Trị Hệ Thống',
-    branch: 'HQ',
-    branchName: 'Trụ sở Quản trị Toàn quốc (OptiVision Head Office)',
-    defaultRoute: '/dashboard'
-  }
-};
+// Department roles for registration
+const DEPARTMENT_ROLES = [
+  { key: 'pos', name: 'Thu Ngân & POS' },
+  { key: 'optometry', name: 'Khúc Xạ' },
+  { key: 'lab', name: 'KTV Lab Lens' },
+  { key: 'admin', name: 'Quản Trị' }
+];
 
 const BRANCH_OPTIONS = [
   { value: 'CN-01', label: 'Chi nhánh 01 - Lê Thánh Tôn, Quận 1' },
@@ -57,7 +26,6 @@ export default function AuthPage({ onLoginSuccess }) {
 
   // Mode: 'login' | 'register'
   const [authMode, setAuthMode] = useState('login');
-  const [selectedRole, setSelectedRole] = useState('pos');
 
   // Login Form
   const [storeBranch, setStoreBranch] = useState('CN-01');
@@ -77,15 +45,6 @@ export default function AuthPage({ onLoginSuccess }) {
   const [regAgreed, setRegAgreed] = useState(true);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Quick Role Switching
-  const handleRoleSelect = (roleKey) => {
-    setSelectedRole(roleKey);
-    const conf = ROLE_CONFIGS[roleKey];
-    if (conf) {
-      setStoreBranch(conf.branch);
-    }
-  };
 
   // Simplified Password Strength (Yếu, Trung bình, Mạnh)
   const getPasswordStrength = (pwd) => {
@@ -111,7 +70,7 @@ export default function AuthPage({ onLoginSuccess }) {
 
     const trimmedStaffId = staffId.trim();
     if (!trimmedStaffId) {
-      message.error('Vui lòng nhập tài khoản hoặc mã nhân viên!');
+      message.error('Vui lòng nhập tài khoản hoặc email!');
       return;
     }
 
@@ -123,17 +82,12 @@ export default function AuthPage({ onLoginSuccess }) {
 
     setIsSubmitting(true);
     try {
-      const conf = ROLE_CONFIGS[selectedRole];
       const branchObj = BRANCH_OPTIONS.find((b) => b.value === storeBranch);
 
       const userData = {
         username: trimmedStaffId,
         password: trimmedPassword,
-        role: selectedRole,
-        staffId: trimmedStaffId,
-        staffName: conf ? conf.staffName : 'Nhân Sự OptiVision',
-        branchName: branchObj ? branchObj.label : 'Chi nhánh 01 - Lê Thánh Tôn',
-        defaultRoute: conf ? conf.defaultRoute : '/pos'
+        branchName: branchObj ? branchObj.label : 'Chi nhánh 01 - Lê Thánh Tôn'
       };
 
       const defaultRoute = await login(userData);
@@ -141,7 +95,7 @@ export default function AuthPage({ onLoginSuccess }) {
         onLoginSuccess(userData);
       }
 
-      const returnUrl = location.state?.from?.pathname || defaultRoute || conf?.defaultRoute || '/pos';
+      const returnUrl = location.state?.from?.pathname || defaultRoute || '/dashboard';
       navigate(returnUrl, { replace: true });
     } catch (err) {
       message.error(err.message || 'Mật khẩu không chính xác hoặc tài khoản không tồn tại!');
@@ -243,7 +197,8 @@ export default function AuthPage({ onLoginSuccess }) {
         ),
         onOk: () => {
           setAuthMode('login');
-          handleRoleSelect(regRole);
+          setStaffId('');
+          setPassword('');
         }
       });
     } catch (err) {
@@ -271,6 +226,18 @@ export default function AuthPage({ onLoginSuccess }) {
       {/* Main Container */}
       <main className="flex-1 flex items-center justify-center p-4 sm:p-8 my-auto">
         <div className={`w-full ${authMode === 'login' ? 'max-w-[520px]' : 'max-w-[680px]'} bg-white rounded-2xl shadow-sm border border-slate-200 p-7 sm:p-10 transition-all`}>
+          {/* Form Header Title */}
+          <div className="text-center mb-6">
+            <h1 className="text-xl sm:text-2xl font-bold text-[#004967] tracking-tight">
+              {authMode === 'login' ? 'Đăng Nhập Nội Bộ' : 'Đăng Ký Nhân Sự Nội Bộ'}
+            </h1>
+            <p className="text-xs text-slate-500 mt-1">
+              {authMode === 'login'
+                ? 'Hệ thống quản trị bán hàng & khám khúc xạ chuỗi OptiVision'
+                : 'Đăng ký thông tin công tác dành cho nhân viên mới'}
+            </p>
+          </div>
+
           {/* Form Switcher Tabs */}
           <div className="flex rounded-xl bg-slate-100 p-1 mb-6">
             <button
@@ -297,34 +264,33 @@ export default function AuthPage({ onLoginSuccess }) {
             </button>
           </div>
 
-          {/* Quick Role Select */}
-          <div className="flex flex-col gap-1.5 mb-5">
-            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-              {authMode === 'login' ? 'Chọn nhanh vai trò' : 'Phân hệ công tác'}
-            </span>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 rounded-xl bg-slate-50 border border-slate-200/60">
-              {Object.values(ROLE_CONFIGS).map((item) => {
-                const isActive = (authMode === 'login' ? selectedRole : regRole) === item.key;
-                return (
-                  <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => {
-                      if (authMode === 'login') handleRoleSelect(item.key);
-                      else setRegRole(item.key);
-                    }}
-                    className={`py-1.5 px-1 rounded-lg text-xs font-bold text-center transition-all ${
-                      isActive
-                        ? 'bg-[#004967] text-white shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-                    }`}
-                  >
-                    {item.name.split('/')[0].trim()}
-                  </button>
-                );
-              })}
+          {/* Department Select (Register mode only) */}
+          {authMode === 'register' && (
+            <div className="flex flex-col gap-1.5 mb-5">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                Phân hệ công tác *
+              </span>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 rounded-xl bg-slate-50 border border-slate-200/60">
+                {DEPARTMENT_ROLES.map((item) => {
+                  const isActive = regRole === item.key;
+                  return (
+                    <button
+                      key={item.key}
+                      type="button"
+                      onClick={() => setRegRole(item.key)}
+                      className={`py-1.5 px-1 rounded-lg text-xs font-bold text-center transition-all ${
+                        isActive
+                          ? 'bg-[#004967] text-white shadow-sm'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                      }`}
+                    >
+                      {item.name}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* ================= FORM LOGIN ================= */}
           {authMode === 'login' ? (
@@ -345,13 +311,14 @@ export default function AuthPage({ onLoginSuccess }) {
 
               {/* Staff ID / Username */}
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-slate-700">Tài khoản / Mã nhân viên</label>
+                <label className="text-xs font-semibold text-slate-700">Tài khoản / Email / Mã nhân viên</label>
                 <input
                   type="text"
                   required
+                  autoComplete="username"
                   value={staffId}
                   onChange={(e) => setStaffId(e.target.value)}
-                  placeholder="admin, nv_pos hoặc email..."
+                  placeholder="Nhập username, email hoặc mã NV..."
                   className="w-full h-11 px-3.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:outline-none focus:border-[#004967]"
                 />
               </div>
@@ -371,6 +338,7 @@ export default function AuthPage({ onLoginSuccess }) {
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Nhập mật khẩu..."
