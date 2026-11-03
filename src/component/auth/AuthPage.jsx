@@ -95,16 +95,43 @@ export default function AuthPage({ onLoginSuccess }) {
     }
   };
 
-  // Submit Login
+    // Password Strength Evaluator
+  const getPasswordStrength = (pwd) => {
+    if (!pwd) return { score: 0, label: '', color: '', textColor: '', percent: 0 };
+    let score = 0;
+    if (pwd.length >= 8) score += 1;
+    if (/[a-z]/.test(pwd) && /[A-Z]/.test(pwd)) score += 1;
+    if (/\d/.test(pwd)) score += 1;
+    if (/[^a-zA-Z0-9]/.test(pwd)) score += 1;
+
+    if (score <= 1) return { score, label: 'Yếu (Cần thêm chữ hoa/thường/số)', color: 'bg-rose-500', textColor: 'text-rose-600', percent: 25 };
+    if (score === 2) return { score, label: 'Trung bình', color: 'bg-amber-500', textColor: 'text-amber-600', percent: 50 };
+    if (score === 3) return { score, label: 'Khá mạnh', color: 'bg-blue-500', textColor: 'text-blue-600', percent: 75 };
+    return { score, label: 'Rất mạnh (Chuẩn an toàn)', color: 'bg-emerald-500', textColor: 'text-emerald-600', percent: 100 };
+  };
+
+  const passwordStrength = getPasswordStrength(regPassword);
+// Submit Login
   const handleStaffLogin = async (e) => {
     if (e) e.preventDefault();
 
-    if (!staffId.trim()) {
-      message.error('Vui lòng nhập Tài khoản / Email / Mã nhân viên!');
+    const trimmedStaffId = staffId.trim();
+    if (!trimmedStaffId) {
+      message.error('Vui lòng nhập Tài khoản, Email hoặc Mã nhân viên!');
       return;
     }
-    if (!password.trim()) {
+    if (trimmedStaffId.length < 3) {
+      message.error('Tài khoản hoặc Mã nhân viên phải có ít nhất 3 ký tự!');
+      return;
+    }
+
+    const trimmedPassword = password.trim();
+    if (!trimmedPassword) {
       message.error('Vui lòng nhập Mật khẩu tài khoản nội bộ!');
+      return;
+    }
+    if (trimmedPassword.length < 6) {
+      message.error('Mật khẩu phải có tối thiểu 6 ký tự!');
       return;
     }
 
@@ -116,10 +143,10 @@ export default function AuthPage({ onLoginSuccess }) {
       const branchObj = BRANCH_OPTIONS.find((b) => b.value === storeBranch);
 
       const userData = {
-        username: staffId.trim(),
-        password: password.trim(),
+        username: trimmedStaffId,
+        password: trimmedPassword,
         role: selectedRole,
-        staffId: staffId.trim(),
+        staffId: trimmedStaffId,
         staffName: conf ? conf.staffName : 'Nhân Sự OptiVision',
         branchName: branchObj ? branchObj.label : 'Chi nhánh 01 - Flagship Lê Thánh Tôn, Quận 1',
         defaultRoute: conf ? conf.defaultRoute : '/pos'
@@ -142,32 +169,89 @@ export default function AuthPage({ onLoginSuccess }) {
     }
   };
 
-  // Submit Registration
+  // Submit Registration with Strict Validations
   const handleStaffRegister = async (e) => {
     if (e) e.preventDefault();
 
-    if (!regFullName.trim()) {
+    // 1. Họ và tên
+    const trimmedName = regFullName.trim();
+    if (!trimmedName) {
       message.error('Vui lòng nhập Họ và tên nhân sự!');
       return;
     }
-    if (!regEmail.trim()) {
+    if (trimmedName.length < 3) {
+      message.error('Họ và tên nhân sự phải có tối thiểu 3 ký tự!');
+      return;
+    }
+    if (/^\d+$/.test(trimmedName)) {
+      message.error('Họ và tên không hợp lệ (không được chỉ chứa toàn chữ số)!');
+      return;
+    }
+
+    // 2. Email công vụ
+    const trimmedEmail = regEmail.trim();
+    if (!trimmedEmail) {
       message.error('Vui lòng nhập Email công vụ (@optivision.vn)!');
       return;
     }
-    if (!regPhone.trim()) {
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      message.error('Email công vụ không đúng định dạng (Ví dụ: ten@optivision.vn)!');
+      return;
+    }
+
+    // 3. Số điện thoại Việt Nam
+    const trimmedPhone = regPhone.trim().replace(/\s+/g, '');
+    if (!trimmedPhone) {
       message.error('Vui lòng nhập Số điện thoại liên hệ!');
       return;
     }
-    if (!regPassword || regPassword.length < 6) {
-      message.error('Mật khẩu phải có tối thiểu 6 ký tự!');
+    const phoneRegex = /^(0|\+84)(3[2-9]|5[2689]|7[06-9]|8[1-9]|9[0-9])[0-9]{7}$/;
+    if (!phoneRegex.test(trimmedPhone)) {
+      message.error('Số điện thoại không hợp lệ! Vui lòng nhập số di động 10 số Việt Nam (đầu 03, 05, 07, 08, 09).');
+      return;
+    }
+
+    // 4. Mật khẩu: Tối thiểu 8 ký tự, có cả chữ hoa, chữ thường và số
+    if (!regPassword) {
+      message.error('Vui lòng nhập Mật khẩu khởi tạo!');
+      return;
+    }
+    if (regPassword.length < 8) {
+      message.error('Mật khẩu phải có tối thiểu 8 ký tự!');
+      return;
+    }
+    const hasLower = /[a-z]/.test(regPassword);
+    const hasUpper = /[A-Z]/.test(regPassword);
+    const hasNumber = /\d/.test(regPassword);
+    if (!hasLower || !hasUpper) {
+      message.error('Mật khẩu phải chứa cả chữ thường (a-z) và chữ in hoa (A-Z)!');
+      return;
+    }
+    if (!hasNumber) {
+      message.error('Mật khẩu phải chứa ít nhất 1 chữ số (0-9)!');
+      return;
+    }
+
+    // 5. Xác nhận mật khẩu
+    if (!regConfirmPassword) {
+      message.error('Vui lòng nhập lại mật khẩu tại ô Xác nhận mật khẩu!');
       return;
     }
     if (regPassword !== regConfirmPassword) {
-      message.error('Mật khẩu xác nhận không khớp!');
+      message.error('Mật khẩu xác nhận không trùng khớp với mật khẩu đã nhập!');
       return;
     }
+
+    // 6. Chứng chỉ CCHN nếu là Khúc xạ
+    if (regRole === 'optometry' && (!regMedicalCert.trim() || regMedicalCert.trim().length < 4)) {
+      message.error('Vui lòng nhập Số Chứng Chỉ Hành Nghề (CCHN) y khoa hợp lệ!');
+      return;
+    }
+
+    // 7. Chấp thuận bảo mật y khoa
     if (!regAgreed) {
-      message.error('Vui lòng chấp thuận quy chuẩn bảo mật y khoa ISO 29148!');
+      message.error('Vui lòng tích chọn chấp thuận quy chuẩn bảo mật y khoa ISO 29148!');
       return;
     }
 
@@ -184,9 +268,9 @@ export default function AuthPage({ onLoginSuccess }) {
       const randomCode = `STF-${Math.floor(100 + Math.random() * 900)}`;
 
       const created = await staffApi.createStaff({
-        fullName: regFullName.trim(),
-        email: regEmail.trim(),
-        phoneNumber: regPhone.trim(),
+        fullName: trimmedName,
+        email: trimmedEmail,
+        phoneNumber: trimmedPhone,
         branchName: branchObj ? branchObj.label : 'Flagship Q.1 (TP.HCM)',
         employeeCode: randomCode,
         roleName: roleMapping[regRole] || 'ROLE_SALES_STAFF',
@@ -199,12 +283,12 @@ export default function AuthPage({ onLoginSuccess }) {
         content: (
           <div className="space-y-2 text-slate-600 text-sm pt-2">
             <p>
-              Chào mừng <strong>{regFullName}</strong>. Yêu cầu cấp tài khoản thuộc phân hệ{' '}
+              Chào mừng <strong>{trimmedName}</strong>. Yêu cầu cấp tài khoản thuộc phân hệ{' '}
               <strong className="text-[#086288]">{ROLE_CONFIGS[regRole]?.name}</strong> tại chi nhánh{' '}
               <strong>{branchObj?.label}</strong> đã được gửi tới Ban Quản Trị hệ thống ở trạng thái <strong>Chờ Duyệt (PENDING)</strong>.
             </p>
             <p className="p-2 bg-emerald-50 text-emerald-800 rounded text-xs font-mono">
-              Mã hồ sơ: {created?.employeeCode || randomCode} • Email: {regEmail}
+              Mã hồ sơ: {created?.employeeCode || randomCode} • Email: {trimmedEmail}
             </p>
             <p className="text-xs text-slate-500">
               Yêu cầu của bạn hiện đã hiển thị tại mục <strong>"Yêu Cầu Cấp Quyền"</strong> trong trang Quản Trị Nhân Viên (FR-ADM) của Admin để phê duyệt kích hoạt.
@@ -669,41 +753,91 @@ export default function AuthPage({ onLoginSuccess }) {
                   {/* Password & Confirm */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="flex flex-col gap-1">
-                      <label className="text-xs font-semibold text-[#111c2d]">
-                        Mật khẩu khởi tạo <span className="text-[#ba1a1a]">*</span>
-                      </label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-[#111c2d]">
+                          Mật khẩu khởi tạo <span className="text-[#ba1a1a]">*</span>
+                        </label>
+                        <span className="text-[10px] text-[#70787f]">≥8 ký tự (hoa, thường, số)</span>
+                      </div>
                       <div className="relative">
                         <input
                           type="password"
                           required
                           value={regPassword}
                           onChange={(e) => setRegPassword(e.target.value)}
-                          placeholder="Tối thiểu 6 ký tự"
+                          placeholder="Nhập mật khẩu (≥8 ký tự)..."
                           className="w-full h-11 pl-10 pr-3 rounded-xl bg-[#f0f3ff] text-[#111c2d] text-sm focus:bg-white focus:ring-2 focus:ring-[#086288] focus:outline-none transition-all"
                         />
                         <span className="material-symbols-outlined absolute left-3 top-2.5 text-[20px] text-[#004967]">
                           lock
                         </span>
                       </div>
+
+                      {/* Password strength visual meter */}
+                      {regPassword && (
+                        <div className="flex flex-col gap-1 pt-1 text-[11px]">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[#40484e]">Độ mạnh:</span>
+                            <span className={`font-semibold ${passwordStrength.textColor}`}>{passwordStrength.label}</span>
+                          </div>
+                          <div className="w-full h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                            <div
+                              className={`h-full transition-all duration-300 ${passwordStrength.color}`}
+                              style={{ width: `${passwordStrength.percent}%` }}
+                            />
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 text-[10px] text-[#70787f] pt-0.5">
+                            <span className={regPassword.length >= 8 ? 'text-emerald-600 font-semibold' : ''}>
+                              {regPassword.length >= 8 ? '✓' : '•'} ≥8 ký tự
+                            </span>
+                            <span className={/[a-z]/.test(regPassword) && /[A-Z]/.test(regPassword) ? 'text-emerald-600 font-semibold' : ''}>
+                              {/[a-z]/.test(regPassword) && /[A-Z]/.test(regPassword) ? '✓' : '•'} Chữ hoa &amp; thường
+                            </span>
+                            <span className={/\d/.test(regPassword) ? 'text-emerald-600 font-semibold' : ''}>
+                              {/\d/.test(regPassword) ? '✓' : '•'} Chữ số
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex flex-col gap-1">
-                      <label className="text-xs font-semibold text-[#111c2d]">
-                        Xác nhận mật khẩu <span className="text-[#ba1a1a]">*</span>
-                      </label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-[#111c2d]">
+                          Xác nhận mật khẩu <span className="text-[#ba1a1a]">*</span>
+                        </label>
+                        <span className="text-[10px] text-[#70787f]">Phải trùng khớp</span>
+                      </div>
                       <div className="relative">
                         <input
                           type="password"
                           required
                           value={regConfirmPassword}
                           onChange={(e) => setRegConfirmPassword(e.target.value)}
-                          placeholder="Nhập lại mật khẩu"
+                          placeholder="Nhập lại mật khẩu..."
                           className="w-full h-11 pl-10 pr-3 rounded-xl bg-[#f0f3ff] text-[#111c2d] text-sm focus:bg-white focus:ring-2 focus:ring-[#086288] focus:outline-none transition-all"
                         />
                         <span className="material-symbols-outlined absolute left-3 top-2.5 text-[20px] text-[#004967]">
                           lock_reset
                         </span>
                       </div>
+
+                      {/* Confirm match indicator */}
+                      {regConfirmPassword && (
+                        <div className="pt-1 text-[11px]">
+                          {regPassword === regConfirmPassword ? (
+                            <span className="text-emerald-600 font-semibold flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                              Mật khẩu trùng khớp 100%
+                            </span>
+                          ) : (
+                            <span className="text-rose-600 font-semibold flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[14px]">cancel</span>
+                              Mật khẩu chưa trùng khớp!
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
