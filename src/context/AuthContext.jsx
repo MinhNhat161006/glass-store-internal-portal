@@ -35,10 +35,11 @@ export function AuthProvider({ children }) {
     if (r.includes('ROLE_ADMIN')) return ROLES.ADMIN;
     if (r.includes('ROLE_OPTOMETRIST')) return ROLES.OPTOMETRY;
     if (r.includes('ROLE_LAB_TECH')) return ROLES.LAB;
-    return ROLES.POS;
+    if (r.includes('ROLE_SALES_STAFF')) return ROLES.POS;
+    return null; // Không cho phép CUSTOMER hoặc role không hợp lệ truy cập portal nội bộ
   };
 
-  // Login action (STRICT: Bắt buộc xác thực qua Backend, không fallback)
+  // Login action (STRICT: Bắt buộc xác thực qua Backend, chặn tài khoản khách hàng)
   const login = async (userData) => {
     const inputUsername = (userData.username || '').trim();
     const inputPassword = (userData.password || '').trim();
@@ -61,6 +62,11 @@ export function AuthProvider({ children }) {
     }
 
     const frontRole = mapBackendRoleToFrontend(authData.roles);
+    if (!frontRole) {
+      authApi.logout();
+      throw new Error('Từ chối truy cập: Tài khoản khách hàng không có quyền đăng nhập vào Cổng vận hành nội bộ!');
+    }
+
     const roleDetails = ROLE_INFO[frontRole] || ROLE_INFO[ROLES.POS];
 
     const enhancedUser = {

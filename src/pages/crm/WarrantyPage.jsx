@@ -570,7 +570,7 @@ export default function WarrantyPage() {
                   </div>
                   <div className="flex items-center justify-between text-body-sm font-body-sm text-on-surface-variant">
                     <span>Kh√°ch: {selectedItem.customerName}</span>
-                    <span className="text-tertiary font-medium">OTP SMS: 9982</span>
+                    <span className="text-tertiary font-medium">X·c nh?n SMS: 9982</span>
                   </div>
                 </div>
               </div>

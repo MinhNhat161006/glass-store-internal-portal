@@ -77,11 +77,6 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
   const [password, setPassword] = useState('Secret2026@');
   const [showPassword, setShowPassword] = useState(false);
 
-  // 6-digit OTP
-  const [otpDigits, setOtpDigits] = useState(['7', '4', '1', '9', '0', '2']);
-  const [otpTimer, setOtpTimer] = useState(28);
-  const otpRefs = useRef([]);
-
   // Registration Form States
   const [regName, setRegName] = useState('');
   const [regStaffId, setRegStaffId] = useState('');
@@ -89,21 +84,6 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
   const [regLicense, setRegLicense] = useState('');
   const [regPass, setRegPass] = useState('');
 
-  // Countdown timer for 2FA OTP
-  useEffect(() => {
-    if (!isOpen) return;
-    const interval = setInterval(() => {
-      setOtpTimer((prev) => {
-        if (prev <= 1) {
-          const newCode = Math.floor(100000 + Math.random() * 900000).toString().split('');
-          setOtpDigits(newCode);
-          return 30;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -115,31 +95,6 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
       setStaffId(conf.staffId);
       if (conf.branch) setSelectedBranch(conf.branch);
     }
-  };
-
-  // Handle OTP digit box input
-  const handleOtpChange = (index, value) => {
-    const char = value.slice(-1);
-    const newDigits = [...otpDigits];
-    newDigits[index] = char;
-    setOtpDigits(newDigits);
-
-    if (char && index < 5 && otpRefs.current[index + 1]) {
-      otpRefs.current[index + 1].focus();
-    }
-  };
-
-  const handleOtpKeyDown = (index, e) => {
-    if (e.key === 'Backspace' && !otpDigits[index] && index > 0) {
-      otpRefs.current[index - 1]?.focus();
-    }
-  };
-
-  const handleRegenerateOtp = () => {
-    const newCode = Math.floor(100000 + Math.random() * 900000).toString().split('');
-    setOtpDigits(newCode);
-    setOtpTimer(30);
-    message.info('Đã cấp mã Smart OTP mới từ khóa token bảo mật.');
   };
 
   // Submit Login
@@ -154,11 +109,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
       message.error('Vui lòng nhập Mật khẩu tài khoản nội bộ!');
       return;
     }
-    const enteredOtp = otpDigits.join('');
-    if (enteredOtp.length < 6) {
-      message.error('Vui lòng nhập đủ 6 số Smart OTP xác thực 2 bước!');
-      return;
-    }
+
 
     const conf = ROLE_CONFIGS[selectedRole];
     const branchObj = BRANCH_OPTIONS.find(b => b.value === selectedBranch);
@@ -451,40 +402,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
                   </div>
                 </div>
 
-                {/* 2FA OTP 6 Digits */}
-                <div className="optivision-staff-field">
-                  <div className="optivision-staff-field-label-row">
-                    <span>Mã Smart OTP xác thực 2 bước (2FA)</span>
-                    <span
-                      style={{ color: '#086288', fontSize: 11, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                      onClick={handleRegenerateOtp}
-                    >
-                      <ReloadOutlined spin={otpTimer <= 3} style={{ fontSize: 10 }} />
-                      Làm mới: {otpTimer}s
-                    </span>
-                  </div>
-
-                  <div className="optivision-staff-otp-row">
-                    {otpDigits.map((digit, idx) => (
-                      <input
-                        key={idx}
-                        ref={(el) => (otpRefs.current[idx] = el)}
-                        type="text"
-                        maxLength={1}
-                        value={digit}
-                        onChange={(e) => handleOtpChange(idx, e.target.value)}
-                        onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                        className="optivision-staff-otp-cell"
-                      />
-                    ))}
-                  </div>
-
-                  <div className="optivision-staff-otp-subtext">
-                    Nhập chuỗi OTP từ ứng dụng OptiVision Authenticator hoặc khóa bảo mật phần cứng YubiKey.
-                  </div>
-                </div>
-
-                {/* Submit Button */}
+{/* Submit Button */}
                 <button type="submit" className="optivision-staff-submit-btn">
                   <LockOutlined style={{ fontSize: 14 }} />
                   Đăng nhập ca làm việc (Secure Login)
