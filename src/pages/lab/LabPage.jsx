@@ -1,63 +1,145 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { labApi } from '../../api/labApi';
-import { message } from 'antd';
+import { message, Modal } from 'antd';
 
 export default function LabPage() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [queueOrders, setQueueOrders] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(() => {
-    const fetchLiveLabJobs = async () => {
-      try {
-        setLoading(true);
-        const jobs = await labApi.getAllLabJobs();
-        if (Array.isArray(jobs) && jobs.length > 0) {
-          const mapped = jobs.map((j, idx) => {
-            const isQc = j.status === 'QC_PASSED';
-            const isInProgress = j.status === 'IN_PROGRESS';
-            return {
-              id: '#LAB-2026-0' + j.id,
-              dbId: j.id,
-              tray: 'Khay Xanh #' + (idx + 4),
-              orderId: '#OPT-' + j.orderId + '-VN',
-              customer: j.prescription?.customerName || j.customerName || 'Khách hàng',
-              phone: j.customerPhone || '0901 000 000',
-              frame: j.frameName || j.frameSku,
-              lens: j.lensName || j.lensSku,
-              rxSummary: j.prescription ? ('OD ' + j.prescription.odSph + ' / OS ' + j.prescription.osSph) : 'Toa khúc xạ tiêu chuẩn',
-              machine: 'Essilor Delta #' + (idx + 1),
-              tech: j.technicianName || 'KTV Xưởng Lab',
-              status: isInProgress ? 'in_progress' : isQc ? 'qc' : 'waiting',
-              statusLabel: isInProgress ? 'Đang mài (68%)' : isQc ? 'Đã duyệt QC' : 'Chờ nạp máy',
-              statusClass: isInProgress ? 'bg-primary-fixed text-on-primary-fixed' : isQc ? 'bg-secondary-fixed text-on-secondary-fixed' : 'bg-surface-container-high text-primary',
-              priority: 'Tiêu chuẩn',
-              timeRemaining: isQc ? 'Sẵn sàng giao' : '05 phút'
-            };
-          });
-          setQueueOrders(mapped);
-        }
-      } catch (err) {
-        console.warn('Real lab jobs fetch notice:', err.message);
-      } finally {
-        setLoading(false);
+  // Fetch live lab jobs from API
+  const fetchLiveLabJobs = useCallback(async () => {
+    try {
+      setLoading(true);
+      const jobs = await labApi.getAllLabJobs();
+      if (Array.isArray(jobs)) {
+        const mapped = jobs.map((j, idx) => {
+          const rawStatus = (j.status || 'PENDING').toUpperCase();
+
+          // Map status styling and human readable labels
+          let statusLabel = 'Chờ nạp máy';
+          let statusClass = 'bg-surface-container-high text-primary';
+          let actionLabel = 'Nạp Vào Máy';
+
+          if (rawStatus === 'IN_PROGRESS') {
+            statusLabel = 'Đang mài (68%)';
+            statusClass = 'bg-primary-fixed text-on-primary-fixed';
+            actionLabel = 'Xong Mài → QC';
+          } else if (rawStatus === 'QC_PENDING') {
+            statusLabel = 'Chờ kiểm định QC';
+            statusClass = 'bg-secondary-container text-on-secondary-container';
+            actionLabel = 'Sang Bàn QC';
+          } else if (rawStatus === 'QC_PASSED') {
+            statusLabel = 'Đã duyệt QC';
+            statusClass = 'bg-secondary-fixed text-on-secondary-fixed';
+            actionLabel = 'Đã Đạt QC';
+          } else if (rawStatus === 'QC_FAILED') {
+            statusLabel = 'Lỗi / Cần mài lại';
+            statusClass = 'bg-error-container text-error';
+            actionLabel = 'Mài Lại';
+          }
+
+          // Format RX summary
+          let rxSummary = 'Toa khúc xạ tiêu chuẩn';
+          if (j.odSphere != null || j.osSphere != null) {
+            const od = j.odSphere ?? j.odSph ?? '0.00';
+            const os = j.osSphere ?? j.osSph ?? '0.00';
+            rxSummary = `OD ${od > 0 ? '+' : ''}${od} / OS ${os > 0 ? '+' : ''}${os}`;
+          } else if (j.prescription) {
+            rxSummary = `OD ${j.prescription.odSph || '0.00'} / OS ${j.prescription.osSph || '0.00'}`;
+          }
+
+          return {
+            id: `#LAB-2026-0${j.id}`,
+            dbId: j.id,
+            rawStatus,
+            tray: `Khay Xanh #${j.id < 10 ? '0' + j.id : j.id}`,
+            orderId: j.orderId ? `#OPT-${j.orderId}-VN` : '#OPT-BILL-VN',
+            customer: j.customerName || j.prescription?.customerName || 'Khách hàng',
+            phone: j.customerPhone || '0901 000 000',
+            frame: j.frameName || j.frameSku || 'Gọng Bolon Titanium',
+            lens: j.lensName || j.lensSku || 'Tròng Chemi U2 BlueCut 1.60',
+            rxSummary,
+            machine: `Essilor Delta #${(idx % 3) + 1}`,
+            tech: j.technicianName || 'KTV Xưởng Lab',
+            statusLabel,
+            statusClass,
+            actionLabel,
+            priority: j.orderId && j.orderId % 2 === 1 ? 'Hỏa tốc 45P' : 'Tiêu chuẩn',
+            timeRemaining: rawStatus === 'QC_PASSED' ? 'Sẵn sàng giao' : rawStatus === 'IN_PROGRESS' ? '05 phút' : '15 phút',
+            qcNotes: j.qcNotes || '',
+            raw: j
+          };
+        });
+        setQueueOrders(mapped);
       }
-    };
-    fetchLiveLabJobs();
+    } catch (err) {
+      console.warn('Real lab jobs fetch notice:', err.message);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const [queueOrders, setQueueOrders] = useState([]);
+  useEffect(() => {
+    fetchLiveLabJobs();
+  }, [fetchLiveLabJobs]);
+
+  // Handle action status updates
+  const handleUpdateJobStatus = async (dbId, newStatus, successMsg) => {
+    try {
+      setLoading(true);
+      await labApi.updateLabJobStatus(dbId, { status: newStatus });
+      message.success(successMsg || 'Cập nhật trạng thái thành công!');
+      await fetchLiveLabJobs();
+    } catch (err) {
+      message.error(err.message || 'Lỗi khi cập nhật trạng thái gia công');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleAction = (msg) => {
     message.success(msg);
   };
 
+  // Dynamic status counters
+  const totalCount = queueOrders.length;
+  const waitingCount = queueOrders.filter((o) => o.rawStatus === 'PENDING').length;
+  const inProgressCount = queueOrders.filter((o) => o.rawStatus === 'IN_PROGRESS').length;
+  const qcPendingCount = queueOrders.filter((o) => o.rawStatus === 'QC_PENDING').length;
+  const qcPassedCount = queueOrders.filter((o) => o.rawStatus === 'QC_PASSED').length;
+  const priorityCount = queueOrders.filter((o) => o.priority.includes('Hỏa tốc')).length;
+
+  // Machine Telemetry references
+  const inProgressList = queueOrders.filter((o) => o.rawStatus === 'IN_PROGRESS');
+  const machine1Order = inProgressList[0] || null;
+  const machine2Order = inProgressList[1] || null;
+  const machine3Order = inProgressList[2] || null;
+
+  // Filtered orders by tab and search
   const filteredOrders = queueOrders.filter((order) => {
-    if (activeTab === 'all') return true;
-    if (activeTab === 'waiting') return order.status === 'waiting';
-    if (activeTab === 'in_progress') return order.status === 'in_progress';
-    if (activeTab === 'completed') return order.status === 'completed';
-    if (activeTab === 'priority') return order.priority.includes('Hỏa tốc');
+    if (activeTab === 'waiting' && order.rawStatus !== 'PENDING') return false;
+    if (activeTab === 'in_progress' && order.rawStatus !== 'IN_PROGRESS') return false;
+    if (activeTab === 'qc_pending' && order.rawStatus !== 'QC_PENDING') return false;
+    if (activeTab === 'qc_passed' && order.rawStatus !== 'QC_PASSED') return false;
+    if (activeTab === 'priority' && !order.priority.includes('Hỏa tốc')) return false;
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const matchId = (order.id || '').toLowerCase().includes(q);
+      const matchOrderId = (order.orderId || '').toLowerCase().includes(q);
+      const matchCustomer = (order.customer || '').toLowerCase().includes(q);
+      const matchFrame = (order.frame || '').toLowerCase().includes(q);
+      const matchLens = (order.lens || '').toLowerCase().includes(q);
+      const matchTray = (order.tray || '').toLowerCase().includes(q);
+      if (!matchId && !matchOrderId && !matchCustomer && !matchFrame && !matchLens && !matchTray) {
+        return false;
+      }
+    }
     return true;
   });
 
@@ -101,17 +183,21 @@ export default function LabPage() {
               <span>Xuất Phôi Kho</span>
             </button>
             <button
-              onClick={() => handleAction('Đã đồng bộ kết nối các máy mài Essilor & Nidek')}
+              onClick={() => {
+                fetchLiveLabJobs();
+                message.success('Đã làm mới dữ liệu lệnh mài xưởng Lab!');
+              }}
               className="p-1.5 rounded-xl bg-surface-container text-on-surface-variant hover:bg-surface-container-high transition-colors cursor-pointer"
               title="Đồng bộ thiết bị"
             >
-              <span className="material-symbols-outlined text-[18px]">sync</span>
+              <span className={`material-symbols-outlined text-[18px] ${loading ? 'animate-spin text-primary' : ''}`}>sync</span>
             </button>
           </div>
         </div>
 
-        {/* 2. 4 CORE METRIC CARDS */}
+        {/* 2. 4 CORE METRIC CARDS (Dữ liệu đếm động theo trạng thái thực tế) */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Card 1: Tổng Lệnh Hôm Nay */}
           <div className="bg-surface-container-lowest p-3 rounded-xl shadow-xs border border-[#d8e3fb]/40 flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <span className="font-label-md text-label-md text-outline uppercase tracking-wider">Tổng Lệnh Hôm Nay</span>
@@ -120,14 +206,15 @@ export default function LabPage() {
               </div>
             </div>
             <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="font-display-lg text-display-lg text-on-surface font-bold">{queueOrders.length}</span>
+              <span className="font-display-lg text-display-lg text-on-surface font-bold">{totalCount}</span>
               <span className="font-label-md text-label-md text-outline">lệnh gia công</span>
             </div>
             <div className="mt-1 pt-1.5 border-t border-[#e7eeff] text-body-sm text-[11px] text-outline">
-              0 Flagship • 0 Online
+              {waitingCount} Chờ nạp • {inProgressCount} Đang mài
             </div>
           </div>
 
+          {/* Card 2: Chờ Gán Máy & Phôi (PENDING) */}
           <div className="bg-surface-container-lowest p-3 rounded-xl shadow-xs border border-[#d8e3fb]/40 flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <span className="font-label-md text-label-md text-outline uppercase tracking-wider">Chờ Gán Máy &amp; Phôi</span>
@@ -136,7 +223,7 @@ export default function LabPage() {
               </div>
             </div>
             <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="font-display-lg text-display-lg text-secondary font-bold">{queueOrders.filter(o => o.status === 'Chờ nạp').length}</span>
+              <span className="font-display-lg text-display-lg text-secondary font-bold">{waitingCount}</span>
               <span className="font-label-md text-label-md text-outline">khay chờ nạp</span>
             </div>
             <div className="mt-1 pt-1.5 border-t border-[#e7eeff] text-body-sm text-[11px] text-secondary">
@@ -144,6 +231,7 @@ export default function LabPage() {
             </div>
           </div>
 
+          {/* Card 3: Đang Mài Tự Động (IN_PROGRESS) */}
           <div className="bg-surface-container-lowest p-3 rounded-xl shadow-xs border border-[#d8e3fb]/40 flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <span className="font-label-md text-label-md text-outline uppercase tracking-wider">Đang Mài Tự Động</span>
@@ -152,14 +240,15 @@ export default function LabPage() {
               </div>
             </div>
             <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="font-display-lg text-display-lg text-primary font-bold">{queueOrders.filter(o => o.status === 'in_progress').length}</span>
+              <span className="font-display-lg text-display-lg text-primary font-bold">{inProgressCount}</span>
               <span className="font-label-md text-label-md text-outline">máy đang cắt</span>
             </div>
             <div className="mt-1 pt-1.5 border-t border-[#e7eeff] text-body-sm text-[11px] text-outline">
-              {queueOrders.filter(o => o.status === 'in_progress').length > 0 ? 'Có lệnh đang xử lý' : 'Tất cả máy đang chờ lệnh'}
+              {inProgressCount > 0 ? `${inProgressCount} máy đang chạy tải` : 'Tất cả máy đang chờ lệnh'}
             </div>
           </div>
 
+          {/* Card 4: Chờ QC Kiểm Tra (QC_PENDING) */}
           <div className="bg-surface-container-lowest p-3 rounded-xl shadow-xs border border-[#d8e3fb]/40 flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <span className="font-label-md text-label-md text-outline uppercase tracking-wider">Chờ QC Kiểm Tra</span>
@@ -168,7 +257,7 @@ export default function LabPage() {
               </div>
             </div>
             <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="font-display-lg text-display-lg text-on-surface font-bold">{queueOrders.filter(o => o.status === 'Chờ QC').length}</span>
+              <span className="font-display-lg text-display-lg text-on-surface font-bold">{qcPendingCount}</span>
               <span className="font-label-md text-label-md text-outline">đơn sẵn sàng</span>
             </div>
             <div className="mt-1 pt-1.5 border-t border-[#e7eeff] text-body-sm text-[11px] text-outline">
@@ -177,14 +266,14 @@ export default function LabPage() {
           </div>
         </div>
 
-        {/* 3. COMPACT MACHINE STATUS TELEMETRY STRIP */}
+        {/* 3. COMPACT MACHINE STATUS TELEMETRY STRIP (Dynamic Machine State) */}
         <div className="bg-surface-container-lowest p-3 rounded-xl shadow-xs border border-[#d8e3fb]/40 space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <span className="material-symbols-outlined text-primary text-[16px]">monitor_heart</span>
               <span className="font-title-md text-title-md text-on-surface font-semibold">Trạng Thái Máy Mài Tự Động (Telemetry Grid)</span>
             </div>
-            <span className="text-[10px] text-outline">Tự động đồng bộ: 10s</span>
+            <span className="text-[10px] text-outline">Tự động đồng bộ: Live</span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
@@ -198,7 +287,7 @@ export default function LabPage() {
                   </div>
                   <span className="text-[10px] text-outline block mt-0.5">Trạm Mài 3D Chính</span>
                 </div>
-                {queueOrders[0] && queueOrders[0].status === 'in_progress' ? (
+                {machine1Order ? (
                   <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[10px] font-semibold flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span> Đang cắt
                   </span>
@@ -209,14 +298,14 @@ export default function LabPage() {
                 )}
               </div>
               <div className="mt-2 space-y-1">
-                {queueOrders[0] && queueOrders[0].status === 'in_progress' ? (
+                {machine1Order ? (
                   <>
                     <div className="flex justify-between text-[11px]">
-                      <span className="font-label-mono text-primary font-bold">{queueOrders[0].id}</span>
-                      <span className="text-outline">{queueOrders[0].timeRemaining}</span>
+                      <span className="font-label-mono text-primary font-bold">{machine1Order.id}</span>
+                      <span className="text-outline">{machine1Order.timeRemaining}</span>
                     </div>
                     <div className="w-full bg-surface-variant rounded-full h-1.5 overflow-hidden">
-                      <div className="bg-primary h-full rounded-full transition-all duration-500" style={{ width: '50%' }}></div>
+                      <div className="bg-primary h-full rounded-full transition-all duration-500" style={{ width: '68%' }}></div>
                     </div>
                   </>
                 ) : (
@@ -235,7 +324,7 @@ export default function LabPage() {
                   </div>
                   <span className="text-[10px] text-outline block mt-0.5">Chuyên Gọng Kim Loại</span>
                 </div>
-                {queueOrders[1] && queueOrders[1].status === 'in_progress' ? (
+                {machine2Order ? (
                   <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[10px] font-semibold flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span> Đang cắt
                   </span>
@@ -246,14 +335,14 @@ export default function LabPage() {
                 )}
               </div>
               <div className="mt-2 space-y-1">
-                {queueOrders[1] && queueOrders[1].status === 'in_progress' ? (
+                {machine2Order ? (
                   <>
                     <div className="flex justify-between text-[11px]">
-                      <span className="font-label-mono text-secondary font-bold">{queueOrders[1].id}</span>
-                      <span className="text-outline">{queueOrders[1].timeRemaining}</span>
+                      <span className="font-label-mono text-secondary font-bold">{machine2Order.id}</span>
+                      <span className="text-outline">{machine2Order.timeRemaining}</span>
                     </div>
                     <div className="w-full bg-surface-variant rounded-full h-1.5 overflow-hidden">
-                      <div className="bg-secondary h-full rounded-full transition-all duration-500" style={{ width: '35%' }}></div>
+                      <div className="bg-secondary h-full rounded-full transition-all duration-500" style={{ width: '52%' }}></div>
                     </div>
                   </>
                 ) : (
@@ -272,7 +361,7 @@ export default function LabPage() {
                   </div>
                   <span className="text-[10px] text-outline block mt-0.5">Vát Mini &amp; Kính Khoan</span>
                 </div>
-                {queueOrders[2] && queueOrders[2].status === 'in_progress' ? (
+                {machine3Order ? (
                   <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[10px] font-semibold flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span> Đang cắt
                   </span>
@@ -282,10 +371,20 @@ export default function LabPage() {
                   </span>
                 )}
               </div>
-              <div className="mt-2 flex items-center justify-between text-[11px]">
-                <span className="text-outline truncate">
-                  {queueOrders[2] ? queueOrders[2].id : 'Hàng đợi trống • Sẵn sàng cắt mài'}
-                </span>
+              <div className="mt-2 space-y-1">
+                {machine3Order ? (
+                  <>
+                    <div className="flex justify-between text-[11px]">
+                      <span className="font-label-mono text-primary font-bold">{machine3Order.id}</span>
+                      <span className="text-outline">{machine3Order.timeRemaining}</span>
+                    </div>
+                    <div className="w-full bg-surface-variant rounded-full h-1.5 overflow-hidden">
+                      <div className="bg-primary h-full rounded-full transition-all duration-500" style={{ width: '40%' }}></div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-[11px] text-outline">Hàng đợi trống • Sẵn sàng cắt mài</div>
+                )}
               </div>
             </div>
           </div>
@@ -298,6 +397,8 @@ export default function LabPage() {
             <div className="relative flex-1 min-w-[260px]">
               <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[16px] text-outline">search</span>
               <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-surface-container-low text-on-surface font-body-md text-body-md focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-outline"
                 placeholder="Tìm mã lệnh #LAB, đơn hàng, khách hàng, SKU gọng..."
                 type="text"
@@ -306,11 +407,12 @@ export default function LabPage() {
 
             <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap text-label-md font-label-md">
               {[
-                { id: 'all', label: 'Tất cả ({queueOrders.length})' },
-                { id: 'waiting', label: 'Chờ nạp (0)' },
-                { id: 'in_progress', label: 'Đang mài (0)' },
-                { id: 'completed', label: 'Chờ QC (0)' },
-                { id: 'priority', label: 'Hỏa tốc (0)', isHighlight: true }
+                { id: 'all', label: `Tất cả (${totalCount})` },
+                { id: 'waiting', label: `Chờ nạp (${waitingCount})` },
+                { id: 'in_progress', label: `Đang mài (${inProgressCount})` },
+                { id: 'qc_pending', label: `Chờ QC (${qcPendingCount})` },
+                { id: 'qc_passed', label: `Đã duyệt QC (${qcPassedCount})` },
+                { id: 'priority', label: `Hỏa tốc (${priorityCount})`, isHighlight: true }
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -347,79 +449,103 @@ export default function LabPage() {
                     <td colSpan={7} className="py-12 text-center text-outline">
                       <div className="flex flex-col items-center justify-center">
                         <span className="material-symbols-outlined text-3xl text-slate-300 mb-1">precision_manufacturing</span>
-                        <span className="text-sm font-medium text-on-surface">Chưa có lệnh mài kính nào trong xưởng</span>
-                        <span className="text-xs text-outline mt-0.5">Khi nhân viên thu ngân POS hoặc Bác sĩ tạo đơn kính thuốc, lệnh sẽ xuất hiện tại đây</span>
+                        <span className="text-sm font-medium text-on-surface">Chưa có lệnh mài kính nào phù hợp bộ lọc</span>
+                        <span className="text-xs text-outline mt-0.5">
+                          {activeTab !== 'all' ? 'Thử chọn tab "Tất cả" hoặc xóa bộ lọc tìm kiếm' : 'Khi nhân viên thu ngân POS hoặc Bác sĩ tạo đơn kính thuốc, lệnh sẽ xuất hiện tại đây'}
+                        </span>
                       </div>
                     </td>
                   </tr>
                 ) : (
                   filteredOrders.map((order) => (
-                  <tr
-                    key={order.id}
-                    onClick={() => setSelectedOrder(order)}
-                    className="hover:bg-surface-container-low transition-colors cursor-pointer"
-                  >
-                    <td className="py-2.5 px-3">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-label-mono text-primary font-bold text-xs">{order.id}</span>
-                        <span className="px-1.5 py-0.2 rounded bg-surface-container font-label-mono text-[10px] text-outline">{order.tray}</span>
-                      </div>
-                    </td>
-                    <td className="py-2.5 px-3">
-                      <strong className="text-on-surface text-xs block">{order.customer}</strong>
-                      <span className="text-[10px] text-outline">{order.orderId}</span>
-                    </td>
-                    <td className="py-2.5 px-3 max-w-xs">
-                      <div className="text-xs text-on-surface truncate font-medium">{order.frame}</div>
-                      <div className="text-[11px] text-primary truncate">{order.lens}</div>
-                    </td>
-                    <td className="py-2.5 px-2 font-label-mono text-[11px] text-outline">
-                      {order.rxSummary}
-                    </td>
-                    <td className="py-2.5 px-3">
-                      <span className="text-xs text-on-surface block font-medium">{order.machine}</span>
-                      <span className="text-[10px] text-outline">{order.tech}</span>
-                    </td>
-                    <td className="py-2.5 px-3">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold inline-block ${order.statusClass}`}>
-                        {order.statusLabel}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 text-right">
-                      {order.status === 'in_progress' ? (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleAction(`Đã đánh dấu hoàn tất mài ${order.id}. Chuyển sang bàn QC!`);
-                          }}
-                          className="px-2.5 py-1 bg-primary text-on-primary rounded-lg text-label-md font-label-md hover:bg-[#0b4d6b] transition-all cursor-pointer shadow-xs"
-                        >
-                          Xong Mài → QC
-                        </button>
-                      ) : order.status === 'waiting' ? (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleAction(`Đã nạp lệnh ${order.id} vào máy mài!`);
-                          }}
-                          className="px-2.5 py-1 bg-secondary text-on-secondary rounded-lg text-label-md font-label-md hover:bg-primary transition-all cursor-pointer"
-                        >
-                          Nạp Vào Máy
-                        </button>
-                      ) : (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleAction(`Chuyển đơn ${order.id} sang bàn nghiệm thu QC`);
-                          }}
-                          className="px-2.5 py-1 bg-surface-container text-primary rounded-lg text-label-md font-label-md hover:bg-surface-container-high transition-all cursor-pointer"
-                        >
-                          Bàn Giao QC
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                )))}
+                    <tr
+                      key={order.id}
+                      onClick={() => setSelectedOrder(order)}
+                      className="hover:bg-surface-container-low transition-colors cursor-pointer"
+                    >
+                      <td className="py-2.5 px-3">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-label-mono text-primary font-bold text-xs">{order.id}</span>
+                          <span className="px-1.5 py-0.2 rounded bg-surface-container font-label-mono text-[10px] text-outline">{order.tray}</span>
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <strong className="text-on-surface text-xs block">{order.customer}</strong>
+                        <span className="text-[10px] text-outline">{order.orderId}</span>
+                      </td>
+                      <td className="py-2.5 px-3 max-w-xs">
+                        <div className="text-xs text-on-surface truncate font-medium">{order.frame}</div>
+                        <div className="text-[11px] text-primary truncate">{order.lens}</div>
+                      </td>
+                      <td className="py-2.5 px-2 font-label-mono text-[11px] text-outline">
+                        {order.rxSummary}
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <span className="text-xs text-on-surface block font-medium">{order.machine}</span>
+                        <span className="text-[10px] text-outline">{order.tech}</span>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold inline-block ${order.statusClass}`}>
+                          {order.statusLabel}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-right">
+                        {order.rawStatus === 'IN_PROGRESS' ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleUpdateJobStatus(
+                                order.dbId,
+                                'QC_PENDING',
+                                `Đã đánh dấu hoàn tất mài ${order.id}. Chuyển sang bàn kiểm tra QC!`
+                              );
+                            }}
+                            disabled={loading}
+                            className="px-2.5 py-1 bg-primary text-on-primary rounded-lg text-label-md font-label-md hover:bg-[#0b4d6b] transition-all cursor-pointer shadow-xs"
+                          >
+                            Xong Mài → QC
+                          </button>
+                        ) : order.rawStatus === 'PENDING' ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleUpdateJobStatus(
+                                order.dbId,
+                                'IN_PROGRESS',
+                                `Đã nạp lệnh ${order.id} vào máy mài!`
+                              );
+                            }}
+                            disabled={loading}
+                            className="px-2.5 py-1 bg-secondary text-on-secondary rounded-lg text-label-md font-label-md hover:bg-primary transition-all cursor-pointer"
+                          >
+                            Nạp Vào Máy
+                          </button>
+                        ) : order.rawStatus === 'QC_PENDING' ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate('/lab-qc');
+                            }}
+                            className="px-2.5 py-1 bg-surface-container text-primary rounded-lg text-label-md font-label-md hover:bg-surface-container-high transition-all cursor-pointer flex items-center gap-1 ml-auto"
+                          >
+                            <span>Sang Bàn QC</span>
+                            <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedOrder(order);
+                            }}
+                            className="px-2.5 py-1 bg-surface-container text-outline rounded-lg text-label-md font-label-md hover:bg-surface-container-high transition-all cursor-pointer"
+                          >
+                            Chi Tiết
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -439,6 +565,7 @@ export default function LabPage() {
                   <div className="flex items-center gap-2">
                     <span className="font-label-mono font-bold text-primary text-sm">{selectedOrder.id}</span>
                     <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[10px] font-semibold">{selectedOrder.tray}</span>
+                    <span className={`px-2 py-0.2 rounded-full text-[10px] font-semibold ${selectedOrder.statusClass}`}>{selectedOrder.statusLabel}</span>
                   </div>
                   <span className="text-xs text-outline">Đơn gốc: {selectedOrder.orderId} • Khách: {selectedOrder.customer} ({selectedOrder.phone})</span>
                 </div>
@@ -452,22 +579,68 @@ export default function LabPage() {
                 <div><strong>Tròng kính:</strong> {selectedOrder.lens}</div>
                 <div className="font-label-mono text-primary font-semibold">Thông số: {selectedOrder.rxSummary}</div>
                 <div><strong>Máy chỉ định:</strong> {selectedOrder.machine} • <strong>KTV:</strong> {selectedOrder.tech}</div>
+                {selectedOrder.qcNotes && (
+                  <div className="text-xs text-error font-medium pt-1 border-t border-[#e7eeff]">
+                    <strong>Ghi chú QC:</strong> {selectedOrder.qcNotes}
+                  </div>
+                )}
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-1">
-                <button onClick={() => setSelectedOrder(null)} className="px-3 py-1.5 rounded-xl bg-surface-container text-on-surface font-label-md text-label-md cursor-pointer hover:bg-surface-container-high">
-                  Đóng
-                </button>
-                <button
-                  onClick={() => {
-                    setSelectedOrder(null);
-                    handleAction(`Đã in phiếu kỹ thuật mã vạch cho ${selectedOrder.id}`);
-                  }}
-                  className="px-3 py-1.5 rounded-xl bg-primary text-on-primary font-label-md text-label-md flex items-center gap-1 shadow-xs cursor-pointer hover:bg-[#0b4d6b]"
-                >
-                  <span className="material-symbols-outlined text-[15px]">print</span>
-                  <span>In Phiếu Kỹ Thuật</span>
-                </button>
+              <div className="flex items-center justify-between pt-1">
+                <div>
+                  {selectedOrder.rawStatus === 'PENDING' && (
+                    <button
+                      onClick={() => {
+                        const o = selectedOrder;
+                        setSelectedOrder(null);
+                        handleUpdateJobStatus(o.dbId, 'IN_PROGRESS', `Đã nạp lệnh ${o.id} vào máy mài!`);
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-secondary text-on-secondary font-label-md text-label-md cursor-pointer hover:bg-primary shadow-xs"
+                    >
+                      Nạp Vào Máy Mài
+                    </button>
+                  )}
+                  {selectedOrder.rawStatus === 'IN_PROGRESS' && (
+                    <button
+                      onClick={() => {
+                        const o = selectedOrder;
+                        setSelectedOrder(null);
+                        handleUpdateJobStatus(o.dbId, 'QC_PENDING', `Đã chuyển ${o.id} sang bàn kiểm tra QC!`);
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-primary text-on-primary font-label-md text-label-md cursor-pointer hover:bg-[#0b4d6b] shadow-xs"
+                    >
+                      Hoàn Tất Mài → QC
+                    </button>
+                  )}
+                  {selectedOrder.rawStatus === 'QC_PENDING' && (
+                    <button
+                      onClick={() => {
+                        setSelectedOrder(null);
+                        navigate('/lab-qc');
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-secondary-fixed text-on-secondary-fixed font-label-md text-label-md cursor-pointer hover:bg-secondary flex items-center gap-1 shadow-xs"
+                    >
+                      <span>Mở Màn Hình Nghiệm Thu QC</span>
+                      <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setSelectedOrder(null)} className="px-3 py-1.5 rounded-xl bg-surface-container text-on-surface font-label-md text-label-md cursor-pointer hover:bg-surface-container-high">
+                    Đóng
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedOrder(null);
+                      handleAction(`Đã in phiếu kỹ thuật mã vạch cho ${selectedOrder.id}`);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-primary text-on-primary font-label-md text-label-md flex items-center gap-1 shadow-xs cursor-pointer hover:bg-[#0b4d6b]"
+                  >
+                    <span className="material-symbols-outlined text-[15px]">print</span>
+                    <span>In Phiếu Kỹ Thuật</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
