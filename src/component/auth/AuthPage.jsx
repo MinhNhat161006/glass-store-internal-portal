@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { staffApi } from '../../api/staffApi';
 import { message, Modal } from 'antd';
 
 // Role configuration matching official OptiVision specification
@@ -142,7 +143,7 @@ export default function AuthPage({ onLoginSuccess }) {
   };
 
   // Submit Registration
-  const handleStaffRegister = (e) => {
+  const handleStaffRegister = async (e) => {
     if (e) e.preventDefault();
 
     if (!regFullName.trim()) {
@@ -171,23 +172,42 @@ export default function AuthPage({ onLoginSuccess }) {
     }
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      const roleMapping = {
+        pos: 'ROLE_SALES_STAFF',
+        optometry: 'ROLE_OPTOMETRIST',
+        lab: 'ROLE_LAB_TECH',
+        admin: 'ROLE_ADMIN'
+      };
+
+      const branchObj = BRANCH_OPTIONS.find((b) => b.value === regBranch);
+      const randomCode = `STF-${Math.floor(100 + Math.random() * 900)}`;
+
+      const created = await staffApi.createStaff({
+        fullName: regFullName.trim(),
+        email: regEmail.trim(),
+        phoneNumber: regPhone.trim(),
+        branchName: branchObj ? branchObj.label : 'Flagship Q.1 (TP.HCM)',
+        employeeCode: randomCode,
+        roleName: roleMapping[regRole] || 'ROLE_SALES_STAFF',
+        password: regPassword.trim(),
+        status: 'PENDING'
+      });
+
       Modal.success({
-        title: 'Hồ sơ đăng ký nhân sự đã được tiếp nhận!',
+        title: 'Gửi yêu cầu cấp tài khoản thành công!',
         content: (
           <div className="space-y-2 text-slate-600 text-sm pt-2">
             <p>
               Chào mừng <strong>{regFullName}</strong>. Yêu cầu cấp tài khoản thuộc phân hệ{' '}
               <strong className="text-[#086288]">{ROLE_CONFIGS[regRole]?.name}</strong> tại chi nhánh{' '}
-              <strong>{BRANCH_OPTIONS.find((b) => b.value === regBranch)?.label}</strong> đã được gửi tới Ban Giám Đốc
-              và IT Helpdesk.
+              <strong>{branchObj?.label}</strong> đã được gửi tới Ban Quản Trị hệ thống ở trạng thái <strong>Chờ Duyệt (PENDING)</strong>.
             </p>
-            <p className="p-2 bg-slate-100 rounded text-xs font-mono">
-              Mã hồ sơ tiếp nhận: REQ-OPT-{Math.floor(100000 + Math.random() * 900000)}
+            <p className="p-2 bg-emerald-50 text-emerald-800 rounded text-xs font-mono">
+              Mã hồ sơ: {created?.employeeCode || randomCode} • Email: {regEmail}
             </p>
             <p className="text-xs text-slate-500">
-              Bạn có thể sử dụng các tài khoản tác nghiệp demo có sẵn để trải nghiệm hệ thống ngay.
+              Yêu cầu của bạn hiện đã hiển thị tại mục <strong>"Yêu Cầu Cấp Quyền"</strong> trong trang Quản Trị Nhân Viên (FR-ADM) của Admin để phê duyệt kích hoạt.
             </p>
           </div>
         ),
@@ -196,7 +216,11 @@ export default function AuthPage({ onLoginSuccess }) {
           handleRoleSelect(regRole);
         }
       });
-    }, 800);
+    } catch (err) {
+      message.error(`Không thể gửi yêu cầu cấp tài khoản: ${err.message || 'Lỗi kết nối'}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

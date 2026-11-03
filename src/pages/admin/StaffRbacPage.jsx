@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { message, Modal, Spin } from 'antd';
 import { staffApi } from '../../api/staffApi';
 
-// Cleared mock staff
+// Roles definition
 const ROLES_LIST = [
   { code: 'all', label: 'Tất cả vai trò' },
   { code: 'admin', label: 'Quản Trị Viên (Admin)' },
@@ -62,7 +62,7 @@ const RBAC_MODULES = [
 ];
 
 export default function StaffRbacPage() {
-  const [activeTab, setActiveTab] = useState('staff'); // 'staff' | 'matrix'
+  const [activeTab, setActiveTab] = useState('staff'); // 'staff' | 'requests' | 'matrix'
   const [staffList, setStaffList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -121,6 +121,7 @@ export default function StaffRbacPage() {
             .join('')
             .toUpperCase();
 
+          const normStatus = (u.status || 'ACTIVE').toLowerCase();
           return {
             dbId: u.id,
             id: u.employeeCode || `STF-0${u.id}`,
@@ -130,17 +131,18 @@ export default function StaffRbacPage() {
             branch: u.branchName || 'Flagship Q.1 (TP.HCM)',
             roleName: roleInfo.label,
             roleCode: roleInfo.code,
-            status: u.status === 'ACTIVE' ? 'active' : 'locked',
-            lastActive: 'Trực tuyến hôm nay',
+            status: normStatus === 'active' ? 'active' : (normStatus === 'pending' ? 'pending' : 'locked'),
+            lastActive: normStatus === 'pending' ? 'Chờ duyệt cấp quyền' : 'Trực tuyến hôm nay',
             avatar: initials,
             color: roleInfo.color,
+            createdAt: u.createdAt ? new Date(u.createdAt).toLocaleDateString('vi-VN') : 'Mới đăng ký',
             permissions: ['pos_create', 'stock_view']
           };
         });
         setStaffList(mapped);
       }
     } catch (err) {
-      console.warn('Lấy dữ liệu nhân viên từ backend thất bại, dùng danh sách dự phòng:', err);
+      console.warn('Lấy dữ liệu nhân viên từ backend thất bại:', err);
     } finally {
       setLoading(false);
     }
@@ -150,7 +152,11 @@ export default function StaffRbacPage() {
     loadStaff();
   }, []);
 
-  // Filtered staff list
+  const activeStaff = staffList.filter(s => s.status === 'active');
+  const pendingStaff = staffList.filter(s => s.status === 'pending');
+  const lockedStaff = staffList.filter(s => s.status === 'locked');
+
+  // Filtered staff list for Tab 1
   const filteredStaff = staffList.filter(staff => {
     const q = searchQuery.toLowerCase().trim();
     const matchSearch = !q || staff.name.toLowerCase().includes(q) || staff.id.toLowerCase().includes(q) || staff.email.toLowerCase().includes(q);
@@ -172,6 +178,39 @@ export default function StaffRbacPage() {
     }
   };
 
+  const handleApproveStaff = async (staff) => {
+    try {
+      if (staff.dbId) {
+        await staffApi.toggleStaffStatus(staff.dbId);
+      }
+      message.success(`Đã phê duyệt và kích hoạt tài khoản cho ${staff.name} (${staff.id}) thành công! Nhân viên hiện có thể đăng nhập.`);
+      await loadStaff();
+    } catch (err) {
+      message.error(`Lỗi phê duyệt: ${err.message}`);
+    }
+  };
+
+  const handleRejectStaff = async (staff) => {
+    Modal.confirm({
+      title: `Từ chối yêu cầu cấp quyền cho ${staff.name}?`,
+      content: `Bạn có chắc chắn muốn từ chối và hủy hồ sơ đăng ký của "${staff.name}" (${staff.email})? Thao tác này sẽ xóa hồ sơ khỏi hệ thống.`,
+      okText: 'Xác nhận từ chối',
+      okType: 'danger',
+      cancelText: 'Quay lại',
+      onOk: async () => {
+        try {
+          if (staff.dbId) {
+            await staffApi.deleteStaff(staff.dbId);
+          }
+          message.info(`Đã từ chối và hủy hồ sơ đăng ký của ${staff.name}`);
+          await loadStaff();
+        } catch (err) {
+          message.error(`Lỗi khi từ chối hồ sơ: ${err.message}`);
+        }
+      }
+    });
+  };
+
   const handleCreateStaff = async () => {
     if (!newStaff.name.trim() || !newStaff.email.trim()) {
       message.error('Vui lòng nhập họ tên và email nhân viên');
@@ -186,7 +225,8 @@ export default function StaffRbacPage() {
         phoneNumber: newStaff.phone || '0901000000',
         branchName: newStaff.branch,
         employeeCode: newId,
-        role: mapCodeToBackendRole(newStaff.roleCode)
+        roleName: mapCodeToBackendRole(newStaff.roleCode),
+        status: 'ACTIVE'
       });
       setIsAddModalOpen(false);
       setNewStaff({ name: '', email: '', phone: '', branch: 'Flagship Q.1', roleCode: 'cashier', roleName: 'Thu Ngân POS & Bán Lẻ' });
@@ -237,10 +277,10 @@ export default function StaffRbacPage() {
             <div>
               <span className="text-[11px] font-semibold text-[#70787f] uppercase tracking-wider block">Tổng nhân sự</span>
               <div className="flex items-baseline gap-1.5 mt-0.5">
-                <span className="text-xl font-bold text-[#004967]">{staffList.length}</span>
+                <span className="text-xl font-bold text-[#004967]">{activeStaff.length + lockedStaff.length}</span>
                 <span className="text-xs text-[#70787f]">hồ sơ</span>
               </div>
-              <span className="text-[11px] text-emerald-600 font-medium">{staffList.filter(s => s.status === 'active').length} đang hoạt động</span>
+              <span className="text-[11px] text-emerald-600 font-medium">{activeStaff.length} đang hoạt động</span>
             </div>
             <div className="w-10 h-10 rounded-xl bg-[#e7eeff] text-[#004967] flex items-center justify-center">
               <span className="material-symbols-outlined text-[20px]">badge</span>
@@ -265,7 +305,7 @@ export default function StaffRbacPage() {
             <div>
               <span className="text-[11px] font-semibold text-[#70787f] uppercase tracking-wider block">Phiên trực tuyến</span>
               <div className="flex items-baseline gap-1.5 mt-0.5">
-                <span className="text-xl font-bold text-emerald-700">{staffList.filter(s => s.status === 'active').length}</span>
+                <span className="text-xl font-bold text-emerald-700">{activeStaff.length}</span>
                 <span className="text-xs text-[#70787f]">tài khoản</span>
               </div>
               <span className="text-[11px] text-emerald-600 font-medium flex items-center gap-1">
@@ -278,17 +318,31 @@ export default function StaffRbacPage() {
             </div>
           </div>
 
-          <div className="bg-white p-3.5 rounded-xl border border-[#d8e3fb]/40 shadow-sm flex items-center justify-between">
+          {/* KPI Card 4: Requests Pending Approval */}
+          <div 
+            onClick={() => setActiveTab('requests')}
+            className={`p-3.5 rounded-xl border shadow-sm flex items-center justify-between cursor-pointer transition-all ${
+              pendingStaff.length > 0 
+                ? 'bg-amber-50/70 border-amber-200 hover:bg-amber-50' 
+                : 'bg-white border-[#d8e3fb]/40 hover:bg-[#f0f3ff]'
+            }`}
+          >
             <div>
-              <span className="text-[11px] font-semibold text-[#70787f] uppercase tracking-wider block">Nhật ký 24H</span>
+              <span className="text-[11px] font-semibold text-[#70787f] uppercase tracking-wider block">Yêu cầu cấp quyền</span>
               <div className="flex items-baseline gap-1.5 mt-0.5">
-                <span className="text-xl font-bold text-[#004967]">{staffList.length * 2}</span>
-                <span className="text-xs text-[#70787f]">thao tác</span>
+                <span className={`text-xl font-bold ${pendingStaff.length > 0 ? 'text-amber-700' : 'text-[#004967]'}`}>
+                  {pendingStaff.length}
+                </span>
+                <span className="text-xs text-[#70787f]">chờ duyệt</span>
               </div>
-              <span className="text-[11px] text-[#70787f]">Được lưu vết tự động</span>
+              <span className={`text-[11px] font-semibold ${pendingStaff.length > 0 ? 'text-amber-700 animate-pulse' : 'text-emerald-600'}`}>
+                {pendingStaff.length > 0 ? '⚠️ Cần Admin phê duyệt' : '✓ Đã xử lý tất cả'}
+              </span>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-[#e7eeff] text-[#004967] flex items-center justify-center">
-              <span className="material-symbols-outlined text-[20px]">history_toggle_off</span>
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+              pendingStaff.length > 0 ? 'bg-amber-100 text-amber-800' : 'bg-[#e7eeff] text-[#004967]'
+            }`}>
+              <span className="material-symbols-outlined text-[20px]">pending_actions</span>
             </div>
           </div>
         </div>
@@ -305,8 +359,27 @@ export default function StaffRbacPage() {
               }`}
             >
               <span className="material-symbols-outlined text-[16px]">group</span>
-              <span>Danh Sách Nhân Sự ({staffList.length})</span>
+              <span>Danh Sách Nhân Sự ({activeStaff.length + lockedStaff.length})</span>
             </button>
+
+            {/* TAB 2: YÊU CẦU CẤP QUYỀN MỚI */}
+            <button
+              onClick={() => setActiveTab('requests')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                activeTab === 'requests'
+                  ? 'bg-[#004967] text-white shadow-sm'
+                  : 'bg-white text-[#70787f] hover:bg-[#f0f3ff] border border-[#d8e3fb]/60'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[16px]">person_add</span>
+              <span>Yêu Cầu Cấp Quyền (Đăng Ký Mới)</span>
+              {pendingStaff.length > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-bold">
+                  {pendingStaff.length}
+                </span>
+              )}
+            </button>
+
             <button
               onClick={() => setActiveTab('matrix')}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
@@ -321,7 +394,7 @@ export default function StaffRbacPage() {
           </div>
         </div>
 
-        {/* TAB 1: DANH SÁCH NHÂN SỰ */}
+        {/* ================= TAB 1: DANH SÁCH NHÂN SỰ ================= */}
         {activeTab === 'staff' && (
           <div className="bg-white rounded-xl border border-[#d8e3fb]/40 shadow-sm overflow-hidden flex flex-col">
             {/* Filter toolbar */}
@@ -355,6 +428,7 @@ export default function StaffRbacPage() {
                 >
                   <option value="all">Tất cả trạng thái</option>
                   <option value="active">Đang hoạt động</option>
+                  <option value="pending">Chờ phê duyệt</option>
                   <option value="locked">Tạm khóa</option>
                 </select>
               </div>
@@ -386,7 +460,7 @@ export default function StaffRbacPage() {
                               {staff.name}
                               <span className="text-[11px] font-mono px-1.5 py-0.2 rounded bg-[#e7eeff] text-[#004967]">{staff.id}</span>
                             </div>
-                            <div className="text-[11px] text-[#70787f]">{staff.email}</div>
+                            <div className="text-[11px] text-[#70787f]">{staff.email} • {staff.phone}</div>
                           </div>
                         </div>
                       </td>
@@ -407,6 +481,11 @@ export default function StaffRbacPage() {
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                             Hoạt động
                           </span>
+                        ) : staff.status === 'pending' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 font-semibold text-[11px] border border-amber-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                            Chờ phê duyệt
+                          </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 font-semibold text-[11px]">
                             <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
@@ -416,24 +495,37 @@ export default function StaffRbacPage() {
                       </td>
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => setEditingStaff(staff)}
-                            className="p-1.5 rounded-lg text-[#004967] hover:bg-[#dee8ff] transition-colors"
-                            title="Chỉnh sửa phân quyền"
-                          >
-                            <span className="material-symbols-outlined text-[17px]">edit</span>
-                          </button>
-                          <button
-                            onClick={() => handleToggleStatus(staff)}
-                            className={`p-1.5 rounded-lg transition-colors ${
-                              staff.status === 'active' ? 'text-rose-600 hover:bg-rose-50' : 'text-emerald-600 hover:bg-emerald-50'
-                            }`}
-                            title={staff.status === 'active' ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
-                          >
-                            <span className="material-symbols-outlined text-[17px]">
-                              {staff.status === 'active' ? 'lock' : 'lock_open'}
-                            </span>
-                          </button>
+                          {staff.status === 'pending' ? (
+                            <button
+                              onClick={() => handleApproveStaff(staff)}
+                              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center gap-1 transition-colors"
+                              title="Phê duyệt tài khoản này"
+                            >
+                              <span className="material-symbols-outlined text-[14px]">check</span>
+                              <span>Duyệt</span>
+                            </button>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => setEditingStaff(staff)}
+                                className="p-1.5 rounded-lg text-[#004967] hover:bg-[#dee8ff] transition-colors"
+                                title="Chỉnh sửa phân quyền"
+                              >
+                                <span className="material-symbols-outlined text-[17px]">edit</span>
+                              </button>
+                              <button
+                                onClick={() => handleToggleStatus(staff)}
+                                className={`p-1.5 rounded-lg transition-colors ${
+                                  staff.status === 'active' ? 'text-rose-600 hover:bg-rose-50' : 'text-emerald-600 hover:bg-emerald-50'
+                                }`}
+                                title={staff.status === 'active' ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
+                              >
+                                <span className="material-symbols-outlined text-[17px]">
+                                  {staff.status === 'active' ? 'lock' : 'lock_open'}
+                                </span>
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -444,80 +536,163 @@ export default function StaffRbacPage() {
           </div>
         )}
 
-        {/* TAB 2: MA TRẬN PHÂN QUYỀN (RBAC MATRIX) */}
+        {/* ================= TAB 2: YÊU CẦU CẤP QUYỀN (ĐĂNG KÝ MỚI) ================= */}
+        {activeTab === 'requests' && (
+          <div className="bg-white rounded-xl border border-[#d8e3fb]/40 shadow-sm overflow-hidden flex flex-col">
+            <div className="p-4 bg-gradient-to-r from-[#f0f3ff] to-[#e7eeff]/40 border-b border-[#e7eeff] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-bold text-[#004967] flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[18px]">how_to_reg</span>
+                  <span>Hồ Sơ Đăng Ký Chờ Phê Duyệt Cấp Quyền (FR-ADM-01)</span>
+                </h3>
+                <p className="text-xs text-[#70787f] mt-0.5">
+                  Các yêu cầu tạo tài khoản gửi từ form Đăng Ký Mới của Cổng Nội Bộ. Admin duyệt để kích hoạt hoặc từ chối hồ sơ.
+                </p>
+              </div>
+              <button
+                onClick={loadStaff}
+                className="self-start sm:self-auto px-3 py-1.5 rounded-lg bg-white border border-[#d8e3fb] hover:bg-[#f0f3ff] text-xs font-semibold text-[#004967] flex items-center gap-1"
+              >
+                <span className="material-symbols-outlined text-[16px]">refresh</span>
+                <span>Làm mới danh sách</span>
+              </button>
+            </div>
+
+            {pendingStaff.length === 0 ? (
+              <div className="p-12 text-center flex flex-col items-center justify-center">
+                <div className="w-14 h-14 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3">
+                  <span className="material-symbols-outlined text-[28px]">verified</span>
+                </div>
+                <h4 className="text-sm font-bold text-[#111c2d]">Không có yêu cầu cấp quyền nào đang chờ xử lý</h4>
+                <p className="text-xs text-[#70787f] mt-1 max-w-md">
+                  Khi nhân sự mới điền form nộp yêu cầu tại màn hình Đăng Ký Cổng Nội Bộ, hồ sơ sẽ lập tức xuất hiện tại đây để Quản trị viên xét duyệt.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[880px]">
+                  <thead>
+                    <tr className="bg-[#dee8ff]/30 text-[#70787f] uppercase text-[11px] font-bold tracking-wider border-b border-[#e7eeff]">
+                      <th className="py-3 px-4">Ứng viên đề xuất</th>
+                      <th className="py-3 px-3">Cơ sở / Chi nhánh</th>
+                      <th className="py-3 px-3">Phân hệ xin cấp</th>
+                      <th className="py-3 px-3">Thời gian gửi</th>
+                      <th className="py-3 px-3">Trạng thái</th>
+                      <th className="py-3 px-4 text-right">Phê duyệt (Admin Action)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#e7eeff] text-xs text-[#111c2d]">
+                    {pendingStaff.map(staff => (
+                      <tr key={staff.id} className="hover:bg-amber-50/40 transition-colors">
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-amber-500 text-white font-bold text-xs flex items-center justify-center flex-shrink-0 shadow-sm">
+                              {staff.avatar}
+                            </div>
+                            <div>
+                              <div className="font-semibold text-[13px] text-[#111c2d] flex items-center gap-1.5">
+                                {staff.name}
+                                <span className="text-[11px] font-mono px-1.5 py-0.2 rounded bg-amber-100 text-amber-800">{staff.id}</span>
+                              </div>
+                              <div className="text-[11px] text-[#70787f]">{staff.email} • {staff.phone}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-3 font-medium text-[#111c2d]">
+                          {staff.branch}
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className="px-2.5 py-1 rounded-full bg-[#dee8ff] text-[#004967] font-semibold text-[11px]">
+                            {staff.roleName}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-[#70787f] font-mono text-[11px]">
+                          {staff.createdAt}
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 font-semibold text-[11px] border border-amber-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                            Chờ Admin phê duyệt
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => handleRejectStaff(staff)}
+                              className="px-2.5 py-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-700 text-xs font-semibold flex items-center gap-1 transition-colors"
+                            >
+                              <span className="material-symbols-outlined text-[15px]">close</span>
+                              <span>Từ chối</span>
+                            </button>
+                            <button
+                              onClick={() => handleApproveStaff(staff)}
+                              className="px-3 py-1.5 rounded-lg bg-[#004967] hover:bg-[#086288] text-white text-xs font-bold flex items-center gap-1 shadow-sm transition-colors"
+                            >
+                              <span className="material-symbols-outlined text-[15px]">check_circle</span>
+                              <span>Duyệt &amp; Kích Hoạt</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ================= TAB 3: MA TRẬN PHÂN QUYỀN (RBAC MATRIX) ================= */}
         {activeTab === 'matrix' && (
           <div className="bg-white rounded-xl border border-[#d8e3fb]/40 shadow-sm overflow-hidden flex flex-col">
             <div className="p-4 bg-[#f0f3ff]/50 border-b border-[#e7eeff] flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-bold text-[#111c2d]">Bảng Phân Quyền Vai Trò Theo Phân Hệ Nghiệp Vụ</h3>
-                <p className="text-xs text-[#70787f] mt-0.5">Xác lập ranh giới quyền hạn vận hành giữa các bộ phận Bán lẻ, Phòng khám, Xưởng mài và Kho vận</p>
+                <h3 className="text-sm font-bold text-[#004967]">Ma Trận Phân Quyền Chi Tiết Theo Phân Hệ (FR-ADM-02)</h3>
+                <p className="text-xs text-[#70787f]">Quy định quyền truy cập &amp; tác nghiệp của từng nhóm chức danh nhân sự trong chuỗi</p>
               </div>
-              <button
-                onClick={() => message.success('Đã lưu ma trận phân quyền hệ thống!')}
-                className="px-3.5 py-1.5 rounded-xl bg-[#004967] hover:bg-[#086288] text-white text-xs font-semibold shadow-sm transition-all"
-              >
-                Lưu Thay Đổi
-              </button>
+              <span className="text-xs font-mono text-[#004967] bg-[#dee8ff] px-2 py-1 rounded">5 Phân Hệ Tác Nghiệp</span>
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[780px]">
+              <table className="w-full text-left border-collapse min-w-[700px]">
                 <thead>
                   <tr className="bg-[#dee8ff]/30 text-[#70787f] uppercase text-[11px] font-bold tracking-wider border-b border-[#e7eeff]">
-                    <th className="py-3 px-4 w-2/5">Chức năng &amp; Phân hệ</th>
-                    <th className="py-3 px-3 text-center">Admin</th>
-                    <th className="py-3 px-3 text-center">Quản Lý</th>
-                    <th className="py-3 px-3 text-center">Thu Ngân POS</th>
-                    <th className="py-3 px-3 text-center">KTV Khúc Xạ</th>
-                    <th className="py-3 px-3 text-center">KTV Lab</th>
+                    <th className="py-3 px-4 w-1/3">Chức năng &amp; Phân hệ</th>
+                    <th className="py-3 px-3 text-center">Quản Trị (Admin)</th>
+                    <th className="py-3 px-3 text-center">Cửa Hàng Trưởng</th>
+                    <th className="py-3 px-3 text-center">Thu Ngân / POS</th>
+                    <th className="py-3 px-3 text-center">Bác Sĩ Khúc Xạ</th>
+                    <th className="py-3 px-3 text-center">KTV Lab Lens</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#e7eeff] text-xs text-[#111c2d]">
-                  {RBAC_MODULES.map((module, idx) => (
-                    <React.Fragment key={idx}>
-                      <tr className="bg-[#f0f3ff]/80 font-bold text-[#004967]">
+                <tbody className="divide-y divide-[#e7eeff] text-xs">
+                  {RBAC_MODULES.map((group, gIdx) => (
+                    <React.Fragment key={gIdx}>
+                      <tr className="bg-[#f0f3ff]/70 font-bold text-[#004967]">
                         <td colSpan={6} className="py-2.5 px-4 flex items-center gap-2">
-                          <span className="material-symbols-outlined text-[16px]">{module.icon}</span>
-                          <span>{module.group}</span>
+                          <span className="material-symbols-outlined text-[16px]">{group.icon}</span>
+                          <span>{group.group}</span>
                         </td>
                       </tr>
-                      {module.permissions.map((perm) => (
-                        <tr key={perm.key} className="hover:bg-gray-50/60">
-                          <td className="py-2.5 px-6 text-[#40484e]">{perm.name}</td>
-                          <td className="py-2.5 px-3 text-center">
-                            {perm.admin ? (
-                              <span className="material-symbols-outlined text-emerald-600 text-[18px]">check_circle</span>
-                            ) : (
-                              <span className="text-gray-300">—</span>
-                            )}
+                      {group.permissions.map((p) => (
+                        <tr key={p.key} className="hover:bg-[#f9f9ff]">
+                          <td className="py-2.5 px-4 text-[#111c2d] pl-8">
+                            • {p.name}
                           </td>
                           <td className="py-2.5 px-3 text-center">
-                            {perm.manager ? (
-                              <span className="material-symbols-outlined text-emerald-600 text-[18px]">check_circle</span>
-                            ) : (
-                              <span className="text-gray-300">—</span>
-                            )}
+                            {p.admin ? <span className="text-emerald-600 font-bold">✓</span> : <span className="text-slate-300">-</span>}
                           </td>
                           <td className="py-2.5 px-3 text-center">
-                            {perm.cashier ? (
-                              <span className="material-symbols-outlined text-emerald-600 text-[18px]">check_circle</span>
-                            ) : (
-                              <span className="text-gray-300">—</span>
-                            )}
+                            {p.manager ? <span className="text-emerald-600 font-bold">✓</span> : <span className="text-slate-300">-</span>}
                           </td>
                           <td className="py-2.5 px-3 text-center">
-                            {perm.optom ? (
-                              <span className="material-symbols-outlined text-emerald-600 text-[18px]">check_circle</span>
-                            ) : (
-                              <span className="text-gray-300">—</span>
-                            )}
+                            {p.cashier ? <span className="text-emerald-600 font-bold">✓</span> : <span className="text-slate-300">-</span>}
                           </td>
                           <td className="py-2.5 px-3 text-center">
-                            {perm.lab ? (
-                              <span className="material-symbols-outlined text-emerald-600 text-[18px]">check_circle</span>
-                            ) : (
-                              <span className="text-gray-300">—</span>
-                            )}
+                            {p.optom ? <span className="text-emerald-600 font-bold">✓</span> : <span className="text-slate-300">-</span>}
+                          </td>
+                          <td className="py-2.5 px-3 text-center">
+                            {p.lab ? <span className="text-emerald-600 font-bold">✓</span> : <span className="text-slate-300">-</span>}
                           </td>
                         </tr>
                       ))}
@@ -528,165 +703,120 @@ export default function StaffRbacPage() {
             </div>
           </div>
         )}
-      </div>
 
-      {/* Edit Role Modal */}
-      {editingStaff && (
+        {/* Modal Thêm Nhân Viên Nhanh (Admin) */}
         <Modal
-          open={!!editingStaff}
-          onCancel={() => setEditingStaff(null)}
-          title={`Phân quyền nhân sự: ${editingStaff.name} (${editingStaff.id})`}
-          footer={[
-            <button
-              key="cancel"
-              onClick={() => setEditingStaff(null)}
-              className="px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-semibold text-gray-700 hover:bg-gray-50 mr-2"
-            >
-              Hủy
-            </button>,
-            <button
-              key="submit"
-              onClick={() => {
-                message.success(`Đã cập nhật vai trò và phân quyền cho ${editingStaff.name}`);
-                setEditingStaff(null);
-              }}
-              className="px-4 py-1.5 rounded-lg bg-[#004967] text-xs font-semibold text-white hover:bg-[#086288]"
-            >
-              Lưu Cấu Hình
-            </button>
-          ]}
-        >
-          <div className="space-y-3 pt-2 text-xs">
-            <div>
-              <label className="font-semibold text-gray-700 block mb-1">Vai trò chính</label>
-              <select
-                value={editingStaff.roleCode}
-                onChange={(e) => {
-                  const roleObj = ROLES_LIST.find(r => r.code === e.target.value);
-                  setEditingStaff({ ...editingStaff, roleCode: e.target.value, roleName: roleObj ? roleObj.label : editingStaff.roleName });
-                }}
-                className="w-full p-2 border border-gray-300 rounded-lg text-xs"
-              >
-                {ROLES_LIST.filter(r => r.code !== 'all').map(r => (
-                  <option key={r.code} value={r.code}>{r.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="font-semibold text-gray-700 block mb-1">Chi nhánh làm việc</label>
-              <input
-                type="text"
-                value={editingStaff.branch}
-                onChange={(e) => setEditingStaff({ ...editingStaff, branch: e.target.value })}
-                className="w-full p-2 border border-gray-300 rounded-lg text-xs"
-              />
-            </div>
-
-            <div>
-              <label className="font-semibold text-gray-700 block mb-1">Trạng thái tài khoản</label>
-              <div className="flex items-center gap-3">
-                <label className="flex items-center gap-1.5 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="modal_status"
-                    checked={editingStaff.status === 'active'}
-                    onChange={() => setEditingStaff({ ...editingStaff, status: 'active' })}
-                  />
-                  <span>Hoạt động</span>
-                </label>
-                <label className="flex items-center gap-1.5 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="modal_status"
-                    checked={editingStaff.status === 'locked'}
-                    onChange={() => setEditingStaff({ ...editingStaff, status: 'locked' })}
-                  />
-                  <span className="text-rose-600">Tạm khóa</span>
-                </label>
-              </div>
-            </div>
-          </div>
-        </Modal>
-      )}
-
-      {/* Add Staff Modal */}
-      {isAddModalOpen && (
-        <Modal
+          title="Thêm Mới Hồ Sơ Nhân Viên (Cấp Trực Tiếp)"
           open={isAddModalOpen}
+          onOk={handleCreateStaff}
           onCancel={() => setIsAddModalOpen(false)}
-          title="Thêm Nhân Viên Mới Vào Hệ Thống"
-          footer={[
-            <button
-              key="cancel"
-              onClick={() => setIsAddModalOpen(false)}
-              className="px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-semibold text-gray-700 hover:bg-gray-50 mr-2"
-            >
-              Hủy
-            </button>,
-            <button
-              key="submit"
-              onClick={handleCreateStaff}
-              className="px-4 py-1.5 rounded-lg bg-[#004967] text-xs font-semibold text-white hover:bg-[#086288]"
-            >
-              Tạo Hồ Sơ
-            </button>
-          ]}
+          okText="Tạo &amp; Cấp Quyền"
+          cancelText="Hủy"
         >
-          <div className="space-y-3 pt-2 text-xs">
+          <div className="flex flex-col gap-3 pt-3">
             <div>
-              <label className="font-semibold text-gray-700 block mb-1">Họ và tên *</label>
+              <label className="text-xs font-semibold text-slate-700 block mb-1">Họ và tên nhân sự *</label>
               <input
                 type="text"
-                placeholder="Ví dụ: Nguyễn Văn An"
+                placeholder="Nguyễn Văn A"
                 value={newStaff.name}
-                onChange={(e) => setNewStaff({ ...newStaff, name: e.target.value })}
-                className="w-full p-2 border border-gray-300 rounded-lg text-xs"
+                onChange={e => setNewStaff({ ...newStaff, name: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs focus:outline-none focus:border-[#004967]"
               />
             </div>
-
             <div>
-              <label className="font-semibold text-gray-700 block mb-1">Email nội bộ *</label>
+              <label className="text-xs font-semibold text-slate-700 block mb-1">Email nội bộ *</label>
               <input
                 type="email"
-                placeholder="an.nguyen@optivision.vn"
+                placeholder="nhanvien@optivision.vn"
                 value={newStaff.email}
-                onChange={(e) => setNewStaff({ ...newStaff, email: e.target.value })}
-                className="w-full p-2 border border-gray-300 rounded-lg text-xs"
+                onChange={e => setNewStaff({ ...newStaff, email: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs focus:outline-none focus:border-[#004967]"
               />
             </div>
-
-            <div>
-              <label className="font-semibold text-gray-700 block mb-1">Vai trò hệ thống</label>
-              <select
-                value={newStaff.roleCode}
-                onChange={(e) => setNewStaff({ ...newStaff, roleCode: e.target.value })}
-                className="w-full p-2 border border-gray-300 rounded-lg text-xs"
-              >
-                {ROLES_LIST.filter(r => r.code !== 'all').map(r => (
-                  <option key={r.code} value={r.code}>{r.label}</option>
-                ))}
-              </select>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Số điện thoại</label>
+                <input
+                  type="text"
+                  placeholder="0912345678"
+                  value={newStaff.phone}
+                  onChange={e => setNewStaff({ ...newStaff, phone: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs focus:outline-none focus:border-[#004967]"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Vai trò phân quyền</label>
+                <select
+                  value={newStaff.roleCode}
+                  onChange={e => {
+                    const r = ROLES_LIST.find(x => x.code === e.target.value);
+                    setNewStaff({ ...newStaff, roleCode: e.target.value, roleName: r?.label || '' });
+                  }}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs focus:outline-none focus:border-[#004967]"
+                >
+                  <option value="cashier">Thu Ngân POS &amp; Bán Lẻ</option>
+                  <option value="optometrist">Bác Sĩ / KTV Khúc Xạ (CCHN)</option>
+                  <option value="lab_tech">Kỹ Thuật Viên Xưởng Lab</option>
+                  <option value="manager">Quản Lý Cửa Hàng</option>
+                  <option value="admin">Quản Trị Viên (Admin)</option>
+                </select>
+              </div>
             </div>
-
             <div>
-              <label className="font-semibold text-gray-700 block mb-1">Chi nhánh phân công</label>
-              <select
+              <label className="text-xs font-semibold text-slate-700 block mb-1">Chi nhánh làm việc</label>
+              <input
+                type="text"
+                placeholder="Flagship Q.1 (TP.HCM)"
                 value={newStaff.branch}
-                onChange={(e) => setNewStaff({ ...newStaff, branch: e.target.value })}
-                className="w-full p-2 border border-gray-300 rounded-lg text-xs"
-              >
-                <option value="Flagship Q.1">Flagship Q.1 (TP.HCM)</option>
-                <option value="Tràng Tiền HN">Tràng Tiền Plaza (Hà Nội)</option>
-                <option value="Thảo Điền Q.2">Thảo Điền Store (Q.2)</option>
-                <option value="Hub E-Com Online">Hub E-Com Online</option>
-              </select>
+                onChange={e => setNewStaff({ ...newStaff, branch: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs focus:outline-none focus:border-[#004967]"
+              />
             </div>
           </div>
         </Modal>
-      )}
+
+        {/* Modal Chỉnh Sửa Phân Quyền */}
+        {editingStaff && (
+          <Modal
+            title={`Phân Quyền &amp; Cập Nhật: ${editingStaff.name}`}
+            open={!!editingStaff}
+            onOk={() => {
+              message.success(`Đã lưu cấu hình phân quyền cho ${editingStaff.name} thành công!`);
+              setEditingStaff(null);
+            }}
+            onCancel={() => setEditingStaff(null)}
+            okText="Lưu Thay Đổi"
+            cancelText="Đóng"
+          >
+            <div className="flex flex-col gap-3 pt-2 text-xs">
+              <div className="p-3 bg-slate-50 rounded-lg flex items-center justify-between">
+                <div>
+                  <div className="font-bold text-slate-800">{editingStaff.name} ({editingStaff.id})</div>
+                  <div className="text-slate-500">{editingStaff.email} • {editingStaff.branch}</div>
+                </div>
+                <span className="px-2 py-1 bg-[#dee8ff] text-[#004967] rounded font-semibold">{editingStaff.roleName}</span>
+              </div>
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Đổi vai trò chức danh:</label>
+                <select
+                  defaultValue={editingStaff.roleCode}
+                  onChange={(e) => {
+                    const r = ROLES_LIST.find(x => x.code === e.target.value);
+                    setStaffList(prev => prev.map(s => s.id === editingStaff.id ? { ...s, roleCode: e.target.value, roleName: r?.label || s.roleName } : s));
+                  }}
+                  className="w-full p-2 border rounded text-xs"
+                >
+                  <option value="cashier">Thu Ngân POS &amp; Bán Lẻ</option>
+                  <option value="optometrist">Bác Sĩ / KTV Khúc Xạ (CCHN)</option>
+                  <option value="lab_tech">Kỹ Thuật Viên Xưởng Lab</option>
+                  <option value="admin">Quản Trị Viên (Admin)</option>
+                </select>
+              </div>
+            </div>
+          </Modal>
+        )}
+      </div>
     </div>
   );
 }
-
-
