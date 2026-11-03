@@ -70,8 +70,8 @@ export default function LoginPage({ onLoginSuccess }) {
 
   // Login Form States (Direct match to Image 2)
   const [selectedBranch, setSelectedBranch] = useState('branch_01');
-  const [staffId, setStaffId] = useState(ROLE_CONFIGS.pos.staffId);
-  const [password, setPassword] = useState('Secret2026@');
+  const [staffId, setStaffId] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   // Handle Role Switch
@@ -79,7 +79,7 @@ export default function LoginPage({ onLoginSuccess }) {
     setSelectedRole(roleKey);
     const conf = ROLE_CONFIGS[roleKey];
     if (conf) {
-      setStaffId(conf.staffId);
+      
       if (conf.branch) setSelectedBranch(conf.branch);
     }
   };

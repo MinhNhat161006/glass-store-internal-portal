@@ -61,8 +61,8 @@ export default function AuthPage({ onLoginSuccess }) {
 
   // Login Form
   const [storeBranch, setStoreBranch] = useState('CN-01');
-  const [staffId, setStaffId] = useState(ROLE_CONFIGS.pos.staffId);
-  const [password, setPassword] = useState('Secret2026@');
+  const [staffId, setStaffId] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   // Register Form
@@ -83,7 +83,6 @@ export default function AuthPage({ onLoginSuccess }) {
     setSelectedRole(roleKey);
     const conf = ROLE_CONFIGS[roleKey];
     if (conf) {
-      setStaffId(conf.staffId);
       setStoreBranch(conf.branch);
     }
   };
@@ -270,8 +269,8 @@ export default function AuthPage({ onLoginSuccess }) {
       </header>
 
       {/* Main Container */}
-      <main className="flex-1 flex items-center justify-center p-4 sm:p-6 my-auto">
-        <div className={`w-full ${authMode === 'login' ? 'max-w-[440px]' : 'max-w-[520px]'} bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8 transition-all`}>
+      <main className="flex-1 flex items-center justify-center p-4 sm:p-8 my-auto">
+        <div className={`w-full ${authMode === 'login' ? 'max-w-[520px]' : 'max-w-[680px]'} bg-white rounded-2xl shadow-sm border border-slate-200 p-7 sm:p-10 transition-all`}>
           {/* Form Switcher Tabs */}
           <div className="flex rounded-xl bg-slate-100 p-1 mb-6">
             <button
@@ -336,7 +335,7 @@ export default function AuthPage({ onLoginSuccess }) {
                 <select
                   value={storeBranch}
                   onChange={(e) => setStoreBranch(e.target.value)}
-                  className="w-full h-10 px-3 rounded-lg border border-slate-300 text-xs text-slate-800 focus:outline-none focus:border-[#004967] bg-white cursor-pointer"
+                  className="w-full h-11 px-3.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:outline-none focus:border-[#004967] bg-white cursor-pointer"
                 >
                   {BRANCH_OPTIONS.map((b) => (
                     <option key={b.value} value={b.value}>{b.label}</option>
@@ -353,7 +352,7 @@ export default function AuthPage({ onLoginSuccess }) {
                   value={staffId}
                   onChange={(e) => setStaffId(e.target.value)}
                   placeholder="admin, nv_pos hoặc email..."
-                  className="w-full h-10 px-3 rounded-lg border border-slate-300 text-xs text-slate-800 focus:outline-none focus:border-[#004967]"
+                  className="w-full h-11 px-3.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:outline-none focus:border-[#004967]"
                 />
               </div>
 
@@ -375,7 +374,7 @@ export default function AuthPage({ onLoginSuccess }) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Nhập mật khẩu..."
-                  className="w-full h-10 px-3 rounded-lg border border-slate-300 text-xs text-slate-800 focus:outline-none focus:border-[#004967]"
+                  className="w-full h-11 px-3.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:outline-none focus:border-[#004967]"
                 />
               </div>
 
@@ -383,7 +382,7 @@ export default function AuthPage({ onLoginSuccess }) {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full h-10 mt-1 rounded-lg bg-[#004967] hover:bg-[#086288] text-white text-xs font-bold shadow-sm transition-all active:scale-[0.99] disabled:opacity-75 cursor-pointer"
+                className="w-full h-11 mt-2 rounded-xl text-sm font-semibold bg-[#004967] hover:bg-[#086288] text-white text-xs font-bold shadow-sm transition-all active:scale-[0.99] disabled:opacity-75 cursor-pointer"
               >
                 {isSubmitting ? 'Đang đăng nhập...' : 'Đăng nhập'}
               </button>
@@ -409,7 +408,7 @@ export default function AuthPage({ onLoginSuccess }) {
                     value={regFullName}
                     onChange={(e) => setRegFullName(e.target.value)}
                     placeholder="Nguyễn Văn A"
-                    className="w-full h-10 px-3 rounded-lg border border-slate-300 text-xs text-slate-800 focus:outline-none focus:border-[#004967]"
+                    className="w-full h-11 px-3.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:outline-none focus:border-[#004967]"
                   />
                 </div>
 
@@ -421,7 +420,7 @@ export default function AuthPage({ onLoginSuccess }) {
                     value={regEmail}
                     onChange={(e) => setRegEmail(e.target.value)}
                     placeholder="nhanvien@optivision.vn"
-                    className="w-full h-10 px-3 rounded-lg border border-slate-300 text-xs text-slate-800 focus:outline-none focus:border-[#004967]"
+                    className="w-full h-11 px-3.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:outline-none focus:border-[#004967]"
                   />
                 </div>
               </div>
@@ -435,7 +434,7 @@ export default function AuthPage({ onLoginSuccess }) {
                     value={regPhone}
                     onChange={(e) => setRegPhone(e.target.value)}
                     placeholder="0912345678"
-                    className="w-full h-10 px-3 rounded-lg border border-slate-300 text-xs text-slate-800 focus:outline-none focus:border-[#004967]"
+                    className="w-full h-11 px-3.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:outline-none focus:border-[#004967]"
                   />
                 </div>
 
@@ -444,7 +443,7 @@ export default function AuthPage({ onLoginSuccess }) {
                   <select
                     value={regBranch}
                     onChange={(e) => setRegBranch(e.target.value)}
-                    className="w-full h-10 px-3 rounded-lg border border-slate-300 text-xs text-slate-800 focus:outline-none focus:border-[#004967] bg-white cursor-pointer"
+                    className="w-full h-11 px-3.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:outline-none focus:border-[#004967] bg-white cursor-pointer"
                   >
                     {BRANCH_OPTIONS.map((b) => (
                       <option key={b.value} value={b.value}>{b.label}</option>
@@ -462,7 +461,7 @@ export default function AuthPage({ onLoginSuccess }) {
                     value={regMedicalCert}
                     onChange={(e) => setRegMedicalCert(e.target.value)}
                     placeholder="Số chứng chỉ khúc xạ..."
-                    className="w-full h-10 px-3 rounded-lg border border-slate-300 text-xs text-slate-800 focus:outline-none focus:border-[#004967]"
+                    className="w-full h-11 px-3.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:outline-none focus:border-[#004967]"
                   />
                 </div>
               )}
@@ -477,7 +476,7 @@ export default function AuthPage({ onLoginSuccess }) {
                     value={regPassword}
                     onChange={(e) => setRegPassword(e.target.value)}
                     placeholder="Tối thiểu 8 ký tự..."
-                    className="w-full h-10 px-3 rounded-lg border border-slate-300 text-xs text-slate-800 focus:outline-none focus:border-[#004967]"
+                    className="w-full h-11 px-3.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:outline-none focus:border-[#004967]"
                   />
                   {regPassword && (
                     <div className="flex items-center justify-between text-[11px] pt-1">
@@ -495,7 +494,7 @@ export default function AuthPage({ onLoginSuccess }) {
                     value={regConfirmPassword}
                     onChange={(e) => setRegConfirmPassword(e.target.value)}
                     placeholder="Nhập lại mật khẩu..."
-                    className={`w-full h-10 px-3 rounded-lg text-xs transition-all focus:outline-none ${
+                    className={`w-full h-11 px-3.5 rounded-xl text-xs transition-all focus:outline-none ${
                       isPasswordMatch
                         ? 'border-2 border-emerald-500 bg-emerald-50/30 text-slate-900'
                         : isPasswordMismatch
@@ -521,7 +520,7 @@ export default function AuthPage({ onLoginSuccess }) {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full h-10 mt-1 rounded-lg bg-[#004967] hover:bg-[#086288] text-white text-xs font-bold shadow-sm transition-all active:scale-[0.99] disabled:opacity-75 cursor-pointer"
+                className="w-full h-11 mt-2 rounded-xl text-sm font-semibold bg-[#004967] hover:bg-[#086288] text-white text-xs font-bold shadow-sm transition-all active:scale-[0.99] disabled:opacity-75 cursor-pointer"
               >
                 {isSubmitting ? 'Đang gửi hồ sơ...' : 'Đăng ký tài khoản'}
               </button>
