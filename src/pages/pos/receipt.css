@@ -1,0 +1,17 @@
+.pos-receipt-modal .ant-modal-content { max-height: calc(100dvh - 48px); display: flex; flex-direction: column; }
+.pos-receipt-modal .ant-modal-header, .pos-receipt-modal .ant-modal-footer { flex-shrink: 0; }
+.pos-receipt-modal .ant-modal-body { min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.pos-receipt-modal .ant-modal-body > p { flex-shrink: 0; margin-bottom: 12px; }
+.pos-receipt-scroll { min-height: 0; overflow-y: auto; overscroll-behavior: contain; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; }
+.pos-receipt { width: 72mm; max-width: 100%; margin: 16px auto; background: white; color: black; font: 12px/1.45 Arial, sans-serif; overflow-wrap: anywhere; box-sizing: border-box; }
+.pos-receipt header, .pos-receipt footer { text-align: center; }
+.pos-receipt h2 { font-size: 20px; margin: 0; font-weight: bold; }
+.pos-receipt h3 { font-size: 14px; margin: 10px 0; font-weight: bold; }
+.pos-receipt p { margin: 3px 0; }
+.pos-receipt table { width: 100%; border-collapse: collapse; margin: 10px 0; table-layout: fixed; }
+.pos-receipt th, .pos-receipt td { text-align: left; padding: 6px 0; vertical-align: top; border-bottom: 1px dashed #555; }
+.pos-receipt th:last-child, .pos-receipt td:last-child { width: 30%; text-align: right; }
+.pos-receipt dl > div { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; }
+.pos-receipt dd { margin: 0; text-align: right; }
+.pos-receipt-total { font-weight: bold; border-top: 1px dashed #555; margin-top: 4px; }
+.pos-receipt footer { margin-top: 12px; border-top: 1px dashed #555; padding-top: 8px; }

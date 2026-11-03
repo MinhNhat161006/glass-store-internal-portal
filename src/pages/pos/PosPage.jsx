@@ -2,17 +2,30 @@ import React, { useState, useEffect, useRef } from 'react';
 import { message, Modal } from 'antd';
 import { orderApi } from '../../api/orderApi';
 import { productApi } from '../../api/productApi';
-import { labApi } from '../../api/labApi';
+import { useAuth } from '../../context/AuthContext';
+import ReceiptPreview from './ReceiptPreview';
+import ProductCatalog from './ProductCatalog';
+import CheckoutPanel from './CheckoutPanel';
+import './pos.css';
 import { prescriptionApi } from '../../api/prescriptionApi';
 import { customerApi } from '../../api/customerApi';
 
 export default function PosPage() {
+  const { user } = useAuth();
+  const paymentLock = useRef(false);
+  const [paying, setPaying] = useState(false);
+  const [lastOrder, setLastOrder] = useState(null);
+  const [receiptOpen, setReceiptOpen] = useState(false);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState('');
   // Category filter
   const [selectedCategory, setSelectedCategory] = useState('ALL');
 
   // Search / Barcode input
   const [barcodeInput, setBarcodeInput] = useState('');
   const barcodeRef = useRef(null);
+  const paymentRef = useRef(null);
+  const cashInputRef = useRef(null);
 
   // Cart state
   const [cart, setCart] = useState([]);
@@ -41,8 +54,9 @@ export default function PosPage() {
   const [voucherDiscount, setVoucherDiscount] = useState(0);
 
   // Payment tab: 'vietqr' | 'cash' | 'card'
-  const [payTab, setPayTab] = useState('vietqr');
+  const [payTab, setPayTab] = useState('cash');
   const [cashGiven, setCashGiven] = useState(0);
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
 
   // Rx Modal state
   const [isRxModalOpen, setIsRxModalOpen] = useState(false);
@@ -63,12 +77,14 @@ export default function PosPage() {
               p.variants.forEach(v => {
                 list.push({
                   sku: v.sku || ('SKU-' + v.id),
+                  barcode: v.barcode || '',
                   shortSku: (v.sku || '').split('-').pop() || 'SKU',
                   name: (p.name + ' - ' + (v.name || v.color || '')).trim(),
                   brand: p.brandName || 'OptiVision',
-                  category: p.productType === 'FRAME' ? 'TITAN' : p.productType === 'LENS' ? 'LENS_CRIZAL' : 'ACCESSORY',
-                  price: Number(v.price || 1500000),
-                  stock: (v.stockQuantity != null ? v.stockQuantity : 10) + ' cái',
+                  category: p.productType,
+                  price: Number(v.price ?? 0),
+                  stockQuantity: v.stockQuantity ?? 0,
+                  stock: (v.stockQuantity ?? 0) + ' cái',
                   image: v.imageUrl || 'https://images.unsplash.com/photo-1591076482161-42ce6da69f67?auto=format&fit=crop&w=500&q=80'
                 });
               });
@@ -79,7 +95,9 @@ export default function PosPage() {
           }
         }
       } catch (err) {
-        console.warn('Lỗi lấy catalog POS:', err.message);
+        setCatalogError('Không tải được sản phẩm. Kiểm tra Catalog Service và tải lại trang.');
+      } finally {
+        setCatalogLoading(false);
       }
     };
     fetchLiveCatalog();
@@ -106,13 +124,23 @@ export default function PosPage() {
 
   // Calculation of totals
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const discountTotal = voucherDiscount + (usePoints ? customer.pointValue : 0);
+  const discountTotal = Math.min(subtotal, voucherDiscount + (usePoints ? customer.pointValue : 0));
   const taxableAmount = Math.max(0, subtotal - discountTotal);
   const vatAmount = Math.round(taxableAmount * 0.08);
   const grandTotal = taxableAmount + vatAmount;
+  useEffect(() => { setPaymentConfirmed(false); }, [grandTotal, payTab]);
 
   // Add product to cart
   const handleAddToCart = (product) => {
+    if (paymentLock.current) return;
+    if (!catalogProducts.some(p => p.sku === product.sku)) {
+      message.warning('Chỉ có thể bán sản phẩm trong catalog.');
+      return;
+    }
+    if ((cart.find(item => item.sku === product.sku)?.quantity || 0) >= product.stockQuantity) {
+      message.warning('Số lượng vượt tồn kho hiện tại.');
+      return;
+    }
     const existingIndex = cart.findIndex((item) => item.sku === product.sku);
     if (existingIndex > -1) {
       const updated = [...cart];
@@ -125,6 +153,7 @@ export default function PosPage() {
           id: product.sku,
           sku: product.sku,
           name: product.name,
+          image: product.image,
           sub: product.brand,
           price: product.price,
           quantity: 1,
@@ -132,11 +161,30 @@ export default function PosPage() {
         }
       ]);
     }
-    message.success(`Đã thêm ${product.name} vào đơn bán!`);
+    message.success({ key: 'pos-add-product', content: `Đã thêm ${product.name.split(' - ')[0]}`, duration: 1.5 });
+    requestAnimationFrame(() => {
+      const paymentBounds = paymentRef.current?.getBoundingClientRect();
+      if (paymentBounds && (paymentBounds.top < 72 || paymentBounds.bottom > window.innerHeight)) {
+        paymentRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      if (cashInputRef.current) {
+        cashInputRef.current.focus({ preventScroll: true });
+        cashInputRef.current.select();
+      } else {
+        paymentRef.current?.focus({ preventScroll: true });
+      }
+    });
   };
 
   // Adjust quantity
   const handleQtyChange = (sku, delta) => {
+    if (paymentLock.current) return;
+    const item = cart.find(p => p.sku === sku);
+    const product = catalogProducts.find(p => p.sku === sku);
+    if (delta > 0 && item.quantity >= (product?.stockQuantity ?? 0)) {
+      message.warning('Số lượng vượt tồn kho hiện tại.');
+      return;
+    }
     setCart((prev) =>
       prev
         .map((item) => {
@@ -152,12 +200,14 @@ export default function PosPage() {
 
   // Remove single item
   const handleRemoveItem = (sku) => {
+    if (paymentLock.current) return;
     setCart((prev) => prev.filter((item) => item.sku !== sku));
     message.info('Đã xóa sản phẩm khỏi giỏ hàng.');
   };
 
   // Clear entire cart
   const handleClearCart = () => {
+    if (paymentLock.current) return;
     Modal.confirm({
       title: 'Xóa giỏ hàng?',
       content: 'Bạn có chắc chắn muốn làm trống toàn bộ đơn bán hiện tại (F8)?',
@@ -180,38 +230,23 @@ export default function PosPage() {
     const found = catalogProducts.find(
       (p) =>
         p.sku.toLowerCase() === query ||
-        p.shortSku.toLowerCase() === query ||
+        p.barcode.toLowerCase() === query ||
         p.name.toLowerCase().includes(query)
     );
 
     if (found) {
       handleAddToCart(found);
     } else {
-      handleAddToCart({
-        sku: barcodeInput.trim().toUpperCase(),
-        shortSku: barcodeInput.trim().toUpperCase(),
-        name: `Sản phẩm mã ${barcodeInput.trim().toUpperCase()}`,
-        brand: 'Gia công đặc biệt',
-        category: 'CUSTOM',
-        price: 1500000,
-        stock: '1'
-      });
+      message.warning('Không tìm thấy sản phẩm theo Barcode / SKU này.');
     }
     setBarcodeInput('');
   };
 
-  // Insert Rx Combo
+  // Add a lens from the live catalog, never a fabricated SKU.
   const handleInsertRxCombo = () => {
-    handleAddToCart({
-      sku: 'LZ-CRIZAL-HR167',
-      shortSku: 'LZ-CRIZAL',
-      name: 'Tròng Crizal Sapphire HR 1.67',
-      brand: 'Essilor France',
-      category: 'LENS_CRIZAL',
-      price: 2950000,
-      stock: '48 cặp'
-    });
-    message.success(`Đã nạp tròng Crizal theo toa ${linkedRx.code} của khách ${linkedRx.customer}!`);
+    const lens = catalogProducts.find(p => p.category === 'LENS' && p.stockQuantity > 0);
+    if (!lens) { message.warning('Không có tròng kính còn hàng trong catalog.'); return; }
+    handleAddToCart(lens);
   };
 
   // Select prescription from modal
@@ -235,6 +270,7 @@ export default function PosPage() {
 
   // Dispatch Lab Order
   const handleDispatchLabOrder = () => {
+    if (!linkedRx) { message.warning('Vui lòng liên kết toa khám trước.'); return; }
     if (cart.length === 0) {
       message.warning('Vui lòng chọn sản phẩm trước khi chuyển xưởng mài!');
       return;
@@ -259,55 +295,44 @@ export default function PosPage() {
     });
   };
 
-  // Execute Payment
+  // Only clear the cart after the API has persisted the sale.
   const handleExecutePayment = async () => {
+    if (paymentLock.current) return;
+    if (!cart.length) { message.warning('Giỏ hàng đang trống!'); return; }
+    if (payTab !== 'cash' && !paymentConfirmed) {
+      message.warning('Vui lòng xác nhận đã nhận tiền chuyển khoản / giao dịch thẻ thành công.'); return;
+    }
+    if (payTab === 'cash' && (!Number.isFinite(Number(cashGiven)) || Number(cashGiven) < grandTotal)) {
+      message.warning('Tiền khách đưa chưa đủ thanh toán.'); return;
+    }
+    paymentLock.current = true;
+    setPaying(true);
     try {
-      await orderApi.createOrder({
-        orderCode: 'OPT-' + Math.floor(1000 + Math.random() * 9000) + '-POS',
-        customerId: 10,
+      const saved = await orderApi.createOrder({
+        customerId: customer.id || null,
         customerName: customer.name,
         customerPhone: customer.phone,
         channel: 'POS',
         totalAmount: subtotal,
-        discountAmount: discountAmount,
+        discountAmount: discountTotal,
         finalAmount: grandTotal,
-        paymentMethod: payTab === 'vietqr' ? 'VIETQR' : payTab === 'cash' ? 'CASH' : 'VNPAY',
-        staffName: 'STF-088 (Nguyễn Thu Ngân)',
-        branchName: 'Flagship Q.1 (TP.HCM)',
+        paymentMethod: payTab === 'vietqr' ? 'VIETQR' : payTab === 'cash' ? 'CASH' : 'CARD',
+        staffName: user?.staffName || user?.fullName || user?.staffId || 'Thu ngân',
+        branchName: user?.branchName || 'Flagship Q.1 (TP.HCM)',
         status: 'PAID',
         items: cart.map(item => ({
-          skuId: item.sku,
-          productName: item.name,
-          quantity: item.quantity,
-          unitPrice: item.price,
+          skuId: item.sku, productName: item.name,
+          quantity: item.quantity, unitPrice: item.price,
           subtotal: item.price * item.quantity
         }))
       });
+      if (!saved?.id || !saved?.orderCode) throw new Error('API chưa trả về đơn hàng đã lưu.');
+      setLastOrder({ ...saved, cashGiven: payTab === 'cash' ? Number(cashGiven) : null });
+      setCart([]); setCashGiven(0); setVoucherCode(''); setVoucherDiscount(0); setLinkedRx(null);
+      message.success('Đã lưu đơn ' + saved.orderCode + '. Bạn có thể in hóa đơn.');
     } catch (err) {
-      console.warn('Sync POS order to DB note:', err.message);
-    }
-    if (cart.length === 0) {
-      message.warning('Giỏ hàng đang trống!');
-      return;
-    }
-    Modal.success({
-      title: 'Thanh Toán Thành Công (F10)',
-      content: (
-        <div className="space-y-2 text-xs text-slate-600 pt-2">
-          <p className="text-sm font-bold text-[#004967]">
-            Tổng thanh toán: {grandTotal.toLocaleString('vi-VN')} đ
-          </p>
-          <p>Phương thức: {payTab === 'vietqr' ? 'VietQR Napas247' : payTab === 'cash' ? 'Tiền mặt' : 'Thẻ mPOS'}</p>
-          <p>Khách hàng: {customer.name} (Tích lũy +65 OptiPoints)</p>
-          <p className="p-2 bg-slate-100 rounded text-slate-500 font-mono text-[11px]">
-            Đang in hóa đơn nhiệt K80 và kích hoạt bảo hành điện tử...
-          </p>
-        </div>
-      ),
-      onOk: () => {
-        setCart([]);
-      }
-    });
+      message.error('Chưa hoàn tất thanh toán: ' + err.message + '. Giỏ hàng được giữ nguyên.');
+    } finally { paymentLock.current = false; setPaying(false); }
   };
 
   // Hotkey listener for POS speed: F2, F4, F8, F9, F10
@@ -333,645 +358,38 @@ export default function PosPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cart, grandTotal, payTab]);
+  }, [cart, grandTotal, payTab, cashGiven, customer, discountTotal, user, linkedRx, paymentConfirmed]);
 
   // Filter products by category
-  const filteredProducts =
+  const categoryProducts =
     selectedCategory === 'ALL'
       ? catalogProducts
       : catalogProducts.filter((p) => p.category === selectedCategory);
 
+  const query = barcodeInput.trim().toLowerCase();
+  const filteredProducts = categoryProducts.filter(p => !query ||
+    [p.sku, p.barcode, p.name].some(value => value.toLowerCase().includes(query)));
+
   return (
-    <main className="w-full bg-[#f9f9ff] min-h-screen text-[#111c2d]">
-      {/* ================= 65% / 35% Full-Width Split Layout ================= */}
-      <div className="flex flex-col xl:flex-row w-full gap-4 p-4 min-h-[calc(100vh-4rem)]">
-        {/* ---------------- LEFT PANEL (65%): Catalog & Scanning ---------------- */}
-        <div className="w-full xl:w-[65%] flex flex-col gap-3">
-          {/* Bar 1: Barcode Input & Rx Link Button */}
-          <div className="bg-white rounded-xl p-3 shadow-xs border border-slate-100 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
-            <form onSubmit={handleBarcodeSubmit} className="flex-1 flex items-center gap-2">
-              <div className="relative flex-1">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#004967] text-[20px]">
-                  barcode_scanner
-                </span>
-                <input
-                  ref={barcodeRef}
-                  type="text"
-                  value={barcodeInput}
-                  onChange={(e) => setBarcodeInput(e.target.value)}
-                  placeholder="Quét Barcode hoặc nhập SKU / Tên kính (F2)..."
-                  className="w-full h-10 pl-10 pr-20 rounded-lg bg-[#f0f3ff] text-[#111c2d] text-sm placeholder:text-[#70787f] focus:bg-white focus:ring-2 focus:ring-[#004967] focus:outline-none transition-all"
-                />
-                <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                  <span className="px-1.5 py-0.5 rounded bg-[#dee8ff] text-[#40484e] font-mono text-[11px] font-bold">
-                    F2
-                  </span>
-                </div>
-              </div>
-            </form>
-
-            <button
-              type="button"
-              onClick={() => setIsRxModalOpen(true)}
-              className="flex items-center justify-center gap-2 px-3 h-10 rounded-lg bg-[#e7eeff] hover:bg-[#cae6ff] text-[#004967] text-xs font-bold transition-colors cursor-pointer shadow-xs shrink-0"
-            >
-              <span className="material-symbols-outlined text-[18px]">eyeglasses</span>
-              <span>Liên kết Toa Khám (OD/OS)</span>
-              {availablePrescriptions.length > 0 && (
-                <span className="px-2 py-0.5 rounded-full bg-[#004967] text-white text-[11px] font-bold ml-1">
-                  {availablePrescriptions.length} Chờ xử lý
-                </span>
-              )}
-            </button>
-          </div>
-
-          {/* Bar 2: Category Filter Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs">
-            <button
-              type="button"
-              onClick={() => setSelectedCategory('ALL')}
-              className={`px-3.5 py-2 rounded-lg font-bold whitespace-nowrap transition-all cursor-pointer ${
-                selectedCategory === 'ALL'
-                  ? 'bg-[#004967] text-white shadow-xs'
-                  : 'bg-white text-[#40484e] hover:bg-[#e7eeff]'
-              }`}
-            >
-              Tất cả ({catalogProducts.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedCategory('TITAN')}
-              className={`px-3.5 py-2 rounded-lg font-bold whitespace-nowrap transition-all cursor-pointer ${
-                selectedCategory === 'TITAN'
-                  ? 'bg-[#004967] text-white shadow-xs'
-                  : 'bg-white text-[#40484e] hover:bg-[#e7eeff]'
-              }`}
-            >
-              Gọng Titan Siêu Nhẹ
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedCategory('LENS_CRIZAL')}
-              className={`px-3.5 py-2 rounded-lg font-bold whitespace-nowrap transition-all cursor-pointer ${
-                selectedCategory === 'LENS_CRIZAL'
-                  ? 'bg-[#004967] text-white shadow-xs'
-                  : 'bg-white text-[#40484e] hover:bg-[#e7eeff]'
-              }`}
-            >
-              Tròng Crizal &amp; Zeiss
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedCategory('TRANSITIONS')}
-              className={`px-3.5 py-2 rounded-lg font-bold whitespace-nowrap transition-all cursor-pointer ${
-                selectedCategory === 'TRANSITIONS'
-                  ? 'bg-[#004967] text-white shadow-xs'
-                  : 'bg-white text-[#40484e] hover:bg-[#e7eeff]'
-              }`}
-            >
-              Tròng Đổi Màu Transitions
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedCategory('ACCESSORY')}
-              className={`px-3.5 py-2 rounded-lg font-bold whitespace-nowrap transition-all cursor-pointer ${
-                selectedCategory === 'ACCESSORY'
-                  ? 'bg-[#004967] text-white shadow-xs'
-                  : 'bg-white text-[#40484e] hover:bg-[#e7eeff]'
-              }`}
-            >
-              Phụ Kiện &amp; Dung Dịch Nano
-            </button>
-          </div>
-
-          {/* Bar 3: Prescription Quick Banner */}
-          {linkedRx ? (
-            <div className="bg-white rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs border border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-[#e7eeff] text-[#004967] flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined text-[20px]">clinical_notes</span>
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-[#111c2d] font-bold">
-                      Toa kính khúc xạ vừa đo: {linkedRx.code}
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full bg-[#e7eeff] text-[#40484e] text-[10px] font-semibold">
-                      {linkedRx.doctor}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-[#40484e] mt-0.5 leading-tight">
-                    Khách: <strong className="text-[#111c2d]">{linkedRx.customer}</strong> | OD: {linkedRx.od} | OS:{' '}
-                    {linkedRx.os} | PD: {linkedRx.pd}
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleInsertRxCombo}
-                className="px-3 py-1.5 rounded-lg bg-[#004967] hover:bg-[#086288] text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 shrink-0 cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-[16px]">add_task</span>
-                <span>Nạp Combo Toa Này</span>
-              </button>
-            </div>
-          ) : (
-            <div className="bg-white rounded-xl p-3 flex items-center justify-between shadow-xs border border-slate-100">
-              <div className="flex items-center gap-2 text-xs text-[#70787f]">
-                <span className="material-symbols-outlined text-[#004967] text-[18px]">info</span>
-                <span>Chưa liên kết toa khám khúc xạ. Bấm "Liên kết Toa Khám (OD/OS)" bên trên để chọn toa.</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsRxModalOpen(true)}
-                className="px-2.5 py-1 rounded-lg bg-[#e7eeff] text-[#004967] text-xs font-semibold hover:bg-[#dee8ff] transition-colors cursor-pointer"
-              >
-                Chọn Toa Khám
-              </button>
-            </div>
-          )}
-
-          {/* Grid of Products */}
-          <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 overflow-y-auto max-h-[calc(100vh-21rem)] pr-1">
-            {filteredProducts.map((p) => (
-              <div
-                key={p.sku}
-                onClick={() => handleAddToCart(p)}
-                className="group bg-white rounded-xl p-2.5 shadow-xs hover:shadow-md border border-slate-100 hover:border-[#8fcdfd] transition-all flex flex-col justify-between cursor-pointer"
-              >
-                <div>
-                  <div className="relative aspect-video rounded-lg overflow-hidden bg-[#f0f3ff] mb-2">
-                    <img
-                      src={p.image}
-                      alt={p.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                    <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-white/95 font-mono text-[10px] text-[#004967] font-bold shadow-xs">
-                      {p.shortSku}
-                    </span>
-                    <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded bg-white/95 text-[10px] text-[#111c2d] font-semibold shadow-xs">
-                      Tồn: {p.stock}
-                    </span>
-                  </div>
-
-                  <div className="text-[10px] text-[#70787f] uppercase tracking-wider font-bold">
-                    {p.brand}
-                  </div>
-                  <h4 className="text-xs text-[#111c2d] font-bold line-clamp-1 mt-0.5">{p.name}</h4>
-                </div>
-
-                <div className="mt-2 pt-2 flex items-center justify-between border-t border-slate-50">
-                  <span className="text-xs text-[#004967] font-bold">
-                    {p.price.toLocaleString('vi-VN')}đ
-                  </span>
-                  <button
-                    type="button"
-                    className="w-7 h-7 rounded-lg bg-[#e7eeff] group-hover:bg-[#004967] group-hover:text-white text-[#004967] flex items-center justify-center transition-colors"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">add</span>
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Bottom Machine & Hardware Status */}
-          <div className="mt-auto bg-white rounded-xl p-2.5 shadow-xs border border-slate-100 flex items-center justify-between text-xs text-[#40484e]">
-            <div className="flex items-center gap-4">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-600" />
-                <span>Máy quét mã vạch:</span> <strong className="text-[#111c2d]">Sẵn sàng tiếp nhận</strong>
-              </span>
-              <span>•</span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-600" />
-                <span>Cổng kết nối Lab:</span> <strong className="text-[#111c2d]">Trực tuyến</strong>
-              </span>
-            </div>
-            <div className="font-mono font-bold text-[11px] text-[#19648f]">
-              Quầy POS Bán Lẻ
-            </div>
-          </div>
-        </div>
-
-        {/* ---------------- RIGHT PANEL (35%): Customer, Cart, Payment ---------------- */}
-        <div className="w-full xl:w-[35%] flex flex-col gap-3">
-          {/* Box 1: Customer Info */}
-          <div className="bg-white rounded-xl p-3 shadow-xs border border-slate-100">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#004967] text-[18px]">person_pin</span>
-                <span className="text-xs text-[#111c2d] font-bold">Khách hàng thành viên</span>
-              </div>
-              <div className="flex items-center gap-1 text-[11px]">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setCustomer({
-                      name: 'Khách Vãng Lai',
-                      tier: 'Vãng lai',
-                      phone: '',
-                      points: 0,
-                      pointValue: 0
-                    })
-                  }
-                  className="px-2 py-0.5 rounded-lg bg-[#e7eeff] hover:bg-[#dee8ff] text-[#40484e] font-semibold transition-colors cursor-pointer"
-                >
-                  Vãng lai
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsCustomerModalOpen(true)}
-                  className="px-2 py-0.5 rounded-lg bg-[#004967] text-white font-bold hover:bg-[#086288] transition-colors cursor-pointer"
-                >
-                  + Tiếp nhận
-                </button>
-              </div>
-            </div>
-
-            <div className="p-2.5 rounded-lg bg-[#f0f3ff] flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-[#111c2d] font-bold">{customer.name}</span>
-                  <span className="px-1.5 py-0.5 rounded bg-[#e7eeff] text-[#004967] text-[10px] font-bold">
-                    {customer.tier}
-                  </span>
-                </div>
-                <span className="font-mono text-xs text-[#70787f]">{customer.phone}</span>
-              </div>
-
-              <div className="flex items-center justify-between pt-1 border-t border-[#dee8ff]/50">
-                <div className="flex items-center gap-1 text-xs text-[#40484e]">
-                  <span className="material-symbols-outlined text-[15px] text-[#004967]">stars</span>
-                  <span>
-                    {customer.points} OptiPoints (= {customer.pointValue.toLocaleString('vi-VN')}đ)
-                  </span>
-                </div>
-                <label className="flex items-center gap-1.5 cursor-pointer text-xs">
-                  <input
-                    type="checkbox"
-                    checked={usePoints}
-                    onChange={(e) => setUsePoints(e.target.checked)}
-                    className="w-3.5 h-3.5 rounded text-[#004967] focus:ring-[#004967]"
-                  />
-                  <span className="text-xs text-[#004967] font-bold">Khấu trừ</span>
-                </label>
-              </div>
-            </div>
-          </div>
-
-          {/* Box 2: Cart Items & Calculations */}
-          <div className="bg-white rounded-xl p-3 shadow-xs border border-slate-100 flex flex-col flex-1">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#004967] text-[18px]">shopping_bag</span>
-                <span className="text-xs text-[#111c2d] font-bold">
-                  Chi tiết đơn hàng ({cart.reduce((sum, i) => sum + i.quantity, 0)})
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={handleClearCart}
-                className="text-[#ba1a1a] hover:opacity-80 text-xs font-semibold flex items-center gap-1 cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-[15px]">delete_sweep</span>
-                <span>Xóa</span>
-              </button>
-            </div>
-
-            {/* Scrollable cart list */}
-            <div className="flex-1 overflow-y-auto max-h-52 xl:max-h-56 space-y-2 py-2 pr-1">
-              {cart.length === 0 ? (
-                <div className="py-12 flex flex-col items-center justify-center text-[#70787f]">
-                  <span className="material-symbols-outlined text-[44px] text-[#70787f]/40 mb-2">shopping_cart</span>
-                  <span className="font-semibold text-xs text-[#40484e]">Giỏ hàng đang trống</span>
-                  <span className="text-[11px] text-[#70787f] mt-0.5">Chọn sản phẩm bên trái hoặc quét mã SKU</span>
-                </div>
-              ) : (
-                cart.map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-2 rounded-lg bg-[#f0f3ff] flex flex-col gap-1 transition-colors hover:bg-[#e7eeff]"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <span className="text-xs text-[#111c2d] font-bold block leading-tight">
-                          {item.name}
-                        </span>
-                        <span className="font-mono text-[#70787f] block text-[10px]">
-                          SKU: {item.sku} | {item.sub}
-                        </span>
-                        {item.rxInfo && (
-                          <div className="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#e7eeff] text-[#004967] text-[10px] font-bold">
-                            <span className="material-symbols-outlined text-[12px]">visibility</span>
-                            <span>{item.rxInfo}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveItem(item.sku)}
-                        className="text-[#70787f] hover:text-[#ba1a1a] transition-colors cursor-pointer"
-                      >
-                        <span className="material-symbols-outlined text-[16px]">close</span>
-                      </button>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-1">
-                      <div className="flex items-center gap-1 bg-white rounded p-0.5 shadow-xs">
-                        <button
-                          type="button"
-                          onClick={() => handleQtyChange(item.sku, -1)}
-                          className="w-5 h-5 rounded flex items-center justify-center text-xs text-[#40484e] hover:bg-slate-100 font-bold"
-                        >
-                          -
-                        </button>
-                        <span className="font-mono text-[#111c2d] px-1 font-bold text-xs">
-                          {item.quantity}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleQtyChange(item.sku, 1)}
-                          className="w-5 h-5 rounded flex items-center justify-center text-xs text-[#40484e] hover:bg-slate-100 font-bold"
-                        >
-                          +
-                        </button>
-                      </div>
-
-                      <div className="text-right">
-                        <span className="text-xs text-[#004967] font-bold">
-                          {(item.price * item.quantity).toLocaleString('vi-VN')}đ
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Voucher Row */}
-            <div className="pt-2 flex items-center gap-2 border-t border-slate-100">
-              <div className="relative flex-1">
-                <span className="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-[#70787f] text-[16px]">
-                  sell
-                </span>
-                <input
-                  type="text"
-                  value={voucherCode}
-                  onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
-                  placeholder="Mã voucher..."
-                  className="w-full h-8 pl-7 pr-2 rounded-lg bg-[#f0f3ff] font-mono text-xs text-[#111c2d] uppercase focus:outline-none focus:bg-[#e7eeff]"
-                />
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  if (voucherCode === 'BOLON200K') {
-                    setVoucherDiscount(200000);
-                    message.success('Đã áp dụng Voucher giảm 200.000đ!');
-                  } else {
-                    message.warning('Mã voucher không hợp lệ.');
-                  }
-                }}
-                className="h-8 px-2.5 rounded-lg bg-[#e7eeff] hover:bg-[#cae6ff] text-[#111c2d] text-xs font-bold transition-colors cursor-pointer"
-              >
-                Áp dụng
-              </button>
-            </div>
-
-            {/* Pricing details */}
-            <div className="pt-2 space-y-1 text-xs text-[#40484e]">
-              <div className="flex items-center justify-between">
-                <span>Tạm tính ({cart.reduce((sum, i) => sum + i.quantity, 0)} món):</span>
-                <span className="font-mono text-[#111c2d] font-semibold">
-                  {subtotal.toLocaleString('vi-VN')}đ
-                </span>
-              </div>
-              {voucherDiscount > 0 && (
-                <div className="flex items-center justify-between text-[#004967]">
-                  <span>Voucher ({voucherCode}):</span>
-                  <span className="font-mono font-bold">-{voucherDiscount.toLocaleString('vi-VN')}đ</span>
-                </div>
-              )}
-              {usePoints && (
-                <div className="flex items-center justify-between text-[#004967]">
-                  <span>OptiPoints ({customer.points} pts):</span>
-                  <span className="font-mono font-bold">
-                    -{customer.pointValue.toLocaleString('vi-VN')}đ
-                  </span>
-                </div>
-              )}
-              <div className="flex items-center justify-between">
-                <span>Thuế VAT (8%):</span>
-                <span className="font-mono text-[#111c2d]">{vatAmount.toLocaleString('vi-VN')}đ</span>
-              </div>
-
-              {/* Grand Total Box */}
-              <div className="mt-1 p-2 rounded-lg bg-[#f0f3ff] flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] uppercase tracking-wider text-[#70787f] font-bold block">
-                    Cần thanh toán
-                  </span>
-                  <span className="text-[11px] text-[#40484e]">Đã gồm VAT &amp; VIP</span>
-                </div>
-                <div className="text-right">
-                  <span className="text-xl text-[#004967] tracking-tight font-extrabold">
-                    {grandTotal.toLocaleString('vi-VN')}đ
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Box 3: Payment Method Tabs */}
-          <div className="bg-white rounded-xl p-3 shadow-xs border border-slate-100 flex flex-col gap-2">
-            <div className="text-xs text-[#111c2d] font-bold flex items-center justify-between">
-              <span>Phương thức thanh toán</span>
-              <span className="font-mono text-[11px] text-[#004967] font-normal">Tự động</span>
-            </div>
-
-            {/* Tab switchers */}
-            <div className="grid grid-cols-3 gap-1 p-1 bg-[#f0f3ff] rounded-lg text-xs">
-              <button
-                type="button"
-                onClick={() => setPayTab('vietqr')}
-                className={`py-1.5 rounded-md flex items-center justify-center gap-1 font-bold transition-all cursor-pointer ${
-                  payTab === 'vietqr'
-                    ? 'bg-white text-[#004967] shadow-xs'
-                    : 'text-[#40484e] hover:text-[#111c2d]'
-                }`}
-              >
-                <span className="material-symbols-outlined text-[16px]">qr_code_2</span>
-                <span>VietQR</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setPayTab('cash')}
-                className={`py-1.5 rounded-md flex items-center justify-center gap-1 font-bold transition-all cursor-pointer ${
-                  payTab === 'cash'
-                    ? 'bg-white text-[#004967] shadow-xs'
-                    : 'text-[#40484e] hover:text-[#111c2d]'
-                }`}
-              >
-                <span className="material-symbols-outlined text-[16px]">payments</span>
-                <span>Tiền mặt</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setPayTab('card')}
-                className={`py-1.5 rounded-md flex items-center justify-center gap-1 font-bold transition-all cursor-pointer ${
-                  payTab === 'card'
-                    ? 'bg-white text-[#004967] shadow-xs'
-                    : 'text-[#40484e] hover:text-[#111c2d]'
-                }`}
-              >
-                <span className="material-symbols-outlined text-[16px]">credit_card</span>
-                <span>Thẻ POS</span>
-              </button>
-            </div>
-
-            {/* Tab 1: VietQR Panel */}
-            {payTab === 'vietqr' && (
-              <div className="p-2 rounded-lg bg-[#f0f3ff] flex items-center gap-3">
-                <div className="w-20 h-20 rounded-lg bg-white p-1 shadow-xs flex flex-col items-center justify-center shrink-0">
-                  {cart.length > 0 ? (
-                    <svg className="w-full h-full text-[#111c2d]" fill="currentColor" viewBox="0 0 100 100">
-                      <path d="M5,5 h30 v30 h-30 z M10,10 v20 h20 v-20 z M15,15 h10 v10 h-10 z" />
-                      <path d="M65,5 h30 v30 h-30 z M70,10 v20 h20 v-20 z M75,15 h10 v10 h-10 z" />
-                      <path d="M5,65 h30 v30 h-30 z M10,70 v20 h20 v-20 z M15,75 h10 v10 h-10 z" />
-                      <rect height="25" width="8" x="42" y="5" />
-                      <rect height="15" width="5" x="55" y="15" />
-                      <rect height="20" width="20" x="40" y="40" />
-                      <rect height="8" width="30" x="65" y="45" />
-                      <rect height="27" width="10" x="45" y="68" />
-                      <rect height="12" width="12" x="65" y="65" />
-                      <rect height="15" width="13" x="82" y="80" />
-                    </svg>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center text-[#70787f] text-[10px] text-center p-1">
-                      <span className="material-symbols-outlined text-[20px] text-slate-300">qr_code_2</span>
-                      <span>Chưa có đơn</span>
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 flex flex-col justify-between py-0.5">
-                  <div>
-                    {cart.length > 0 ? (
-                      <>
-                        <div className="flex items-center gap-1.5 text-[#004967]">
-                          <span className="w-2 h-2 rounded-full bg-[#004967] animate-ping" />
-                          <span className="text-xs font-bold">Chờ quét VietQR</span>
-                        </div>
-                        <p className="text-[11px] text-[#40484e] mt-0.5 leading-tight">
-                          QR nạp sẵn <strong className="text-[#111c2d]">{grandTotal.toLocaleString('vi-VN')}đ</strong> và tự khớp hóa đơn.
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        <div className="flex items-center gap-1.5 text-[#70787f]">
-                          <span className="text-xs font-bold">Thanh toán VietQR</span>
-                        </div>
-                        <p className="text-[11px] text-[#70787f] mt-0.5 leading-tight">
-                          Thêm sản phẩm vào giỏ hàng để tạo mã QR tự động.
-                        </p>
-                      </>
-                    )}
-                  </div>
-                  <div className="mt-1 flex items-center gap-1.5">
-                    <span className="px-1.5 py-0.5 rounded bg-[#dee8ff] text-[#40484e] font-mono text-[10px] font-bold">
-                      Napas247
-                    </span>
-                    <span className="px-1.5 py-0.5 rounded bg-[#dee8ff] text-[#40484e] font-mono text-[10px] font-bold">
-                      VCB
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Tab 2: Cash Panel */}
-            {payTab === 'cash' && (
-              <div className="p-2 rounded-lg bg-[#f0f3ff] flex flex-col gap-1.5 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-[#40484e]">Tiền khách đưa:</span>
-                  <input
-                    type="number"
-                    value={cashGiven}
-                    onChange={(e) => setCashGiven(Number(e.target.value))}
-                    className="w-32 h-7 px-2 rounded-md bg-white text-right font-mono text-[#004967] font-bold focus:outline-none"
-                  />
-                </div>
-                <div className="flex items-center justify-between pt-1 border-t border-[#dee8ff]/50">
-                  <span className="text-[#40484e]">Thối lại:</span>
-                  <span className="text-sm font-bold text-[#111c2d]">
-                    {Math.max(0, cashGiven - grandTotal).toLocaleString('vi-VN')}đ
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Tab 3: Card Panel */}
-            {payTab === 'card' && (
-              <div className="p-2.5 rounded-lg bg-[#f0f3ff] flex items-center justify-between text-xs">
-                <span className="text-[#40484e]">Thiết bị mPOS #02:</span>
-                <span className="px-2 py-0.5 rounded bg-[#e7eeff] text-[#004967] font-bold">
-                  Sẵn sàng quẹt / chạm
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Box 4: Action Hotkeys Bar */}
-          <div className="grid grid-cols-4 gap-1.5 pt-0.5 text-xs">
-            {/* F4 Hold */}
-            <button
-              type="button"
-              onClick={() => message.info('Đã lưu tạm đơn hàng vào bộ nhớ (F4).')}
-              className="flex flex-col items-center justify-center p-2 rounded-lg bg-[#e7eeff] hover:bg-[#dee8ff] text-[#40484e] transition-colors cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[18px]">pause_circle</span>
-              <span className="text-[11px] font-bold mt-0.5">Tạm lưu</span>
-              <span className="font-mono text-[#70787f] text-[10px]">[F4]</span>
-            </button>
-
-            {/* F8 Cancel */}
-            <button
-              type="button"
-              onClick={handleClearCart}
-              className="flex flex-col items-center justify-center p-2 rounded-lg bg-[#f0f3ff] hover:bg-[#ffdad6] text-[#ba1a1a] transition-colors cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[18px]">cancel</span>
-              <span className="text-[11px] font-bold mt-0.5">Hủy đơn</span>
-              <span className="font-mono text-[10px]">[F8]</span>
-            </button>
-
-            {/* F9 Lab Order */}
-            <button
-              type="button"
-              onClick={handleDispatchLabOrder}
-              className="flex flex-col items-center justify-center p-2 rounded-lg bg-[#e7eeff] hover:bg-[#cae6ff] text-[#004967] transition-colors cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[18px]">precision_manufacturing</span>
-              <span className="text-[11px] font-bold mt-0.5">Lệnh Lab</span>
-              <span className="font-mono text-[10px]">[F9]</span>
-            </button>
-
-            {/* F10 Payment */}
-            <button
-              type="button"
-              onClick={handleExecutePayment}
-              className="col-span-1 flex flex-col items-center justify-center p-2 rounded-lg bg-[#004967] hover:bg-[#086288] text-white shadow-xs transition-all active:scale-95 cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[18px]">print</span>
-              <span className="text-[12px] font-bold mt-0.5">Thanh Toán</span>
-              <span className="font-mono text-[10px] text-[#a5dbff]">[F10]</span>
-            </button>
-          </div>
-        </div>
+    <main className="pos-page">
+      <ReceiptPreview order={lastOrder} open={receiptOpen} onClose={() => setReceiptOpen(false)} />
+      <div className="pos-workspace">
+        <ProductCatalog products={filteredProducts} count={catalogProducts.length} cart={cart}
+          loading={catalogLoading} error={catalogError} category={selectedCategory} setCategory={setSelectedCategory}
+          search={barcodeInput} setSearch={setBarcodeInput} searchRef={barcodeRef} onSearch={handleBarcodeSubmit}
+          onAdd={handleAddToCart} prescription={linkedRx} onSelectPrescription={() => setIsRxModalOpen(true)} onAddLens={handleInsertRxCombo} />
+        <CheckoutPanel cart={cart} customer={customer} products={catalogProducts}
+          onCustomer={() => setIsCustomerModalOpen(true)}
+          onGuest={() => setCustomer({ name: 'Khách vãng lai', tier: 'Vãng lai', phone: '', points: 0, pointValue: 0 })}
+          onQuantity={handleQtyChange} onRemove={handleRemoveItem} onClear={handleClearCart}
+          subtotal={subtotal} discount={discountTotal} tax={vatAmount} total={grandTotal}
+          voucher={voucherCode} setVoucher={setVoucherCode} onVoucher={() => {
+            if (voucherCode === 'BOLON200K') { setVoucherDiscount(200000); message.success('Đã áp dụng Voucher giảm 200.000đ!'); }
+            else message.warning('Mã voucher không hợp lệ.');
+          }} usePoints={usePoints} setUsePoints={setUsePoints}
+          method={payTab} setMethod={setPayTab} cash={cashGiven} setCash={setCashGiven}
+          confirmed={paymentConfirmed} setConfirmed={setPaymentConfirmed} paymentRef={paymentRef} cashRef={cashInputRef}
+          paying={paying} onPay={handleExecutePayment} lastOrder={lastOrder} onPrint={() => setReceiptOpen(true)} />
       </div>
 
       {/* ================= MODAL: Chọn Toa Khám Khúc Xạ ================= */}
@@ -1092,6 +510,7 @@ export default function PosPage() {
                     key={c.id}
                     onClick={() => {
                       setCustomer({
+                        id: c.id,
                         name: c.fullName,
                         tier: 'Thành Viên',
                         phone: c.phoneNumber || '',
