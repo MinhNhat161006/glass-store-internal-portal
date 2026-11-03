@@ -4,8 +4,9 @@ export const orderApi = {
   getAllOrders: () => apiFetch('/api/orders'),
   getOrderById: (id) => apiFetch(`/api/orders/${id}`),
   getOrderByCode: (orderCode) => apiFetch(`/api/orders/code/${orderCode}`),
-  createOrder: (orderData) => apiFetch('/api/orders', {
+  createOrder: (orderData, idempotencyKey) => apiFetch('/api/orders', {
     method: 'POST',
+    headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {},
     body: JSON.stringify(orderData)
   }),
   updateOrderStatus: (id, statusData) => apiFetch(`/api/orders/${id}/status`, {
@@ -13,4 +14,3 @@ export const orderApi = {
     body: JSON.stringify(statusData)
   })
 };
-
