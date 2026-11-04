@@ -1,6 +1,6 @@
 import React from 'react';
 import { Result, Button } from 'antd';
-import { HomeOutlined } from '@ant-design/icons';
+import HomeOutlined from '@ant-design/icons/es/icons/HomeOutlined';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
@@ -39,4 +39,3 @@ export default function NotFound404() {
     </div>
   );
 }
-
