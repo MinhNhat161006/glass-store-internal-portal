@@ -5,6 +5,7 @@ import { appointmentApi } from '../../api/appointmentApi';
 import { customerApi } from '../../api/customerApi';
 import { message, Modal } from 'antd';
 import { useAuth } from '../../context/AuthContext';
+import OptometryInsights from './OptometryInsights';
 
 export default function OptometryPage() {
   const { user } = useAuth();
@@ -49,6 +50,9 @@ export default function OptometryPage() {
   // Trạng thái lưu & in ấn
   const [saving, setSaving] = useState(false);
   const [savedPrescription, setSavedPrescription] = useState(null);
+  const [selectedLens, setSelectedLens] = useState(null);
+  useEffect(() => { setSelectedLens(null); }, [patient.customerId, odSph, osSph]);
+  useEffect(() => { setSavedPrescription(null); }, [patient.customerId]);
   const [showPrintModal, setShowPrintModal] = useState(false);
 
   // Modal chọn bệnh nhân từ CSDL
@@ -105,6 +109,8 @@ export default function OptometryPage() {
         osAxis: Number(osAxis),
         osAdd: Number(osAdd),
         pd: Number(pd),
+        lensSku: selectedLens?.sku || null,
+        lensName: selectedLens?.name || null,
         notes: clinicalNotes || 'Khám thị lực chuẩn y khoa 12 bước. Đã ký duyệt điện tử và lưu CSDL.'
       };
 
@@ -229,6 +235,10 @@ export default function OptometryPage() {
             </button>
           </div>
         </div>
+
+        <OptometryInsights customerId={patient.customerId} odSph={odSph} osSph={osSph}
+          odCyl={odCyl} osCyl={osCyl} savedId={savedPrescription?.id}
+          selectedLens={selectedLens} onSelectLens={setSelectedLens} />
 
         {/* 2. THREE CLINICAL COMPARISON CARDS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -986,6 +996,7 @@ export default function OptometryPage() {
                 <div className="p-2.5 rounded bg-slate-50 border border-slate-200">
                   <span className="font-bold text-slate-900 block mb-0.5">2. CHẨN ĐOÁN LÂM SÀNG &amp; LOẠI TRÒNG KÍNH:</span>
                   <p className="leading-relaxed">{clinicalNotes}</p>
+                  {selectedLens && <p className="mt-1 font-semibold">Tròng kính chỉ định: {selectedLens.name} — {selectedLens.sku}</p>}
                 </div>
 
                 <div className="p-2.5 rounded bg-slate-50 border border-slate-200">
