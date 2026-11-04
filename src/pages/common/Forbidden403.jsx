@@ -1,6 +1,8 @@
 import React from 'react';
 import { Result, Button, Tag, Space, Typography } from 'antd';
-import { LockOutlined, ArrowLeftOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
+import LockOutlined from '@ant-design/icons/es/icons/LockOutlined';
+import ArrowLeftOutlined from '@ant-design/icons/es/icons/ArrowLeftOutlined';
+import SafetyCertificateOutlined from '@ant-design/icons/es/icons/SafetyCertificateOutlined';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
@@ -76,4 +78,3 @@ export default function Forbidden403({ allowedRoles = [] }) {
     </div>
   );
 }
-

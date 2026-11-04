@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { labApi } from '../../api/labApi';
-import { message } from 'antd';
+import { Alert, message } from 'antd';
 
 export default function LabQcPage() {
   const [selectedTray, setSelectedTray] = useState('');
@@ -8,6 +8,7 @@ export default function LabQcPage() {
   const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [syncError, setSyncError] = useState('');
 
   // Re-edge / Fail Modal state
   const [isFailModalOpen, setIsFailModalOpen] = useState(false);
@@ -15,72 +16,80 @@ export default function LabQcPage() {
 
   // Checklist state (Finishing & Packaging)
   const [checks, setChecks] = useState({
-    optics: true,
-    mechanics: true,
-    coating: true,
-    packaging: true
+    optics: false,
+    mechanics: false,
+    coating: false,
+    packaging: false
   });
 
   const toggleCheck = (key) => {
     setChecks((prev) => ({ ...prev, [key]: !prev[key] }));
   };
+  useEffect(() => {
+    setChecks({ optics: false, mechanics: false, coating: false, packaging: false });
+    setFailReason('');
+    setIsFailModalOpen(false);
+  }, [selectedTray]);
 
   const handleAction = (msg) => {
     message.success(msg);
   };
 
   // Helper formatters
-  const formatDiopter = (val, fallback = '-2.75 D') => {
+  const formatDiopter = (val, fallback = '—') => {
     if (val === null || val === undefined || isNaN(Number(val))) return fallback;
     const n = Number(val);
     return `${n > 0 ? '+' : ''}${n.toFixed(2)} D`;
   };
 
-  const formatAxis = (val, fallback = '180°') => {
+  const formatAxis = (val, fallback = '—') => {
     if (val === null || val === undefined) return fallback;
     return `${val}°`;
   };
 
-  const getHalfPd = (pd, fallback = '32.0mm') => {
+  const getHalfPd = (pd, fallback = '—') => {
     if (!pd || isNaN(Number(pd))) return fallback;
     return `${(Number(pd) / 2).toFixed(1)}mm`;
   };
 
   // Fetch all lab jobs and filter for QC
-  const fetchQcJobs = useCallback(async () => {
+  const fetchQcJobs = useCallback(async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const data = await labApi.getAllLabJobs();
       if (Array.isArray(data)) {
         setAllJobs(data);
+        setSyncError('');
       }
     } catch (err) {
-      console.warn('QC live sync error:', err.message);
+      setSyncError(err.message || 'Không thể đồng bộ hàng đợi QC.');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     fetchQcJobs();
+    const timer = window.setInterval(() => fetchQcJobs(false), 5000);
+    return () => window.clearInterval(timer);
   }, [fetchQcJobs]);
 
   // Yêu cầu 3: Lọc danh sách hàng đợi bên trái theo các đơn có status QC_PENDING
-  const qcPendingRaw = allJobs.filter((j) => (j.status || '').toUpperCase() === 'QC_PENDING');
+  const qcPendingRaw = allJobs.filter((j) => ['QC_PENDING', 'QC_CHECK'].includes((j.status || '').toUpperCase()));
 
   const qcQueue = qcPendingRaw.map((j) => ({
     id: `#LAB-2026-0${j.id}`,
     dbId: j.id,
-    orderId: j.orderId ? `#OPT-${j.orderId}-VN` : '#OPT-BILL-VN',
+    orderId: j.orderCode || (j.orderId ? `#${j.orderId}` : 'Chưa liên kết đơn'),
     tray: `Khay #${j.id < 10 ? '0' + j.id : j.id}`,
     customer: j.customerName || j.prescription?.customerName || 'Khách Hàng',
-    frame: j.frameName || j.frameSku || 'Bolon Titanium BL7110',
-    lens: j.lensName || j.lensSku || 'Tròng Chemi U2 BlueCut 1.60',
-    tech: j.technicianName || 'KTV Trần Văn Kỹ Thuật',
+    frame: j.frameName || j.frameSku || 'Chưa có thông tin gọng',
+    lens: j.lensName || j.lensSku || 'Chưa có thông tin tròng',
+    tech: j.technicianName || 'Chưa phân công',
     status: 'inspecting',
     statusLabel: 'Chờ kiểm tra',
     statusClass: 'bg-primary-fixed text-on-primary-fixed',
-    priority: j.orderId && j.orderId % 2 === 1 ? 'Hỏa tốc' : 'Tiêu chuẩn',
+    priority: j.priority === 'URGENT' ? 'Hỏa tốc' : 'Tiêu chuẩn',
     time: j.createdAt ? new Date(j.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Hôm nay',
     // Thông số khúc xạ thực tế
     odSphere: j.odSphere ?? j.odSph,
@@ -116,8 +125,8 @@ export default function LabQcPage() {
 
   // Tự động set selectedTray khi danh sách nạp lần đầu
   useEffect(() => {
-    if (filteredQcQueue.length > 0 && !selectedTray) {
-      setSelectedTray(filteredQcQueue[0].id);
+    if (!filteredQcQueue.some(item => item.id === selectedTray || item.dbId === selectedTray)) {
+      setSelectedTray(filteredQcQueue[0]?.id || '');
     }
   }, [filteredQcQueue, selectedTray]);
 
@@ -130,6 +139,7 @@ export default function LabQcPage() {
   // Nút "ĐẠT CHUẨN (PASS QC) & BÀN GIAO POS"
   const handlePassQc = async () => {
     if (!selectedItem) return;
+    if (Object.values(checks).some(value => !value)) { message.warning('Vui lòng hoàn tất các mục kiểm tra QC.'); return; }
     try {
       setIsSubmitting(true);
       await labApi.updateLabJobStatus(selectedItem.dbId, {
@@ -148,7 +158,8 @@ export default function LabQcPage() {
   // Nút "Xác Nhận Yêu Cầu Mài Lại" trong modal
   const handleConfirmReEdge = async () => {
     if (!selectedItem) return;
-    const note = failReason.trim() || 'Lỗi kiểm định QC - Cần mài lại phôi';
+    const note = failReason.trim();
+    if (!note) { message.warning('Vui lòng ghi rõ lý do QC không đạt.'); return; }
     try {
       setIsSubmitting(true);
       await labApi.updateLabJobStatus(selectedItem.dbId, {
@@ -177,6 +188,7 @@ export default function LabQcPage() {
   return (
     <div className="w-full min-h-screen bg-[#f9f9ff]">
       <div className="max-w-[1600px] mx-auto p-3.5 sm:p-5 flex flex-col gap-3.5">
+        {syncError && <Alert type="error" showIcon message={syncError} />}
 
         {/* 1. HEADER */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface-container-lowest p-3.5 rounded-xl shadow-xs border border-[#d8e3fb]/40">
@@ -197,7 +209,7 @@ export default function LabQcPage() {
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[11px] font-semibold shadow-xs">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>
-              Lensmeter Nidek LM-1800PD: Đồng Bộ Live
+              Kiểm tra tại bàn QC
             </div>
             <button
               onClick={() => {
@@ -242,7 +254,7 @@ export default function LabQcPage() {
               <span className="font-label-md text-label-md text-primary font-semibold">tỷ lệ {passRate}%</span>
             </div>
             <div className="mt-1 pt-1.5 border-t border-[#e7eeff] text-body-sm text-[11px] text-outline">
-              Chuẩn ANSI Z80.1 quốc tế (±0.12D)
+              Kết quả kỹ thuật viên đã xác nhận
             </div>
           </div>
 
@@ -392,7 +404,7 @@ export default function LabQcPage() {
                   </div>
                   <div className="p-2 rounded-lg bg-surface-container-low border border-[#d8e3fb]/30">
                     <span className="text-[10px] text-outline block">Máy Mài 3D</span>
-                    <span className="font-semibold text-on-surface">Essilor Delta #01</span>
+                    <span className="font-semibold text-on-surface">Chưa có thông tin</span>
                   </div>
                   <div className="p-2 rounded-lg bg-surface-container-low border border-[#d8e3fb]/30">
                     <span className="text-[10px] text-outline block">Gọng Kính</span>
@@ -405,118 +417,15 @@ export default function LabQcPage() {
                 </div>
               </div>
 
-              {/* Yêu cầu 3: Đối Chiếu Quang Học (Toa Khám vs Thực Tế Lensmeter Đổ Dữ Liệu Thực Tế) */}
-              <div className="p-3.5 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-title-md text-title-md text-on-surface font-semibold flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-primary text-[18px]">biotech</span>
-                    1. Đối Chiếu Quang Học (Toa Khám vs Thực Tế Lensmeter)
-                  </span>
-                  <span className="px-2 py-0.5 rounded bg-secondary-fixed text-on-secondary-fixed text-[10px] font-semibold">
-                    Chuẩn ANSI Z80.1 (±0.12D)
-                  </span>
-                </div>
-
-                <div className="overflow-x-auto rounded-xl border border-[#d8e3fb]/40">
-                  <table className="w-full text-left font-body-md text-body-md">
-                    <thead className="bg-surface-container-low text-outline font-label-md text-label-md uppercase">
-                      <tr>
-                        <th className="py-2 px-3">Mắt</th>
-                        <th className="py-2 px-3">Thông Số</th>
-                        <th className="py-2 px-3 text-center">Toa Kê (Rx)</th>
-                        <th className="py-2 px-3 text-center text-primary font-bold">Lensmeter Đo</th>
-                        <th className="py-2 px-3 text-center text-outline">Sai Số (Δ)</th>
-                        <th className="py-2 px-3 text-center">Đánh Giá</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#d8e3fb]/30 font-label-mono text-body-sm text-on-surface">
-                      {/* OD - Mắt Phải */}
-                      <tr>
-                        <td className="py-2 px-3 font-bold text-primary bg-primary-fixed/20 text-center" rowSpan={3}>OD</td>
-                        <td className="py-2 px-3 font-medium">Độ Cầu (SPH)</td>
-                        <td className="py-2 px-3 text-center font-bold">
-                          {formatDiopter(selectedItem.odSphere, '-3.25 D')}
-                        </td>
-                        <td className="py-2 px-3 text-center font-bold text-primary bg-primary-fixed/10">
-                          {formatDiopter(selectedItem.odSphere, '-3.25 D')}
-                        </td>
-                        <td className="py-2 px-3 text-center text-outline">0.00 D</td>
-                        <td className="py-2 px-3 text-center">
-                          <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[10px] font-bold">ĐẠT CHUẨN</span>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="py-2 px-3 font-medium">Độ Trụ (CYL)</td>
-                        <td className="py-2 px-3 text-center font-bold">
-                          {formatDiopter(selectedItem.odCyl, '-0.75 D')}
-                        </td>
-                        <td className="py-2 px-3 text-center font-bold text-primary bg-primary-fixed/10">
-                          {formatDiopter(selectedItem.odCyl != null ? Number(selectedItem.odCyl) + 0.02 : -0.73, '-0.73 D')}
-                        </td>
-                        <td className="py-2 px-3 text-center text-outline">+0.02 D</td>
-                        <td className="py-2 px-3 text-center">
-                          <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[10px] font-bold">ĐẠT CHUẨN</span>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="py-2 px-3 font-medium">Trục (AXIS) &amp; PD</td>
-                        <td className="py-2 px-3 text-center font-bold">
-                          {formatAxis(selectedItem.odAxis, '180°')} • {getHalfPd(selectedItem.pd, '32.0mm')}
-                        </td>
-                        <td className="py-2 px-3 text-center font-bold text-primary bg-primary-fixed/10">
-                          {selectedItem.odAxis != null ? `${Number(selectedItem.odAxis) + 0.5}°` : '180.5°'} • {getHalfPd(selectedItem.pd, '32.0mm')}
-                        </td>
-                        <td className="py-2 px-3 text-center text-outline">+0.5° • 0.0mm</td>
-                        <td className="py-2 px-3 text-center">
-                          <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[10px] font-bold">ĐẠT CHUẨN</span>
-                        </td>
-                      </tr>
-
-                      {/* OS - Mắt Trái */}
-                      <tr>
-                        <td className="py-2 px-3 font-bold text-secondary bg-secondary-fixed/30 text-center" rowSpan={3}>OS</td>
-                        <td className="py-2 px-3 font-medium">Độ Cầu (SPH)</td>
-                        <td className="py-2 px-3 text-center font-bold">
-                          {formatDiopter(selectedItem.osSphere, '-2.75 D')}
-                        </td>
-                        <td className="py-2 px-3 text-center font-bold text-secondary bg-secondary-fixed/10">
-                          {formatDiopter(selectedItem.osSphere, '-2.75 D')}
-                        </td>
-                        <td className="py-2 px-3 text-center text-outline">0.00 D</td>
-                        <td className="py-2 px-3 text-center">
-                          <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[10px] font-bold">ĐẠT CHUẨN</span>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="py-2 px-3 font-medium">Độ Trụ (CYL)</td>
-                        <td className="py-2 px-3 text-center font-bold">
-                          {formatDiopter(selectedItem.osCyl, '-0.50 D')}
-                        </td>
-                        <td className="py-2 px-3 text-center font-bold text-secondary bg-secondary-fixed/10">
-                          {formatDiopter(selectedItem.osCyl, '-0.50 D')}
-                        </td>
-                        <td className="py-2 px-3 text-center text-outline">0.00 D</td>
-                        <td className="py-2 px-3 text-center">
-                          <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[10px] font-bold">ĐẠT CHUẨN</span>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="py-2 px-3 font-medium">Trục (AXIS) &amp; PD</td>
-                        <td className="py-2 px-3 text-center font-bold">
-                          {formatAxis(selectedItem.osAxis, '175°')} • {getHalfPd(selectedItem.pd, '32.0mm')}
-                        </td>
-                        <td className="py-2 px-3 text-center font-bold text-secondary bg-secondary-fixed/10">
-                          {formatAxis(selectedItem.osAxis, '175°')} • {selectedItem.pd ? `${(Number(selectedItem.pd) / 2 - 0.2).toFixed(1)}mm` : '31.8mm'}
-                        </td>
-                        <td className="py-2 px-3 text-center text-outline">0° • -0.2mm</td>
-                        <td className="py-2 px-3 text-center">
-                          <span className="px-2 py-0.2 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[10px] font-bold">ĐẠT CHUẨN</span>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+              <section className="p-3.5 rounded-xl bg-white border border-[#d8e3fb]/40 space-y-2">
+                <h3 className="font-semibold">Thông số toa kính</h3>
+                <table className="w-full text-left text-sm">
+                  <thead><tr><th>Mắt</th><th>SPH</th><th>CYL</th><th>AXIS</th></tr></thead>
+                  <tbody>{[['OD',selectedItem.odSphere,selectedItem.odCyl,selectedItem.odAxis],['OS',selectedItem.osSphere,selectedItem.osCyl,selectedItem.osAxis]].map(([eye,sph,cyl,axis])=><tr key={eye}><td>{eye}</td><td>{formatDiopter(sph)}</td><td>{formatDiopter(cyl)}</td><td>{formatAxis(axis)}</td></tr>)}</tbody>
+                </table>
+                <p>PD: {selectedItem.pd != null ? selectedItem.pd + ' mm' : '—'}</p>
+                <p className="text-sm text-outline">Kỹ thuật viên đối chiếu kết quả đo thực tế trước khi xác nhận QC.</p>
+              </section>
 
               {/* 4-Item Finishing & Packaging Checklist */}
               <div className="p-3.5 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 space-y-2">
@@ -535,7 +444,7 @@ export default function LabQcPage() {
                     <span className={`material-symbols-outlined text-[18px] ${checks.optics ? 'text-primary' : 'text-outline'}`}>
                       {checks.optics ? 'check_box' : 'check_box_outline_blank'}
                     </span>
-                    <span>Độ khớp viền khung &amp; rãnh V (Mini Bevel)</span>
+                    <span>Đã đối chiếu quang học với toa và kiểm tra khớp gọng</span>
                   </label>
 
                   <label

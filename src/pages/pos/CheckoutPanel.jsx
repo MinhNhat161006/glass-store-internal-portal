@@ -4,10 +4,10 @@ import { ProductImage, money } from './ProductCatalog';
 export default function CheckoutPanel({ cart, customer, onCustomer, onGuest, onQuantity, onRemove, onClear,
   products, subtotal, discount, tax, total, voucher, setVoucher, onVoucher,
   usePoints, setUsePoints, method, setMethod, cash, setCash, confirmed, setConfirmed,
-  paymentRef, cashRef, paying, onPay, lastOrder, onPrint }) {
+  paymentRef, cashRef, paying, onPay, lastOrder, onPrint, loyalty, pointsToUse, setPointsToUse, offer, offerError, offerPending }) {
   return <aside className="pos-checkout" aria-label="Giỏ hàng và thanh toán" aria-busy={paying}>
     <header className="pos-checkout-heading"><h2>Đơn hàng hiện tại</h2><span>{cart.reduce((sum, item) => sum + item.quantity, 0)} món</span></header>
-    <fieldset disabled={paying}>
+    <div className="pos-checkout-body" aria-disabled={paying} inert={paying ? '' : undefined}><div className="pos-checkout-scroll">
       <div className="pos-customer"><span className="material-symbols-outlined" aria-hidden="true">person</span><div><strong>{customer.name}</strong>{customer.phone && <p>{customer.phone}</p>}</div>
         <button type="button" onClick={onCustomer}>Đổi khách</button>{customer.id && <button type="button" onClick={onGuest}>Vãng lai</button>}</div>
       <div className="pos-cart-items">{!cart.length ? <div className="pos-cart-empty"><span className="material-symbols-outlined" aria-hidden="true">shopping_bag</span><strong>Chưa có sản phẩm</strong><p>Chọn kính hoặc quét mã để bắt đầu đơn hàng.</p></div> : cart.map(item =>
@@ -19,14 +19,17 @@ export default function CheckoutPanel({ cart, customer, onCustomer, onGuest, onQ
           <button type="button" className="pos-remove" aria-label={`Xóa ${item.name}`} onClick={() => onRemove(item.sku)}><span className="material-symbols-outlined" aria-hidden="true">close</span></button>
         </div>)}</div>
       <details className="pos-discount"><summary>Áp dụng voucher / mã giảm giá</summary><div className="pos-voucher"><input aria-label="Mã voucher" value={voucher} onChange={e => setVoucher(e.target.value.toUpperCase())} placeholder="Nhập mã voucher" /><button type="button" className="pos-outline" onClick={onVoucher}>Áp dụng</button></div>
-        {customer.points > 0 && <label><input type="checkbox" checked={usePoints} onChange={e => setUsePoints(e.target.checked)} /> Dùng {customer.points} OptiPoints</label>}</details>
-      <dl className="pos-totals"><div><dt>Tạm tính</dt><dd>{money(subtotal)}</dd></div>{discount > 0 && <div><dt>Giảm giá</dt><dd>−{money(discount)}</dd></div>}<div><dt>VAT (8%)</dt><dd>{money(tax)}</dd></div><div className="pos-total"><dt>Tổng thanh toán</dt><dd>{money(total)}</dd></div></dl>
+        {customer.id ? <div className="pos-points-input"><span>{loyalty ? `${loyalty.balance} điểm · ${money(loyalty.pointValue)}/điểm` : 'Đang tải điểm…'}</span><label>Điểm dùng <input aria-label="Số điểm sử dụng" type="number" min="0" step="1" value={pointsToUse} disabled={!loyalty?.enabled} onChange={e => setPointsToUse(Math.max(0,Math.floor(Number(e.target.value)||0)))} /></label><small>Tối đa {loyalty?.maxRedemptionPercent || 0}% tiền hàng sau voucher. {offer && `Có thể dùng tối đa ${offer.maximumPoints} điểm.`}</small></div> : <p>Khách vãng lai không sử dụng điểm.</p>}</details>
+      {offerError && <p role="alert" className="pos-offer-error">{offerError}</p>}
+      {offerPending && !offerError && <p role="status" className="pos-offer-error">Đang kiểm tra giá và ưu đãi…</p>}
+      </div>
+      <dl className="pos-totals"><div><dt>Tạm tính</dt><dd>{money(subtotal)}</dd></div>{Number(offer?.voucherDiscount)>0 && <div><dt>Voucher {offer.voucherCode}</dt><dd>−{money(offer.voucherDiscount)}</dd></div>}{Number(offer?.pointsDiscount)>0 && <div><dt>Dùng {offer.redeemedPoints} điểm</dt><dd>−{money(offer.pointsDiscount)}</dd></div>}<div><dt>Tiền tính thuế</dt><dd>{money(offer?.taxableAmount ?? Math.max(0, subtotal - discount))}</dd></div><div><dt>VAT (8%)</dt><dd>{money(tax)}</dd></div><div className="pos-total"><dt>Tổng thanh toán</dt><dd>{money(total)}</dd></div></dl>
       <section className="pos-payment" ref={paymentRef} tabIndex={-1} aria-label="Thanh toán">
         <div className="pos-payment-methods">{[['cash', 'payments', 'Tiền mặt'], ['vietqr', 'qr_code_2', 'Chuyển khoản'], ['card', 'credit_card', 'Thẻ']].map(([value, icon, label]) => <button type="button" key={value} aria-pressed={method === value} onClick={() => setMethod(value)}><span className="material-symbols-outlined" aria-hidden="true">{icon}</span>{label}</button>)}</div>
         {method === 'cash' ? <><label className="pos-cash-label" htmlFor="pos-cash">Tiền khách đưa</label><div className="pos-cash-field"><input id="pos-cash" type="number" min="0" step="1000" ref={cashRef} aria-label="Tiền khách đưa" value={cash || ''} placeholder="0" onChange={event => setCash(Number(event.target.value))} /><span>đ</span></div><div className={`pos-change${cash >= total && total > 0 ? ' is-ready' : ''}`}><span>{cash > 0 && cash < total ? 'Còn thiếu' : 'Tiền thối lại'}</span><strong>{money(cash > 0 && cash < total ? total - cash : Math.max(0, cash - total))}</strong></div></> : <label className="pos-payment-confirm"><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />Đã nhận tiền chuyển khoản / giao dịch thẻ thành công</label>}
       </section>
-    </fieldset>
-    <button type="button" className="pos-pay" onClick={onPay} disabled={paying || !cart.length} aria-busy={paying}>{paying ? 'Đang lưu đơn hàng…' : 'Thanh toán · F10'}</button>
+    </div>
+    <button type="button" className="pos-pay" onClick={onPay} disabled={paying || !cart.length || offerPending || !!offerError} aria-busy={paying}>{paying ? 'Đang lưu đơn hàng…' : 'Thanh toán · F10'}</button>
     <div className="pos-checkout-tools">
       <button type="button" className="pos-print pos-outline" onClick={onPrint} disabled={!lastOrder || paying}><span className="material-symbols-outlined" aria-hidden="true">print</span>In hóa đơn</button>
       <button type="button" className="pos-clear" onClick={onClear} disabled={paying || !cart.length}>Xóa giỏ hàng <kbd>F8</kbd></button>

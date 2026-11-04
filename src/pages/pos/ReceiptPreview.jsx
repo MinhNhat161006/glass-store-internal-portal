@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { Modal, Button } from 'antd';
 import { useReactToPrint } from 'react-to-print';
 import './receipt.css';
+import receiptStyles from './receipt.css?inline';
 
 const money = value => `${Number(value ?? 0).toLocaleString('vi-VN')} đ`;
 
@@ -10,12 +11,14 @@ export default function ReceiptPreview({ order, open, onClose }) {
   const print = useReactToPrint({
     content: () => receiptRef.current,
     documentTitle: order?.orderCode || 'Hoa-don-POS',
+    copyStyles: false,
     pageStyle: () => {
       const heightMm = Math.ceil((receiptRef.current?.scrollHeight || 600) * 25.4 / 96) + 16;
-      return `@page { size: 80mm ${heightMm}mm; margin: 4mm; } @media print { html, body { width: 72mm; margin: 0; padding: 0; } .pos-receipt { width: 72mm; margin: 0; } }`;
+      return `${receiptStyles}\n@page { size: 80mm ${heightMm}mm; margin: 4mm; } @media print { html, body { width: 72mm; margin: 0; padding: 0; } .pos-receipt { width: 72mm; margin: 0; } }`;
     },
   });
   if (!order) return null;
+  const cashGiven = order.cashGiven ?? order.cashReceived;
   return <Modal title="Hóa đơn bán hàng · Giấy nhiệt K80" open={open} onCancel={onClose}
     centered width={560} className="pos-receipt-modal"
     footer={<><Button onClick={onClose}>Đóng</Button><Button type="primary" onClick={print}>In hóa đơn K80</Button></>}>
@@ -34,14 +37,17 @@ export default function ReceiptPreview({ order, open, onClose }) {
         </tr>)}</tbody>
       </table>
       <dl><div><dt>Tạm tính</dt><dd>{money(order.totalAmount)}</dd></div>
-        <div><dt>Giảm giá</dt><dd>{money(order.discountAmount)}</dd></div>
+        {order.voucherCode && <div><dt>Voucher {order.voucherCode}</dt><dd>−{money(order.voucherDiscount)}</dd></div>}
+        {Number(order.redeemedPoints)>0 && <div><dt>Dùng {order.redeemedPoints} điểm</dt><dd>−{money(order.pointsDiscount)}</dd></div>}
+        {!order.voucherCode && !Number(order.redeemedPoints) && <div><dt>Giảm giá</dt><dd>{money(order.discountAmount)}</dd></div>}
+        <div><dt>Tiền tính thuế</dt><dd>{money(Number(order.totalAmount)-Number(order.discountAmount||0))}</dd></div>
         <div><dt>VAT 8%</dt><dd>{money(order.taxAmount)}</dd></div>
         <div className="pos-receipt-total"><dt>TỔNG THANH TOÁN</dt><dd>{money(order.finalAmount)}</dd></div>
         <div><dt>Phương thức</dt><dd>{{ CASH: 'Tiền mặt', VIETQR: 'VietQR', CARD: 'Thẻ POS' }[order.paymentMethod] || order.paymentMethod}</dd></div>
-        {order.cashGiven != null && <><div><dt>Tiền khách đưa</dt><dd>{money(order.cashGiven)}</dd></div>
-          <div><dt>Tiền thừa</dt><dd>{money(order.cashGiven - Number(order.finalAmount))}</dd></div></>}
+        {cashGiven != null && <><div><dt>Tiền khách đưa</dt><dd>{money(cashGiven)}</dd></div>
+          <div><dt>Tiền thừa</dt><dd>{money(cashGiven - Number(order.finalAmount))}</dd></div></>}
       </dl>
-      <footer><p>ĐÃ THANH TOÁN</p><p>Vui lòng giữ hóa đơn để đối chiếu và bảo hành.</p><p>Cảm ơn quý khách!</p><p>Phiếu bán hàng, không thay thế hóa đơn điện tử.</p></footer>
+      <footer><p>{order.status==='CANCELLED'?'ĐƠN ĐÃ HỦY':order.status==='CANCEL_PENDING'?'ĐANG XỬ LÝ HỦY':'ĐÃ THANH TOÁN'}</p>{order.cancelReason&&<p>Lý do: {order.cancelReason}</p>}{order.refundStatus&&<p>{order.refundStatus==='CONFIRMED'?'Đã xác nhận hoàn tiền':'CHỜ HOÀN TIỀN'}</p>}<p>Vui lòng giữ hóa đơn để đối chiếu và bảo hành.</p><p>Cảm ơn quý khách!</p><p>Phiếu bán hàng, không thay thế hóa đơn điện tử.</p></footer>
     </div></div>
   </Modal>;
 }

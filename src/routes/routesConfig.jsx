@@ -1,10 +1,8 @@
 import React from 'react';
-import {
-  ShopOutlined,
-  EyeOutlined,
-  ToolOutlined,
-  AppstoreOutlined
-} from '@ant-design/icons';
+import ShopOutlined from '@ant-design/icons/es/icons/ShopOutlined';
+import EyeOutlined from '@ant-design/icons/es/icons/EyeOutlined';
+import ToolOutlined from '@ant-design/icons/es/icons/ToolOutlined';
+import AppstoreOutlined from '@ant-design/icons/es/icons/AppstoreOutlined';
 import { ROLES } from './rolesConfig';
 import PosPage from '../pages/pos/PosPage';
 import OptometryPage from '../pages/optometry/OptometryPage';
@@ -73,4 +71,3 @@ export function getAuthorizedMenuItems(userRole, currentPath) {
       };
     });
 }
-
