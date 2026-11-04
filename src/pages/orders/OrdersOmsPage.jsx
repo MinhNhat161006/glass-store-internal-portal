@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Drawer, Empty, Input, Modal, Table, Tag, message } from 'antd';
 import { orderApi } from '../../api/orderApi';
+import { useLocation } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import OrderShippingLabel from './OrderShippingLabel';
 import '../workspace.css';
 
 const statuses = {
@@ -19,6 +22,8 @@ const code = order => order.orderCode || `#${order.id}`;
 const statusTag = value => <Tag color={statuses[value]?.[1]}>{statuses[value]?.[0] || value || 'Chưa cập nhật'}</Tag>;
 
 export default function OrdersOmsPage() {
+  const location = useLocation();
+  const { user } = useAuth();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -27,6 +32,7 @@ export default function OrdersOmsPage() {
   const [channel, setChannel] = useState('all');
   const [activeId, setActiveId] = useState(null);
   const [updating, setUpdating] = useState(false);
+  const [labelOpen, setLabelOpen] = useState(false);
   const activeOrder = orders.find(order => order.id === activeId);
   const loadOrders = async () => {
     setLoading(true);
@@ -40,6 +46,12 @@ export default function OrdersOmsPage() {
     finally { setLoading(false); }
   };
   useEffect(() => { loadOrders(); }, []);
+  useEffect(() => {
+    const requested = new URLSearchParams(location.search).get('order');
+    if (!requested) return;
+    const found = orders.find(order => order.orderCode === requested || String(order.id) === requested);
+    if (found) setActiveId(found.id);
+  }, [orders, location.search]);
   const filtered = useMemo(() => {
     const keyword = query.trim().toLocaleLowerCase('vi-VN');
     return orders.filter(order =>
@@ -60,19 +72,26 @@ export default function OrdersOmsPage() {
       XLSX.writeFile(workbook, `Don-hang-${new Date().toLocaleDateString('sv-SE')}.xlsx`);
     } catch { message.error('Không thể xuất danh sách đơn hàng.'); }
   };
-  const nextAction = ['READY_FOR_PICKUP', 'SHIPPING'].includes(activeOrder?.status)
-    ? { status: 'COMPLETED', label: 'Xác nhận bàn giao' } : null;
+  const nextAction = ({
+    PAID: { status: 'CONFIRMED', label: 'Xác nhận đơn' },
+    PENDING_CONFIRMATION: { status: 'CONFIRMED', label: 'Xác nhận đơn' },
+    CONFIRMED: { status: 'PREPARING', label: 'Bắt đầu chuẩn bị' },
+    PREPARING: activeOrder?.shippingAddress ? { status: 'SHIPPING', label: 'Bàn giao vận chuyển' } : { status: 'READY_FOR_PICKUP', label: 'Sẵn sàng nhận tại quầy' },
+    PROCESSING: activeOrder?.shippingAddress ? { status: 'SHIPPING', label: 'Bàn giao vận chuyển' } : { status: 'READY_FOR_PICKUP', label: 'Sẵn sàng nhận tại quầy' },
+    READY_FOR_PICKUP: { status: 'COMPLETED', label: 'Xác nhận bàn giao' },
+    SHIPPING: { status: 'COMPLETED', label: 'Xác nhận bàn giao' },
+  })[activeOrder?.status] || null;
   const advanceOrder = () => {
     if (!nextAction || !activeOrder) return;
     const orderId = activeOrder.id;
     const action = nextAction;
     Modal.confirm({
-      title: `${action.label}?`, content: `Đơn ${code(activeOrder)} · ${activeOrder.customerName}`,
+      title: `${action.label}?`, content: `Đơn ${code(activeOrder)} · ${activeOrder.customerName}${['SHIPPING', 'READY_FOR_PICKUP'].includes(action.status) ? '. Xác nhận hàng đã hoàn tất kiểm tra trước khi bàn giao.' : ''}`,
       okText: 'Xác nhận', cancelText: 'Quay lại',
       async onOk() {
         setUpdating(true);
         try {
-          const response = await orderApi.updateOrderStatus(orderId, { status: action.status });
+          const response = await orderApi.updateOrderStatus(orderId, { status: action.status, actor: user?.fullName || user?.username, reason: action.label });
           const saved = response?.data ?? response;
           setOrders(previous => previous.map(order => order.id === orderId ? { ...order, ...saved } : order));
           message.success('Đã cập nhật đơn hàng.');
@@ -112,9 +131,12 @@ export default function OrdersOmsPage() {
             <div className="workspace-muted"><span>Phương thức</span><span>{({ CASH: 'Tiền mặt', CARD: 'Thẻ', VIETQR: 'VietQR' })[activeOrder.paymentMethod] || activeOrder.paymentMethod || '—'}</span></div>
           </section>
           <details className="workspace-extra"><summary>Thông tin khác</summary><p>Ngày tạo: {date(activeOrder.createdAt)}</p><p>Chi nhánh: {activeOrder.branchName || '—'}</p><p>Nhân viên: {activeOrder.staffName || '—'}</p>{activeOrder.notes && <p>Ghi chú: {activeOrder.notes}</p>}</details>
+          {activeOrder.prescription && <details className="workspace-extra"><summary>Thông số khách cung cấp</summary><p>OD: SPH {activeOrder.prescription.odSph} / CYL {activeOrder.prescription.odCyl} / AXIS {activeOrder.prescription.odAxis}° / ADD {activeOrder.prescription.odAdd}</p><p>OS: SPH {activeOrder.prescription.osSph} / CYL {activeOrder.prescription.osCyl} / AXIS {activeOrder.prescription.osAxis}° / ADD {activeOrder.prescription.osAdd}</p><p>PD: {activeOrder.prescription.pd} mm · Chờ kiểm tra toa trước khi gia công.</p></details>}
+          <Button block onClick={() => setLabelOpen(true)}>Xem nhãn A5</Button>
           {nextAction && <Button type="primary" block loading={updating} onClick={advanceOrder}>{nextAction.label}</Button>}
         </div>}
       </Drawer>
+      <OrderShippingLabel order={activeOrder} open={labelOpen} onClose={() => setLabelOpen(false)} />
     </div>
   );
 }

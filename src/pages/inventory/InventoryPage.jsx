@@ -52,7 +52,7 @@ export default function InventoryPage() {
       const matchesQuery = !searchTerm
         || item.sku?.toLowerCase().includes(searchTerm)
         || item.productName?.toLowerCase().includes(searchTerm);
-      const matchesCategory = category === 'ALL' || item.productType === category;
+      const matchesCategory = category === 'ALL' || category === 'LOW_STOCK' || item.productType === category;
       const matchesLowStock = category !== 'LOW_STOCK'
         || LOCATIONS.some(({ code }) => isLowStock(quantityAt(item, code)));
       return matchesQuery && matchesCategory && matchesLowStock;

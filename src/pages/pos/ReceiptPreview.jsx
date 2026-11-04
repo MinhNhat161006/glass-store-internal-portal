@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { Modal, Button } from 'antd';
 import { useReactToPrint } from 'react-to-print';
 import './receipt.css';
+import receiptStyles from './receipt.css?inline';
 
 const money = value => `${Number(value ?? 0).toLocaleString('vi-VN')} đ`;
 
@@ -10,9 +11,10 @@ export default function ReceiptPreview({ order, open, onClose }) {
   const print = useReactToPrint({
     content: () => receiptRef.current,
     documentTitle: order?.orderCode || 'Hoa-don-POS',
+    copyStyles: false,
     pageStyle: () => {
       const heightMm = Math.ceil((receiptRef.current?.scrollHeight || 600) * 25.4 / 96) + 16;
-      return `@page { size: 80mm ${heightMm}mm; margin: 4mm; } @media print { html, body { width: 72mm; margin: 0; padding: 0; } .pos-receipt { width: 72mm; margin: 0; } }`;
+      return `${receiptStyles}\n@page { size: 80mm ${heightMm}mm; margin: 4mm; } @media print { html, body { width: 72mm; margin: 0; padding: 0; } .pos-receipt { width: 72mm; margin: 0; } }`;
     },
   });
   if (!order) return null;
