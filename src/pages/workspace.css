@@ -1,0 +1,64 @@
+.simple-workspace { padding: 28px; max-width: 1440px; width: 100%; min-width: 0; contain: inline-size; margin: 0 auto; color: #263143; font-size: 14px; }
+.workspace-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+.workspace-header h1 { margin: 0; font-size: 24px; font-weight: 650; letter-spacing: -.5px; }
+.workspace-header p { margin: 5px 0 0; color: #74808d; font-size: 13px; }
+.workspace-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.workspace-panel { background: white; border: 1px solid #e3e8ef; border-radius: 14px; overflow: hidden; }
+.workspace-toolbar { display: flex; align-items: center; gap: 12px; padding: 20px; flex-wrap: wrap; }
+.workspace-search { max-width: 380px; flex: 1 1 250px; }
+.workspace-filter { min-width: 170px; height: 32px; border: 1px solid #d9d9d9; border-radius: 6px; padding: 0 10px; background: white; color: #425466; font-size: 14px; }
+.workspace-name { font-weight: 600; }
+.workspace-muted { color: #74808d; font-size: 13px; line-height: 1.7; }
+.workspace-link { border: 0; background: none; padding: 0; color: #086288; cursor: pointer; font-weight: 600; text-align: left; overflow-wrap: anywhere; }
+.workspace-link:hover { text-decoration: underline; }
+.simple-workspace .ant-table-thead > tr > th { background: #f8fafc; color: #74808d; font-size: 12px; font-weight: 500; }
+.simple-workspace .ant-table-tbody > tr > td { padding-top: 19px; padding-bottom: 19px; }
+.simple-workspace .ant-table-pagination { padding-right: 20px; }
+.simple-workspace .ant-tag { border: 0; border-radius: 6px; padding: 3px 8px; margin: 0; }
+.workspace-detail { padding: 0; display: flex; flex-direction: column; gap: 24px; }
+.simple-workspace h2 { font-size: 15px; font-weight: 600; margin: 0 0 16px; }
+.workspace-detail p { margin: 5px 0; }
+.workspace-items { display: flex; flex-direction: column; gap: 18px; }
+.workspace-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; }
+.workspace-item > :last-child { white-space: nowrap; }
+.workspace-totals { border-top: 1px solid #e3e8ef; padding-top: 18px; display: flex; flex-direction: column; gap: 12px; }
+.workspace-totals > div { display: flex; justify-content: space-between; gap: 16px; }
+.workspace-total { font-size: 17px; }
+.workspace-extra { color: #74808d; font-size: 13px; }
+.workspace-extra summary { cursor: pointer; color: #425466; margin-bottom: 12px; }
+.exam-patient { padding: 20px 24px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.exam-patient .workspace-name { font-size: 17px; }
+.exam-panel { padding: 24px; }
+.exam-table-wrap { overflow-x: auto; }
+.exam-table { width: 100%; min-width: 620px; border-collapse: collapse; }
+.exam-table th { font-size: 12px; font-weight: 500; color: #74808d; text-align: left; padding: 12px 8px; }
+.exam-table td { padding: 16px 8px; border-top: 1px solid #edf0f4; }
+.exam-table td:first-child { width: 140px; font-weight: 600; }
+.exam-table .ant-input-number { width: 100%; max-width: 125px; }
+.exam-table .ant-input { max-width: 100px; }
+.exam-pd { color: #425466; margin-top: 8px; text-align: right; font-size: 13px; }
+.exam-notes { margin-top: 24px; padding-top: 24px; border-top: 1px solid #edf0f4; }
+.exam-notes label { display: block; font-weight: 600; margin-bottom: 12px; }
+.exam-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 20px; }
+.exam-history { margin-top: 20px; padding: 20px 24px; }
+.exam-patient-option { width: 100%; display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 14px 10px; border: 0; border-bottom: 1px solid #edf0f4; background: white; cursor: pointer; }
+.exam-patient-option:hover { background: #f5f9fc; }
+.exam-print { padding: 20px; color: #263143; }
+.exam-print h2 { text-align: center; font-size: 22px; font-weight: 650; margin-bottom: 20px; }
+.exam-print p { margin: 10px 0; }
+.exam-print table { width: 100%; border-collapse: collapse; margin: 24px 0; }
+.exam-print th, .exam-print td { padding: 12px 6px; border: 1px solid #dbe2ea; text-align: center; }
+@media print {
+  .ant-modal-root:has(#printable-prescription) .ant-modal-wrap { position: absolute; inset: 0; overflow: visible; }
+  .ant-modal:has(#printable-prescription) { top: 0; margin: 0; max-width: none; width: 100% !important; padding: 0; transform: none !important; }
+  .ant-modal:has(#printable-prescription) .ant-modal-content { box-shadow: none; padding: 0; }
+}
+@media (max-width: 640px) {
+  .simple-workspace { padding: 16px; }
+  .workspace-header, .exam-footer { align-items: flex-start; flex-direction: column; }
+  .workspace-toolbar, .exam-panel, .exam-patient { padding: 16px; }
+  .workspace-search { max-width: none; }
+  .workspace-filter { flex: 1; min-width: 140px; }
+  .exam-patient { align-items: flex-start; flex-wrap: wrap; }
+  .workspace-detail { padding: 0; }
+}

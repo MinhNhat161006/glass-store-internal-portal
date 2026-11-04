@@ -1,4 +1,22 @@
 .pos-page { container-type: inline-size; width: 100%; min-width: 0; background: #f9f9ff; color: #152638; font-size: 13px; }
+.pos-inventory-sync { margin: 0 20px; padding: 8px 0; font-size: 12px; color: #486379; }
+.pos-inventory-sync summary { cursor: pointer; }
+.pos-inventory-sync form { display: flex; gap: 8px; margin: 8px 0; }
+.pos-inventory-sync input { min-width: 0; width: 420px; padding: 7px; border: 1px solid #cddbe4; border-radius: 6px; }
+.pos-inventory-sync p { margin-bottom: 6px; overflow-wrap: anywhere; }
+.pos-today-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 12px 20px 0; font-size: 12px; }
+.pos-held-tools { display: flex; gap: 8px; }
+.pos-drafts { max-height: 55vh; overflow-y: auto; }
+.pos-drafts article { padding: 12px 0; border-bottom: 1px solid #e4eaf2; overflow-wrap: anywhere; }
+.pos-drafts article p { font-size: 12px; color: #66788a; margin: 4px 0; }
+.pos-drafts article > div { display: flex; align-items: center; gap: 10px; }
+.pos-drafts .pos-clear { width: auto; padding: 8px; }
+.pos-cancel-details { margin-top: 14px; overflow-wrap: anywhere; }
+.pos-cancel-details p { margin: 6px 0; }
+.pos-cancel-details textarea { display: block; width: 100%; border: 1px solid #cddbe4; border-radius: 6px; padding: 8px; min-height: 75px; }
+.pos-points-input { display: flex; gap: 6px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+.pos-points-input input { width: 86px; padding: 5px; border: 1px solid #cddbe4; border-radius: 6px; }
+.pos-offer-error { margin-top: 6px; font-size: 11px; color: #b63737; }
 .pos-workspace { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 20px; padding: 20px; }
 .pos-catalog { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
 .pos-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
@@ -168,3 +186,24 @@
 }
 @container (min-width: 1080px) { .pos-workspace { grid-template-columns: minmax(0, 1fr) 365px; gap: 22px; } .pos-product-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @container (min-width: 1400px) { .pos-product-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+/* One scroll area for customer, cart and offers; totals/payment stay outside it. */
+.pos-checkout-body { min-width: 0; }
+.pos-checkout-scroll { min-width: 0; }
+.pos-checkout .pos-discount[open] { max-height: none; overflow: visible; }
+.pos-checkout .pos-voucher { align-items: stretch; }
+.pos-checkout .pos-voucher .pos-outline { flex: 0 0 auto; white-space: nowrap; padding: 7px 10px; }
+.pos-checkout .pos-points-input { display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; padding: 8px 0; }
+.pos-checkout .pos-points-input label { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pos-checkout .pos-points-input small { line-height: 1.5; }
+.pos-checkout .pos-cash-field { min-width: 0; }
+.pos-checkout .pos-cash-field input { line-height: 1.4; }
+@container (min-width: 820px) {
+  .pos-checkout-body { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .pos-checkout-scroll { flex: 1 1 0; min-height: 60px; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-gutter: stable; padding-right: 4px; margin-bottom: 8px; }
+  .pos-checkout .pos-checkout-scroll .pos-cart-items { display: block; min-height: 0; overflow: visible; scrollbar-gutter: auto; }
+  .pos-checkout .pos-cart-empty { min-height: 90px; }
+  .pos-checkout .pos-totals, .pos-checkout .pos-payment { flex: 0 0 auto; }
+  .pos-checkout .pos-totals { background: white; }
+  .pos-checkout .pos-pay { margin-top: 6px; }
+}

@@ -1,0 +1,9 @@
+.repair-receipt { background:white; color:#111; padding:22px; font:13px/1.6 Arial,sans-serif; overflow-wrap:anywhere; }
+.repair-receipt header { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; border-bottom:2px solid #111; padding-bottom:16px; margin-bottom:18px; }
+.repair-receipt header strong {font-size:20px;}
+.repair-receipt h2 {font-size:17px;font-weight:700;margin:8px 0;}
+.repair-receipt p {margin:8px 0;}
+.repair-receipt section {border-top:1px solid #aaa;border-bottom:1px solid #aaa;margin:18px 0;padding:10px 0;}
+.repair-receipt .repair-pickup {font-weight:700;font-size:15px;}
+.repair-receipt footer {margin-top:24px;text-align:center;}
+.repair-receipt footer div {display:flex;justify-content:space-between;margin:20px 8px 50px;}

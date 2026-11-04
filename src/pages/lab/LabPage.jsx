@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { labApi } from '../../api/labApi';
-import { message, Modal } from 'antd';
+import { Alert, message, Modal } from 'antd';
 
 export default function LabPage() {
   const navigate = useNavigate();
@@ -10,23 +10,27 @@ export default function LabPage() {
   const [loading, setLoading] = useState(false);
   const [queueOrders, setQueueOrders] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [syncError, setSyncError] = useState('');
 
   // Fetch live lab jobs from API
-  const fetchLiveLabJobs = useCallback(async () => {
+  const fetchLiveLabJobs = useCallback(async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const jobs = await labApi.getAllLabJobs();
       if (Array.isArray(jobs)) {
         const mapped = jobs.map((j, idx) => {
-          const rawStatus = (j.status || 'PENDING').toUpperCase();
+          const status = (j.status || 'PENDING').toUpperCase();
+          const rawStatus = status === 'QC_CHECK' ? 'QC_PENDING' : status;
 
           // Map status styling and human readable labels
           let statusLabel = 'Chờ nạp máy';
           let statusClass = 'bg-surface-container-high text-primary';
-          let actionLabel = 'Nạp Vào Máy';
+          let actionLabel = 'Tiếp nhận';
 
-          if (rawStatus === 'IN_PROGRESS') {
-            statusLabel = 'Đang mài (68%)';
+          if (rawStatus === 'RECEIVED') {
+            statusLabel = 'Đã tiếp nhận'; actionLabel = 'Nạp Vào Máy';
+          } else if (rawStatus === 'IN_PROGRESS') {
+            statusLabel = 'Đang mài';
             statusClass = 'bg-primary-fixed text-on-primary-fixed';
             actionLabel = 'Xong Mài → QC';
           } else if (rawStatus === 'QC_PENDING') {
@@ -58,35 +62,42 @@ export default function LabPage() {
             dbId: j.id,
             rawStatus,
             tray: `Khay Xanh #${j.id < 10 ? '0' + j.id : j.id}`,
-            orderId: j.orderId ? `#OPT-${j.orderId}-VN` : '#OPT-BILL-VN',
+            orderId: j.orderCode || (j.orderId ? `#${j.orderId}` : 'Chưa liên kết đơn'),
             customer: j.customerName || j.prescription?.customerName || 'Khách hàng',
-            phone: j.customerPhone || '0901 000 000',
-            frame: j.frameName || j.frameSku || 'Gọng Bolon Titanium',
-            lens: j.lensName || j.lensSku || 'Tròng Chemi U2 BlueCut 1.60',
+            phone: j.customerPhone || '—',
+            frame: j.frameName || j.frameSku || 'Không kèm gọng',
+            lens: j.lensName || j.lensSku || 'Chưa có thông tin tròng',
             rxSummary,
-            machine: `Essilor Delta #${(idx % 3) + 1}`,
+            machine: j.machineName || 'Chưa phân máy',
             tech: j.technicianName || 'KTV Xưởng Lab',
             statusLabel,
             statusClass,
             actionLabel,
-            priority: j.orderId && j.orderId % 2 === 1 ? 'Hỏa tốc 45P' : 'Tiêu chuẩn',
-            timeRemaining: rawStatus === 'QC_PASSED' ? 'Sẵn sàng giao' : rawStatus === 'IN_PROGRESS' ? '05 phút' : '15 phút',
+            priority: j.priority === 'URGENT' ? 'Hỏa tốc' : 'Tiêu chuẩn',
+            timeRemaining: rawStatus === 'QC_PASSED' ? 'Sẵn sàng giao' : '—',
             qcNotes: j.qcNotes || '',
             raw: j
           };
         });
         setQueueOrders(mapped);
+        setSyncError('');
       }
     } catch (err) {
-      console.warn('Real lab jobs fetch notice:', err.message);
+      setSyncError(err.message || 'Không thể đồng bộ lệnh mài.');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     fetchLiveLabJobs();
+    const timer = window.setInterval(() => fetchLiveLabJobs(false), 5000);
+    return () => window.clearInterval(timer);
   }, [fetchLiveLabJobs]);
+
+  useEffect(() => {
+    setSelectedOrder(previous => previous ? queueOrders.find(item => item.dbId === previous.dbId) || null : null);
+  }, [queueOrders]);
 
   // Handle action status updates
   const handleUpdateJobStatus = async (dbId, newStatus, successMsg) => {
@@ -108,7 +119,7 @@ export default function LabPage() {
 
   // Dynamic status counters
   const totalCount = queueOrders.length;
-  const waitingCount = queueOrders.filter((o) => o.rawStatus === 'PENDING').length;
+  const waitingCount = queueOrders.filter((o) => ['PENDING','WAITING_PROCESS','RECEIVED'].includes(o.rawStatus)).length;
   const inProgressCount = queueOrders.filter((o) => o.rawStatus === 'IN_PROGRESS').length;
   const qcPendingCount = queueOrders.filter((o) => o.rawStatus === 'QC_PENDING').length;
   const qcPassedCount = queueOrders.filter((o) => o.rawStatus === 'QC_PASSED').length;
@@ -122,7 +133,7 @@ export default function LabPage() {
 
   // Filtered orders by tab and search
   const filteredOrders = queueOrders.filter((order) => {
-    if (activeTab === 'waiting' && order.rawStatus !== 'PENDING') return false;
+    if (activeTab === 'waiting' && !['PENDING','WAITING_PROCESS','RECEIVED'].includes(order.rawStatus)) return false;
     if (activeTab === 'in_progress' && order.rawStatus !== 'IN_PROGRESS') return false;
     if (activeTab === 'qc_pending' && order.rawStatus !== 'QC_PENDING') return false;
     if (activeTab === 'qc_passed' && order.rawStatus !== 'QC_PASSED') return false;
@@ -146,6 +157,7 @@ export default function LabPage() {
   return (
     <div className="w-full min-h-screen bg-[#f9f9ff]">
       <div className="max-w-[1600px] mx-auto p-3.5 sm:p-5 flex flex-col gap-3.5">
+        {syncError && <Alert type="error" showIcon message={syncError} />}
 
         {/* 1. CLEAN HEADER */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface-container-lowest p-3.5 rounded-xl shadow-xs border border-[#d8e3fb]/40">
@@ -505,20 +517,20 @@ export default function LabPage() {
                           >
                             Xong Mài → QC
                           </button>
-                        ) : order.rawStatus === 'PENDING' ? (
+                        ) : ['PENDING', 'WAITING_PROCESS', 'RECEIVED', 'QC_FAILED'].includes(order.rawStatus) ? (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               handleUpdateJobStatus(
                                 order.dbId,
-                                'IN_PROGRESS',
-                                `Đã nạp lệnh ${order.id} vào máy mài!`
+                                ['RECEIVED', 'QC_FAILED'].includes(order.rawStatus) ? 'IN_PROGRESS' : 'RECEIVED',
+                                `Đã cập nhật lệnh ${order.id}.`
                               );
                             }}
                             disabled={loading}
                             className="px-2.5 py-1 bg-secondary text-on-secondary rounded-lg text-label-md font-label-md hover:bg-primary transition-all cursor-pointer"
                           >
-                            Nạp Vào Máy
+                            {order.rawStatus === 'QC_FAILED' ? 'Mài lại' : order.rawStatus === 'RECEIVED' ? 'Nạp Vào Máy' : 'Tiếp nhận'}
                           </button>
                         ) : order.rawStatus === 'QC_PENDING' ? (
                           <button
@@ -588,16 +600,16 @@ export default function LabPage() {
 
               <div className="flex items-center justify-between pt-1">
                 <div>
-                  {selectedOrder.rawStatus === 'PENDING' && (
+                  {['PENDING', 'WAITING_PROCESS', 'RECEIVED', 'QC_FAILED'].includes(selectedOrder.rawStatus) && (
                     <button
                       onClick={() => {
                         const o = selectedOrder;
                         setSelectedOrder(null);
-                        handleUpdateJobStatus(o.dbId, 'IN_PROGRESS', `Đã nạp lệnh ${o.id} vào máy mài!`);
+                        handleUpdateJobStatus(o.dbId, ['RECEIVED', 'QC_FAILED'].includes(o.rawStatus) ? 'IN_PROGRESS' : 'RECEIVED', `Đã cập nhật lệnh ${o.id}.`);
                       }}
                       className="px-3 py-1.5 rounded-xl bg-secondary text-on-secondary font-label-md text-label-md cursor-pointer hover:bg-primary shadow-xs"
                     >
-                      Nạp Vào Máy Mài
+                      {selectedOrder.rawStatus === 'QC_FAILED' ? 'Mài lại' : selectedOrder.rawStatus === 'RECEIVED' ? 'Nạp Vào Máy Mài' : 'Tiếp nhận'}
                     </button>
                   )}
                   {selectedOrder.rawStatus === 'IN_PROGRESS' && (
