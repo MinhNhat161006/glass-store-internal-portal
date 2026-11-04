@@ -12,7 +12,12 @@ const ReceiptK80 = forwardRef(({ orderData }, ref) => {
     customerPhone,
     cartItems,
     subtotal,
-    discountAmount,
+    discountAmount = 0,
+    voucherCode,
+    voucherDiscount = 0,
+    redeemedPoints = 0,
+    pointsDiscount = 0,
+    taxableAmount,
     vatAmount,
     totalAmount,
     paymentMethod,
@@ -20,6 +25,8 @@ const ReceiptK80 = forwardRef(({ orderData }, ref) => {
     changeReturned,
     createdAt
   } = orderData;
+
+  const taxable = taxableAmount ?? Math.max(0, Number(subtotal) - Number(voucherCode || Number(redeemedPoints) ? Number(voucherDiscount) + Number(pointsDiscount) : discountAmount));
 
   return (
     <div
@@ -82,10 +89,10 @@ const ReceiptK80 = forwardRef(({ orderData }, ref) => {
               </td>
               <td style={{ textAlign: 'center', verticalAlign: 'top', padding: '4px 0' }}>{item.qty}</td>
               <td style={{ textAlign: 'right', verticalAlign: 'top', padding: '4px 0' }}>
-                {item.price.toLocaleString()}
+                {item.price.toLocaleString('vi-VN')}
               </td>
               <td style={{ textAlign: 'right', verticalAlign: 'top', padding: '4px 0', fontWeight: 600 }}>
-                {(item.price * item.qty).toLocaleString()}
+                {(item.price * item.qty).toLocaleString('vi-VN')}
               </td>
             </tr>
           ))}
@@ -98,24 +105,30 @@ const ReceiptK80 = forwardRef(({ orderData }, ref) => {
       <div style={{ fontSize: '10.5px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', margin: '2px 0' }}>
           <span>Tổng tiền hàng:</span>
-          <span>{subtotal.toLocaleString()} ₫</span>
+          <span>{subtotal.toLocaleString('vi-VN')} ₫</span>
         </div>
-        {discountAmount > 0 && (
+        {discountAmount > 0 && !voucherCode && !Number(redeemedPoints) && (
           <div style={{ display: 'flex', justifyContent: 'space-between', margin: '2px 0', color: '#d32f2f' }}>
             <span>Chiết khấu / Voucher:</span>
-            <span>-{discountAmount.toLocaleString()} ₫</span>
+            <span>-{discountAmount.toLocaleString('vi-VN')} ₫</span>
           </div>
         )}
+        {voucherCode && <div style={{ display: 'flex', justifyContent: 'space-between', margin: '2px 0' }}><span>Voucher [{voucherCode}]:</span><span>-{Number(voucherDiscount).toLocaleString('vi-VN')} ₫</span></div>}
+        {Number(redeemedPoints) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', margin: '2px 0' }}><span>Trừ điểm ({redeemedPoints} điểm):</span><span>-{Number(pointsDiscount).toLocaleString('vi-VN')} ₫</span></div>}
+        <div style={{ display: 'flex', justifyContent: 'space-between', margin: '2px 0' }}>
+          <span>Tiền tính thuế:</span>
+          <span>{Number(taxable).toLocaleString('vi-VN')} ₫</span>
+        </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', margin: '2px 0' }}>
           <span>Thuế VAT (8%):</span>
-          <span>Đã gồm trong giá</span>
+          <span>{Number(vatAmount ?? 0).toLocaleString('vi-VN')} ₫</span>
         </div>
 
         <div style={{ borderBottom: '1px solid #000', margin: '4px 0' }} />
 
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 900, margin: '4px 0' }}>
           <span>TỔNG THANH TOÁN:</span>
-          <span>{totalAmount.toLocaleString()} ₫</span>
+          <span>{totalAmount.toLocaleString('vi-VN')} ₫</span>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', margin: '2px 0', fontSize: '10px' }}>
@@ -127,11 +140,11 @@ const ReceiptK80 = forwardRef(({ orderData }, ref) => {
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between', margin: '2px 0', fontSize: '10px' }}>
               <span>Tiền khách đưa:</span>
-              <span>{cashGiven.toLocaleString()} ₫</span>
+              <span>{cashGiven.toLocaleString('vi-VN')} ₫</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', margin: '2px 0', fontSize: '10px' }}>
               <span>Tiền thối lại:</span>
-              <strong>{changeReturned.toLocaleString()} ₫</strong>
+              <strong>{changeReturned.toLocaleString('vi-VN')} ₫</strong>
             </div>
           </>
         )}

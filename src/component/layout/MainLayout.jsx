@@ -386,7 +386,7 @@ export default function MainLayout() {
 
         {/* Content Outlet */}
         <div className="pt-16 flex-1 flex flex-col">
-          <Outlet />
+          <Outlet context={{ selectedBranch }} />
         </div>
       </div>
     </div>

@@ -9,9 +9,19 @@ import CheckoutPanel from './CheckoutPanel';
 import './pos.css';
 import { prescriptionApi } from '../../api/prescriptionApi';
 import { customerApi } from '../../api/customerApi';
+import { useOutletContext } from 'react-router-dom';
+import InventorySyncPanel from './InventorySyncPanel';
+import { inventoryApi } from '../../api/inventoryApi';
+import { promotionApi } from '../../api/promotionApi';
+import useHeldCarts from './useHeldCarts';
+import HeldCartsPanel from './HeldCartsPanel';
+import CancelOrderPanel from './CancelOrderPanel';
 
 export default function PosPage() {
   const { user } = useAuth();
+  const { selectedBranch } = useOutletContext() || {};
+  const branchCode = selectedBranch?.startsWith('Chi nhánh 01') ? 'BRANCH_01' : selectedBranch?.startsWith('Chi nhánh 02') ? 'BRANCH_02' : null;
+  const [catalogVersion, setCatalogVersion] = useState(0);
   const paymentLock = useRef(false);
   const paymentRequestRef = useRef(null);
   const [paying, setPaying] = useState(false);
@@ -50,9 +60,14 @@ export default function PosPage() {
       if (Array.isArray(res)) setDbCustomers(res);
     }).catch(e => console.warn('Sync customer list for POS:', e));
   }, []);
-  const [usePoints, setUsePoints] = useState(true);
+  const [usePoints, setUsePoints] = useState(false);
+  const [pointsToUse, setPointsToUse] = useState(0);
+  const [loyalty, setLoyalty] = useState(null);
+  const [appliedVoucher, setAppliedVoucher] = useState('');
+  const [offer, setOffer] = useState(null);
+  const [offerError, setOfferError] = useState('');
+  const held = useHeldCarts(user?.staffId, branchCode);
   const [voucherCode, setVoucherCode] = useState('');
-  const [voucherDiscount, setVoucherDiscount] = useState(0);
 
   // Payment tab: 'vietqr' | 'cash' | 'card'
   const [payTab, setPayTab] = useState('cash');
@@ -67,9 +82,13 @@ export default function PosPage() {
   const [catalogProducts, setCatalogProducts] = useState([]);
 
   useEffect(() => {
+    let active = true;
     const fetchLiveCatalog = async () => {
+      setCatalogLoading(true); setCatalogError('');
       try {
-        const res = await productApi.getAllProducts();
+        const [res, stockResponse] = await Promise.all([productApi.getAllProducts(), inventoryApi.getInventory()]);
+        if (!active) return;
+        const inventoryRows = stockResponse.data || stockResponse;
         const products = res?.data || res;
         if (Array.isArray(products) && products.length > 0) {
           const list = [];
@@ -84,8 +103,8 @@ export default function PosPage() {
                   brand: p.brandName || 'OptiVision',
                   category: p.productType,
                   price: Number(v.price ?? 0),
-                  stockQuantity: v.stockQuantity ?? 0,
-                  stock: (v.stockQuantity ?? 0) + ' cái',
+                  stockQuantity: inventoryRows.find(row => row.sku === v.sku)?.quantities?.[branchCode] ?? 0,
+                  stock: (inventoryRows.find(row => row.sku === v.sku)?.quantities?.[branchCode] ?? 0) + ' cái',
                   image: v.imageUrl || 'https://images.unsplash.com/photo-1591076482161-42ce6da69f67?auto=format&fit=crop&w=500&q=80'
                 });
               });
@@ -96,21 +115,24 @@ export default function PosPage() {
           }
         }
       } catch (err) {
-        setCatalogError('Không tải được sản phẩm. Kiểm tra Catalog Service và tải lại trang.');
+        if (active) { setCatalogProducts([]); setCatalogError('Không tải được sản phẩm và tồn chi nhánh. Hãy thử tải lại.'); }
       } finally {
-        setCatalogLoading(false);
+        if (active) setCatalogLoading(false);
       }
     };
     fetchLiveCatalog();
-  }, []);
+    return () => { active = false; };
+  }, [catalogVersion, branchCode]);
 
   const [availablePrescriptions, setAvailablePrescriptions] = useState([]);
   useEffect(() => {
     prescriptionApi.getAllPrescriptions().then(list => {
       if (Array.isArray(list)) {
         const mapped = list.map(rx => ({
+          id: rx.id,
           code: '#RX-2026-' + rx.id,
           customer: rx.customerName || 'Khách hàng',
+          customerId: rx.customerId || null,
           phone: rx.customerPhone || '0901 000 000',
           timeAgo: 'Hôm nay',
           od: 'Sph ' + (rx.odSph || 0) + ' | Cyl ' + (rx.odCyl || 0) + ' | Ax ' + (rx.odAxis || 180) + '°',
@@ -123,13 +145,55 @@ export default function PosPage() {
     }).catch(e => console.warn('Sync rx modal error:', e));
   }, []);
 
-  // Calculation of totals
-  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const discountTotal = Math.min(subtotal, voucherDiscount + (usePoints ? customer.pointValue : 0));
-  const taxableAmount = Math.max(0, subtotal - discountTotal);
-  const vatAmount = Math.round(taxableAmount * 0.08);
-  const grandTotal = taxableAmount + vatAmount;
-  useEffect(() => { setPaymentConfirmed(false); }, [grandTotal, payTab]);
+  const offerKey = JSON.stringify({ items: cart.map(item => ({ skuId: item.sku, quantity: item.quantity })), customerId: customer.id || null, voucherCode: appliedVoucher, pointsToUse, branchCode, catalogVersion });
+  const offerReady = offer?.key === offerKey;
+  const subtotal = offerReady ? Number(offer.subtotal) : cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const discountTotal = offerReady ? Number(offer.voucherDiscount) + Number(offer.pointsDiscount) : 0;
+  const vatAmount = offerReady ? Number(offer.vatAmount) : Math.round(subtotal * .08);
+  const grandTotal = offerReady ? Number(offer.finalAmount) : subtotal + vatAmount;
+  useEffect(() => { setPaymentConfirmed(false); }, [grandTotal, payTab, offerKey]);
+  useEffect(() => {
+    let active = true; setLoyalty(null); setPointsToUse(0);
+    if (customer.id) promotionApi.account(customer.id).then(value => { if (active) setLoyalty(value); }).catch(error => { if (active) message.error(error.message); });
+    return () => { active = false; };
+  }, [customer.id, catalogVersion]);
+  useEffect(() => {
+    let active = true; setOfferError('');
+    if (!cart.length) { setOffer(null); return; }
+    const timer = setTimeout(() => promotionApi.quote({ customerId: customer.id || null, voucherCode: appliedVoucher, pointsToUse,
+      items: cart.map(item => ({ skuId: item.sku, productName: item.name, quantity: item.quantity, unitPrice: item.price }))
+    }).then(result => { if (active) setOffer({ ...result, key: offerKey }); }).catch(error => { if (active) { setOffer(null); setOfferError(error.message); } }), 200);
+    return () => { active = false; clearTimeout(timer); };
+  }, [offerKey]);
+
+  function clearCurrentCart() { setCart([]); setCustomer({ name: 'Khách vãng lai', tier: 'Vãng lai', phone: '', points: 0, pointValue: 0 }); setCashGiven(0); setPaymentConfirmed(false); setVoucherCode(''); setAppliedVoucher(''); setPointsToUse(0); setLinkedRx(null); setOffer(null); paymentRequestRef.current = null; }
+  function holdCart() {
+    if (paymentLock.current) return false;
+    try { held.hold(cart, customer, appliedVoucher, pointsToUse, linkedRx); clearCurrentCart(); message.success('Đã lưu đơn tạm. Có thể tạo đơn mới.'); return true; }
+    catch (error) { message.error(error.message); return false; }
+  }
+  function restoreCart(draft) {
+    if (draft.branchCode !== branchCode) { message.error('Đơn tạm thuộc chi nhánh khác.'); return false; }
+    if (paymentLock.current || catalogLoading) { message.warning('Chờ tải tồn kho / thanh toán xong.'); return false; }
+    const restoredRx = availablePrescriptions.find(rx => draft.prescriptionId ? rx.id === draft.prescriptionId : rx.code === draft.prescriptionCode);
+    if ((draft.prescriptionId || draft.prescriptionCode) && !restoredRx) {
+      message.warning('Chưa tìm thấy toa kính của đơn tạm. Đơn vẫn được giữ; hãy tải lại danh sách toa trước khi khôi phục.');
+      return false;
+    }
+    const unavailable = draft.items.filter(item => !catalogProducts.some(product => product.sku === item.sku && product.stockQuantity >= item.quantity));
+    if (unavailable.length) { message.warning('Đơn tạm vẫn được giữ: không đủ tồn cho ' + unavailable.map(i => i.sku).join(', ')); return false; }
+    const restore = () => {
+      if (cart.length && !holdCart()) return;
+      try { held.remove(draft.id); } catch(error) { message.error(error.message); return; }
+      const rebuilt = draft.items.map(item => { const product = catalogProducts.find(p => p.sku === item.sku); return { id: product.sku, sku: product.sku, name: product.name, image: product.image, sub: product.brand, price: product.price, quantity: item.quantity }; });
+      setCart(rebuilt); setCustomer({ ...draft.customer, points: 0, pointValue: 0 }); setVoucherCode(draft.voucherCode || '');setAppliedVoucher(draft.voucherCode || '');setPointsToUse(0);setCashGiven(0);setOffer(null);
+      setLinkedRx(restoredRx || null);
+      message.info('Đã khôi phục. Giá, voucher và điểm sẽ được kiểm tra lại; chọn lại số điểm muốn dùng.');
+    };
+    if (cart.length) Modal.confirm({ title: 'Giỏ hiện tại có sản phẩm', content: 'Lưu giỏ hiện tại thành đơn tạm rồi khôi phục đơn đã chọn?', okText: 'Lưu và khôi phục', cancelText: 'Giữ giỏ hiện tại', onOk: restore });
+    else restore();
+    return true;
+  }
 
   // Add product to cart
   const handleAddToCart = (product) => {
@@ -253,6 +317,8 @@ export default function PosPage() {
   // Select prescription from modal
   const handleSelectPrescription = (rx) => {
     setLinkedRx({
+      id: rx.id,
+      customerId: rx.customerId,
       code: rx.code,
       doctor: rx.doctor,
       customer: rx.customer,
@@ -261,7 +327,10 @@ export default function PosPage() {
       pd: rx.pd
     });
     setCustomer({
-      ...customer,
+      id: rx.customerId || null,
+      tier: rx.customerId ? 'Thành viên' : 'Vãng lai',
+      points: 0,
+      pointValue: 0,
       name: rx.customer,
       phone: rx.phone
     });
@@ -269,37 +338,16 @@ export default function PosPage() {
     message.success(`Đã liên kết ${rx.code} cho khách ${rx.customer}!`);
   };
 
-  // Dispatch Lab Order
-  const handleDispatchLabOrder = () => {
-    if (!linkedRx) { message.warning('Vui lòng liên kết toa khám trước.'); return; }
-    if (cart.length === 0) {
-      message.warning('Vui lòng chọn sản phẩm trước khi chuyển xưởng mài!');
-      return;
-    }
-    Modal.confirm({
-      title: 'Đẩy Lệnh Gia Công Mài Lắp Kính (F9)',
-      content: (
-        <div className="space-y-1 text-xs text-slate-600 pt-1">
-          <p>
-            Lệnh mài tròng sẽ được truyền trực tiếp đến máy <strong>Essilor Delta 200</strong> tại Xưởng Lab.
-          </p>
-          <p>
-            Mã đơn liên kết: <strong className="text-[#086288]">{linkedRx.code}</strong>
-          </p>
-          <p>Khách hàng: {customer.name} ({customer.phone})</p>
-        </div>
-      ),
-      okText: 'Xác Nhận Đẩy Lệnh',
-      onOk: () => {
-        message.success('Đã gửi thông số toa kính sang máy mài Essilor Delta 200 tại Xưởng Lab.');
-      }
-    });
-  };
-
   // Only clear the cart after the API has persisted the sale.
   const handleExecutePayment = async () => {
     if (paymentLock.current) return;
     if (!cart.length) { message.warning('Giỏ hàng đang trống!'); return; }
+    if (linkedRx && !Number.isSafeInteger(linkedRx.id)) { message.warning('Toa kính thiếu ID hợp lệ. Vui lòng chọn lại toa trước khi thanh toán.'); return; }
+    if (!offerReady) { message.warning(offerError || 'Chờ backend kiểm tra giá và ưu đãi.'); return; }
+    if (!branchCode) { message.warning('Vui lòng chọn chi nhánh bán hàng 01 hoặc 02 trên thanh trên.'); return; }
+    if (catalogLoading || cart.some(item => item.quantity > (catalogProducts.find(product => product.sku === item.sku)?.stockQuantity ?? 0))) {
+      message.warning('Sản phẩm không đủ tồn tại chi nhánh đang chọn. Kiểm tra giỏ hàng trước khi thanh toán.'); return;
+    }
     if (payTab !== 'cash' && !paymentConfirmed) {
       message.warning('Vui lòng xác nhận đã nhận tiền chuyển khoản / giao dịch thẻ thành công.'); return;
     }
@@ -316,18 +364,23 @@ export default function PosPage() {
         channel: 'POS',
         totalAmount: subtotal,
         discountAmount: discountTotal,
+        voucherCode: appliedVoucher || null,
+        pointsToUse,
+        cashReceived: payTab === 'cash' ? Number(cashGiven) : null,
         finalAmount: grandTotal,
         paymentMethod: payTab === 'vietqr' ? 'VIETQR' : payTab === 'cash' ? 'CASH' : 'CARD',
         staffName: user?.staffName || user?.fullName || user?.staffId || 'Thu ngân',
-        branchName: user?.branchName || 'Flagship Q.1 (TP.HCM)',
+        branchName: selectedBranch,
+        branchCode,
         status: 'PAID',
         items: cart.map(item => ({
           skuId: item.sku, productName: item.name,
+          prescriptionId: linkedRx && catalogProducts.find(product => product.sku === item.sku)?.category === 'LENS' ? linkedRx.id : null,
           quantity: item.quantity, unitPrice: item.price,
           subtotal: item.price * item.quantity
         }))
       };
-      const requestFingerprint = JSON.stringify(orderPayload);
+      const requestFingerprint = JSON.stringify({ ...orderPayload, cashReceived: undefined });
       if (paymentRequestRef.current?.fingerprint !== requestFingerprint) {
         paymentRequestRef.current = {
           fingerprint: requestFingerprint,
@@ -338,7 +391,8 @@ export default function PosPage() {
       if (!saved?.id || !saved?.orderCode) throw new Error('API chưa trả về đơn hàng đã lưu.');
       paymentRequestRef.current = null;
       setLastOrder({ ...saved, cashGiven: payTab === 'cash' ? Number(cashGiven) : null });
-      setCart([]); setCashGiven(0); setVoucherCode(''); setVoucherDiscount(0); setLinkedRx(null);
+      setCatalogVersion(value => value + 1);
+      clearCurrentCart();
       if (saved.inventorySyncStatus === 'FAILED') {
         message.error(`Đơn ${saved.orderCode} đã thanh toán nhưng chưa trừ được tồn kho. Vui lòng liên hệ quản lý.`);
       } else if (saved.inventorySyncStatus === 'PENDING') {
@@ -351,21 +405,24 @@ export default function PosPage() {
     } finally { paymentLock.current = false; setPaying(false); }
   };
 
-  // Hotkey listener for POS speed: F2, F4, F8, F9, F10
+  // POS hotkeys: F2 search, F4 hold, F8 clear, F10 checkout
   useEffect(() => {
     const handleKeyDown = (e) => {
+      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      if (e.repeat && ['F2', 'F4', 'F8', 'F10'].includes(e.key)) {
+        e.preventDefault();
+        return;
+      }
       if (e.key === 'F2') {
         e.preventDefault();
         barcodeRef.current?.focus();
       } else if (e.key === 'F4') {
         e.preventDefault();
-        message.info('Đã lưu tạm đơn hàng vào bộ nhớ ca làm việc (F4).');
+        holdCart();
       } else if (e.key === 'F8') {
         e.preventDefault();
         handleClearCart();
-      } else if (e.key === 'F9') {
-        e.preventDefault();
-        handleDispatchLabOrder();
+
       } else if (e.key === 'F10') {
         e.preventDefault();
         handleExecutePayment();
@@ -374,7 +431,7 @@ export default function PosPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cart, grandTotal, payTab, cashGiven, customer, discountTotal, user, linkedRx, paymentConfirmed]);
+  }, [cart, grandTotal, payTab, cashGiven, customer, discountTotal, user, linkedRx, paymentConfirmed, selectedBranch, branchCode, catalogLoading, catalogProducts, offerReady, offerError, appliedVoucher, pointsToUse, offerKey]);
 
   // Filter products by category
   const categoryProducts =
@@ -388,6 +445,9 @@ export default function PosPage() {
 
   return (
     <main className="pos-page">
+      <div className="pos-today-tools"><HeldCartsPanel drafts={held.drafts} onHold={holdCart} onRestore={restoreCart} onDelete={id => { try { held.remove(id); } catch(error) { message.error(error.message); } }} disabled={paying || catalogLoading} />
+        <CancelOrderPanel lastOrder={lastOrder} onChanged={saved => { if (saved.id === lastOrder?.id) setLastOrder(saved); setCatalogVersion(value => value + 1); }} /></div>
+      <InventorySyncPanel branchCode={branchCode} selectedBranch={selectedBranch} lastOrder={lastOrder} onSynced={() => setCatalogVersion(value => value + 1)} />
       <ReceiptPreview order={lastOrder} open={receiptOpen} onClose={() => setReceiptOpen(false)} />
       <div className="pos-workspace">
         <ProductCatalog products={filteredProducts} count={catalogProducts.length} cart={cart}
@@ -396,13 +456,12 @@ export default function PosPage() {
           onAdd={handleAddToCart} prescription={linkedRx} onSelectPrescription={() => setIsRxModalOpen(true)} onAddLens={handleInsertRxCombo} />
         <CheckoutPanel cart={cart} customer={customer} products={catalogProducts}
           onCustomer={() => setIsCustomerModalOpen(true)}
-          onGuest={() => setCustomer({ name: 'Khách vãng lai', tier: 'Vãng lai', phone: '', points: 0, pointValue: 0 })}
+          onGuest={() => { setLinkedRx(null); setCustomer({ name: 'Khách vãng lai', tier: 'Vãng lai', phone: '', points: 0, pointValue: 0 }); }}
           onQuantity={handleQtyChange} onRemove={handleRemoveItem} onClear={handleClearCart}
           subtotal={subtotal} discount={discountTotal} tax={vatAmount} total={grandTotal}
-          voucher={voucherCode} setVoucher={setVoucherCode} onVoucher={() => {
-            if (voucherCode === 'BOLON200K') { setVoucherDiscount(200000); message.success('Đã áp dụng Voucher giảm 200.000đ!'); }
-            else message.warning('Mã voucher không hợp lệ.');
-          }} usePoints={usePoints} setUsePoints={setUsePoints}
+          voucher={voucherCode} setVoucher={value => { setVoucherCode(value); setAppliedVoucher(''); }} onVoucher={() => setAppliedVoucher(voucherCode.trim().toUpperCase())}
+          usePoints={usePoints} setUsePoints={setUsePoints} pointsToUse={pointsToUse} setPointsToUse={setPointsToUse}
+          loyalty={loyalty} offer={offerReady ? offer : null} offerError={offerError} offerPending={cart.length > 0 && !offerReady}
           method={payTab} setMethod={setPayTab} cash={cashGiven} setCash={setCashGiven}
           confirmed={paymentConfirmed} setConfirmed={setPaymentConfirmed} paymentRef={paymentRef} cashRef={cashInputRef}
           paying={paying} onPay={handleExecutePayment} lastOrder={lastOrder} onPrint={() => setReceiptOpen(true)} />
@@ -525,6 +584,7 @@ export default function PosPage() {
                   <div
                     key={c.id}
                     onClick={() => {
+                      if (linkedRx?.customerId !== c.id) setLinkedRx(null);
                       setCustomer({
                         id: c.id,
                         name: c.fullName,
