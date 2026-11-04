@@ -1,45 +1,56 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { message } from 'antd';
 import { inventoryApi } from '../../api/inventoryApi';
-
-const DESTINATIONS = [
-  { code: 'BRANCH_01', label: 'Chi nhánh 01' },
-  { code: 'BRANCH_02', label: 'Chi nhánh 02' }
-];
+import {
+  buildTransferPayload,
+  getQuantityAtLocation,
+  validateTransferForm
+} from './stockTransferUtils';
 
 const STATUS_LABELS = {
-  PENDING: 'Chờ xuất kho',
+  PENDING: 'Chờ xác nhận nhận',
   IN_TRANSIT: 'Đang vận chuyển',
   RECEIVED: 'Đã nhận'
 };
 
 const emptyLine = () => ({ sku: '', quantity: '1' });
-const quantityAtLab = (item) => Number(item.quantities?.LAB ?? 0);
 
 export default function StockTransferPage() {
   const [inventory, setInventory] = useState([]);
+  const [locations, setLocations] = useState([]);
   const [transfers, setTransfers] = useState([]);
+  const [movements, setMovements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [workingTransferId, setWorkingTransferId] = useState(null);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('transfers');
-  const [destinationLocationCode, setDestinationLocationCode] = useState('BRANCH_01');
+  const [sourceLocationCode, setSourceLocationCode] = useState('');
+  const [destinationLocationCode, setDestinationLocationCode] = useState('');
   const [reason, setReason] = useState('');
   const [lines, setLines] = useState([emptyLine()]);
+  const submittingRef = useRef(false);
 
   const loadData = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true);
     try {
-      const [inventoryResponse, transferResponse] = await Promise.all([
+      const [inventoryResponse, locationsResponse, transferResponse, movementResponse] = await Promise.all([
         inventoryApi.getInventory(),
-        inventoryApi.getTransfers()
+        inventoryApi.getLocations(),
+        inventoryApi.getTransfers(),
+        inventoryApi.getMovements()
       ]);
-      if (!Array.isArray(inventoryResponse?.data) || !Array.isArray(transferResponse?.data)) {
-        throw new Error('Dữ liệu tồn kho hoặc phiếu điều chuyển không hợp lệ.');
+      const movementRows = movementResponse?.data?.content;
+      if (!Array.isArray(inventoryResponse?.data)
+          || !Array.isArray(locationsResponse?.data)
+          || !Array.isArray(transferResponse?.data)
+          || !Array.isArray(movementRows)) {
+        throw new Error('Dữ liệu kho, phiếu hoặc lịch sử biến động không hợp lệ.');
       }
       setInventory(inventoryResponse.data);
+      setLocations(locationsResponse.data);
       setTransfers(transferResponse.data);
+      setMovements(movementRows);
       setError('');
     } catch (loadError) {
       setError(loadError.message || 'Không thể tải dữ liệu điều chuyển kho.');
@@ -64,38 +75,32 @@ export default function StockTransferPage() {
 
   const submitTransfer = async (event) => {
     event.preventDefault();
-    const requestedItems = lines.map((line) => ({
-      sku: line.sku.trim(),
-      quantity: Number(line.quantity)
-    }));
-    if (requestedItems.some((item) => !item.sku || !Number.isInteger(item.quantity) || item.quantity <= 0)) {
-      message.error('Vui lòng chọn SKU và nhập số lượng nguyên lớn hơn 0.');
-      return;
-    }
-    if (new Set(requestedItems.map((item) => item.sku)).size !== requestedItems.length) {
-      message.error('Mỗi SKU chỉ được thêm một lần vào một phiếu.');
-      return;
-    }
-    const exceedsLabStock = requestedItems.some((item) => {
-      const product = inventoryBySku.get(item.sku);
-      return !product || item.quantity > quantityAtLab(product);
+    if (submittingRef.current) return;
+    const validationError = validateTransferForm({
+      sourceLocationCode,
+      destinationLocationCode,
+      locations,
+      lines,
+      inventory
     });
-    if (exceedsLabStock) {
-      message.error('Số lượng điều chuyển không được vượt tồn hiện tại tại Tổng kho Lab.');
+    if (validationError) {
+      message.error(validationError);
       return;
     }
 
+    submittingRef.current = true;
     setSubmitting(true);
     try {
-      const response = await inventoryApi.createTransfer({
+      const response = await inventoryApi.createTransfer(buildTransferPayload({
+        sourceLocationCode,
         destinationLocationCode,
-        reason: reason.trim(),
-        items: requestedItems
-      });
+        reason,
+        lines
+      }));
       if (!response?.data?.transferCode) {
         throw new Error('Máy chủ chưa trả về thông tin phiếu điều chuyển.');
       }
-      message.success(`Đã tạo phiếu ${response.data.transferCode}. Tồn chỉ thay đổi khi xác nhận xuất kho.`);
+      message.success(`Đã tạo phiếu ${response.data.transferCode} ở trạng thái chờ xác nhận nhận hàng.`);
       setLines([emptyLine()]);
       setReason('');
       setActiveTab('transfers');
@@ -103,20 +108,17 @@ export default function StockTransferPage() {
     } catch (submitError) {
       message.error(submitError.message || 'Không thể tạo phiếu điều chuyển.');
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
 
   const updateTransfer = async (transfer) => {
+    if (workingTransferId !== null) return;
     setWorkingTransferId(transfer.id);
     try {
-      if (transfer.status === 'PENDING') {
-        await inventoryApi.dispatchTransfer(transfer.id);
-        message.success(`Đã xuất kho cho phiếu ${transfer.transferCode}.`);
-      } else {
-        await inventoryApi.receiveTransfer(transfer.id);
-        message.success(`Đã xác nhận nhận hàng cho phiếu ${transfer.transferCode}.`);
-      }
+      await inventoryApi.receiveTransfer(transfer.id);
+      message.success(`Đã xác nhận nhận hàng cho phiếu ${transfer.transferCode}.`);
       await loadData();
     } catch (actionError) {
       message.error(actionError.message || 'Không thể cập nhật phiếu điều chuyển.');
@@ -133,7 +135,7 @@ export default function StockTransferPage() {
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-[#086288]">Kho vận / Điều chuyển</p>
             <h1 className="mt-1 text-2xl font-bold text-slate-900">Phiếu điều chuyển kho</h1>
-            <p className="mt-1 text-sm text-slate-600">Nguồn luôn là Tổng kho Lab; đích là một trong hai chi nhánh.</p>
+            <p className="mt-1 text-sm text-slate-600">Điều chuyển hai chiều giữa Tổng kho Lab và các chi nhánh được cấp quyền.</p>
           </div>
           <button
             type="button"
@@ -167,6 +169,14 @@ export default function StockTransferPage() {
           >
             Tạo phiếu
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('history')}
+            aria-pressed={activeTab === 'history'}
+            className={`rounded-md px-3 py-2 text-sm font-semibold ${activeTab === 'history' ? 'bg-white text-[#086288] shadow-sm' : 'text-slate-600'}`}
+          >
+            Lịch sử biến động
+          </button>
         </div>
 
         {activeTab === 'transfers' ? (
@@ -179,13 +189,14 @@ export default function StockTransferPage() {
               <div className="py-12 text-center text-sm text-slate-600">Chưa có phiếu điều chuyển nào.</div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[800px] text-left text-sm">
+                <table className="w-full min-w-[1000px] text-left text-sm">
                   <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                     <tr>
                       <th scope="col" className="px-3 py-3">Mã phiếu</th>
                       <th scope="col" className="px-3 py-3">Tuyến kho</th>
                       <th scope="col" className="px-3 py-3">Sản phẩm</th>
                       <th scope="col" className="px-3 py-3">Ngày tạo</th>
+                      <th scope="col" className="px-3 py-3">Người tạo / nhận</th>
                       <th scope="col" className="px-3 py-3">Trạng thái</th>
                       <th scope="col" className="px-3 py-3 text-right">Thao tác</th>
                     </tr>
@@ -203,6 +214,10 @@ export default function StockTransferPage() {
                         <td className="whitespace-nowrap px-3 py-3 text-slate-600">
                           {transfer.createdAt ? new Date(transfer.createdAt).toLocaleString('vi-VN') : '—'}
                         </td>
+                        <td className="px-3 py-3 text-slate-600">
+                          {transfer.createdBy || '—'}
+                          {transfer.receivedBy ? ` / ${transfer.receivedBy}` : ''}
+                        </td>
                         <td className="whitespace-nowrap px-3 py-3">
                           <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
                             transfer.status === 'RECEIVED'
@@ -215,7 +230,7 @@ export default function StockTransferPage() {
                           </span>
                         </td>
                         <td className="whitespace-nowrap px-3 py-3 text-right">
-                          {transfer.status !== 'RECEIVED' && (
+                          {(transfer.status === 'PENDING' || transfer.status === 'IN_TRANSIT') && (
                             <button
                               type="button"
                               onClick={() => updateTransfer(transfer)}
@@ -224,7 +239,7 @@ export default function StockTransferPage() {
                             >
                               {workingTransferId === transfer.id
                                 ? 'Đang cập nhật…'
-                                : transfer.status === 'PENDING' ? 'Xác nhận xuất kho' : 'Xác nhận nhận hàng'}
+                                : 'Xác nhận nhận hàng'}
                             </button>
                           )}
                         </td>
@@ -235,23 +250,86 @@ export default function StockTransferPage() {
               </div>
             )}
           </section>
+        ) : activeTab === 'history' ? (
+          <section className="rounded-xl border border-[#d8e3fb]/50 bg-white p-4 shadow-sm">
+            <h2 className="mb-4 text-lg font-bold text-slate-900">Lịch sử biến động kho</h2>
+            {loading && movements.length === 0 ? (
+              <div role="status" className="py-12 text-center text-sm text-slate-600">Đang tải lịch sử kho…</div>
+            ) : error && movements.length === 0 ? (
+              <div role="alert" className="py-12 text-center text-sm text-red-800">Không thể tải lịch sử kho: {error}</div>
+            ) : movements.length === 0 ? (
+              <div className="py-12 text-center text-sm text-slate-600">Chưa có biến động kho nào.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[900px] text-left text-sm">
+                  <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                    <tr>
+                      <th scope="col" className="px-3 py-3">Ngày</th>
+                      <th scope="col" className="px-3 py-3">Loại</th>
+                      <th scope="col" className="px-3 py-3">SKU</th>
+                      <th scope="col" className="px-3 py-3">Tuyến kho</th>
+                      <th scope="col" className="px-3 py-3">Số lượng</th>
+                      <th scope="col" className="px-3 py-3">Phiếu / tham chiếu</th>
+                      <th scope="col" className="px-3 py-3">Người thực hiện</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {movements.map((movement) => (
+                      <tr key={movement.id}>
+                        <td className="whitespace-nowrap px-3 py-3 text-slate-600">
+                          {movement.createdAt ? new Date(movement.createdAt).toLocaleString('vi-VN') : '—'}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3">{movement.movementType}</td>
+                        <td className="whitespace-nowrap px-3 py-3 font-mono text-xs">{movement.sku}</td>
+                        <td className="whitespace-nowrap px-3 py-3">
+                          {movement.sourceLocationCode || '—'} → {movement.destinationLocationCode || '—'}
+                        </td>
+                        <td className="px-3 py-3">{movement.quantity}</td>
+                        <td className="whitespace-nowrap px-3 py-3">
+                          {movement.referenceId || movement.referenceType || '—'}
+                        </td>
+                        <td className="px-3 py-3">{movement.performedBy || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p className="mt-3 text-xs text-slate-500">Hiển thị tối đa 50 biến động gần nhất.</p>
+              </div>
+            )}
+          </section>
         ) : (
           <form onSubmit={submitTransfer} className="max-w-3xl space-y-5 rounded-xl border border-[#d8e3fb]/50 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-bold text-slate-900">Tạo phiếu điều chuyển mới</h2>
             <div className="grid gap-4 sm:grid-cols-2">
-              <div>
+              <label className="block">
                 <span className="mb-1 block text-xs font-semibold text-slate-600">Kho xuất</span>
-                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800">Tổng kho Lab</div>
-              </div>
+                <select
+                  required
+                  value={sourceLocationCode}
+                  onChange={(event) => {
+                    const nextSource = event.target.value;
+                    setSourceLocationCode(nextSource);
+                    if (nextSource === destinationLocationCode) setDestinationLocationCode('');
+                  }}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm"
+                >
+                  <option value="">Chọn kho nguồn…</option>
+                  {locations.map((location) => (
+                    <option key={location.code} value={location.code}>{location.name}</option>
+                  ))}
+                </select>
+              </label>
               <label className="block">
                 <span className="mb-1 block text-xs font-semibold text-slate-600">Kho nhận</span>
                 <select
+                  required
                   value={destinationLocationCode}
                   onChange={(event) => setDestinationLocationCode(event.target.value)}
                   className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm"
                 >
-                  {DESTINATIONS.map((location) => (
-                    <option key={location.code} value={location.code}>{location.label}</option>
+                  <option value="">Chọn kho đích…</option>
+                  {locations.filter((location) => location.code !== sourceLocationCode).map((location) => (
+                    <option key={location.code} value={location.code}>{location.name}</option>
                   ))}
                 </select>
               </label>
@@ -282,7 +360,9 @@ export default function StockTransferPage() {
               </div>
               {lines.map((line, index) => {
                 const selectedProduct = inventoryBySku.get(line.sku);
-                const available = selectedProduct ? quantityAtLab(selectedProduct) : 0;
+                const available = selectedProduct
+                  ? getQuantityAtLocation(selectedProduct, sourceLocationCode)
+                  : 0;
                 return (
                   <div key={index} className="grid gap-3 rounded-lg border border-slate-200 p-3 sm:grid-cols-[minmax(0,1fr)_140px_auto]">
                     <label className="block">
@@ -295,12 +375,21 @@ export default function StockTransferPage() {
                       >
                         <option value="">Chọn sản phẩm…</option>
                         {inventory.map((item) => (
-                          <option key={item.sku} value={item.sku}>
-                            {item.sku} — {item.productName} (Lab: {quantityAtLab(item)})
+                          <option
+                            key={item.sku}
+                            value={item.sku}
+                            disabled={lines.some((otherLine, otherIndex) =>
+                              otherIndex !== index && otherLine.sku === item.sku)}
+                          >
+                            {item.sku} — {item.productName} ({sourceLocationCode || 'Nguồn'}: {getQuantityAtLocation(item, sourceLocationCode)})
                           </option>
                         ))}
                       </select>
-                      {line.sku && <span className="mt-1 block text-xs text-slate-500">Có thể xuất tại Lab: {available}</span>}
+                      {line.sku && (
+                        <span className="mt-1 block text-xs text-slate-500">
+                          Tồn tại kho nguồn: {available}
+                        </span>
+                      )}
                     </label>
                     <label className="block">
                       <span className="mb-1 block text-xs font-semibold text-slate-600">Số lượng</span>
@@ -308,7 +397,7 @@ export default function StockTransferPage() {
                         required
                         type="number"
                         min="1"
-                        max={available}
+                        max={available > 0 ? available : undefined}
                         step="1"
                         value={line.quantity}
                         onChange={(event) => updateLine(index, 'quantity', event.target.value)}
@@ -330,7 +419,7 @@ export default function StockTransferPage() {
             </div>
 
             <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
-              Phiếu mới ở trạng thái chờ xuất kho và chưa làm thay đổi tồn. Khi xuất kho, máy chủ sẽ kiểm tra lại số lượng khả dụng trước khi ghi nhận.
+              Phiếu mới ở trạng thái PENDING và chưa làm thay đổi tồn. Khi xác nhận nhận hàng, máy chủ sẽ kiểm tra lại tồn kho nguồn và cập nhật cả hai kho trong cùng giao dịch.
             </p>
 
             <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
@@ -343,7 +432,7 @@ export default function StockTransferPage() {
               </button>
               <button
                 type="submit"
-                disabled={submitting || loading || inventory.length === 0}
+                disabled={submitting || loading || inventory.length === 0 || locations.length < 2}
                 className="rounded-lg bg-[#086288] px-4 py-2 text-sm font-semibold text-white hover:bg-[#064e6d] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {submitting ? 'Đang tạo…' : 'Tạo phiếu'}

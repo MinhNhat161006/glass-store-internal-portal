@@ -1,16 +1,14 @@
 import React, { useState } from 'react';
-import {
-  EyeOutlined,
-  LockOutlined,
-  ShopOutlined,
-  ToolOutlined,
-  AppstoreOutlined,
-  SafetyCertificateOutlined,
-  CustomerServiceOutlined,
-  RightOutlined,
-  MedicineBoxOutlined,
-  CheckCircleOutlined
-} from '@ant-design/icons';
+import EyeOutlined from '@ant-design/icons/es/icons/EyeOutlined';
+import LockOutlined from '@ant-design/icons/es/icons/LockOutlined';
+import ShopOutlined from '@ant-design/icons/es/icons/ShopOutlined';
+import ToolOutlined from '@ant-design/icons/es/icons/ToolOutlined';
+import AppstoreOutlined from '@ant-design/icons/es/icons/AppstoreOutlined';
+import SafetyCertificateOutlined from '@ant-design/icons/es/icons/SafetyCertificateOutlined';
+import CustomerServiceOutlined from '@ant-design/icons/es/icons/CustomerServiceOutlined';
+import RightOutlined from '@ant-design/icons/es/icons/RightOutlined';
+import MedicineBoxOutlined from '@ant-design/icons/es/icons/MedicineBoxOutlined';
+import CheckCircleOutlined from '@ant-design/icons/es/icons/CheckCircleOutlined';
 import AuthModal from './AuthModal';
 import './AuthModal.css';
 

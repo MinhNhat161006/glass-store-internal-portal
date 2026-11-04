@@ -1,21 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  CloseOutlined,
-  LockOutlined,
-  CheckCircleOutlined,
-  EyeOutlined,
-  EyeInvisibleOutlined,
-  UserOutlined,
-  RightOutlined,
-  SafetyCertificateOutlined,
-  ShopOutlined,
-  IdcardOutlined,
-  ReloadOutlined,
-  QuestionCircleOutlined,
-  FileProtectOutlined,
-  WindowsOutlined,
-  GoogleOutlined
-} from '@ant-design/icons';
+import CloseOutlined from '@ant-design/icons/es/icons/CloseOutlined';
+import LockOutlined from '@ant-design/icons/es/icons/LockOutlined';
+import CheckCircleOutlined from '@ant-design/icons/es/icons/CheckCircleOutlined';
+import EyeOutlined from '@ant-design/icons/es/icons/EyeOutlined';
+import EyeInvisibleOutlined from '@ant-design/icons/es/icons/EyeInvisibleOutlined';
+import UserOutlined from '@ant-design/icons/es/icons/UserOutlined';
+import RightOutlined from '@ant-design/icons/es/icons/RightOutlined';
+import SafetyCertificateOutlined from '@ant-design/icons/es/icons/SafetyCertificateOutlined';
+import ShopOutlined from '@ant-design/icons/es/icons/ShopOutlined';
+import IdcardOutlined from '@ant-design/icons/es/icons/IdcardOutlined';
+import ReloadOutlined from '@ant-design/icons/es/icons/ReloadOutlined';
+import QuestionCircleOutlined from '@ant-design/icons/es/icons/QuestionCircleOutlined';
+import FileProtectOutlined from '@ant-design/icons/es/icons/FileProtectOutlined';
+import WindowsOutlined from '@ant-design/icons/es/icons/WindowsOutlined';
+import GoogleOutlined from '@ant-design/icons/es/icons/GoogleOutlined';
 import { message, notification, Modal } from 'antd';
 import './AuthModal.css';
 

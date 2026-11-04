@@ -1,18 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  LockOutlined,
-  CheckCircleOutlined,
-  EyeOutlined,
-  EyeInvisibleOutlined,
-  SafetyCertificateOutlined,
-  ShopOutlined,
-  IdcardOutlined,
-  ReloadOutlined,
-  QuestionCircleOutlined,
-  FileProtectOutlined,
-  WindowsOutlined,
-  GoogleOutlined
-} from '@ant-design/icons';
+import LockOutlined from '@ant-design/icons/es/icons/LockOutlined';
+import CheckCircleOutlined from '@ant-design/icons/es/icons/CheckCircleOutlined';
+import EyeOutlined from '@ant-design/icons/es/icons/EyeOutlined';
+import EyeInvisibleOutlined from '@ant-design/icons/es/icons/EyeInvisibleOutlined';
+import SafetyCertificateOutlined from '@ant-design/icons/es/icons/SafetyCertificateOutlined';
+import ShopOutlined from '@ant-design/icons/es/icons/ShopOutlined';
+import IdcardOutlined from '@ant-design/icons/es/icons/IdcardOutlined';
+import ReloadOutlined from '@ant-design/icons/es/icons/ReloadOutlined';
+import QuestionCircleOutlined from '@ant-design/icons/es/icons/QuestionCircleOutlined';
+import FileProtectOutlined from '@ant-design/icons/es/icons/FileProtectOutlined';
+import WindowsOutlined from '@ant-design/icons/es/icons/WindowsOutlined';
+import GoogleOutlined from '@ant-design/icons/es/icons/GoogleOutlined';
 import { message, notification, Modal } from 'antd';
 import './LoginPage.css';
 
@@ -515,4 +513,3 @@ export default function LoginPage({ onLoginSuccess }) {
     </div>
   );
 }
-
