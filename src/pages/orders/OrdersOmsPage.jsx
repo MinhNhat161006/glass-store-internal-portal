@@ -85,7 +85,7 @@ const DEMO_ORDERS = [
     ],
     prescription: {
       odSph: '-1.75', odCyl: '-0.25', odAxis: '170', odAdd: '—',
-      osSph: '-1.50', osCyl: '-0.50', osAxis: '180', odAdd: '—',
+      osSph: '-1.50', osCyl: '-0.50', osAxis: '180', osAdd: '—',
       pd: '62.0'
     }
   },
@@ -112,7 +112,7 @@ const DEMO_ORDERS = [
     ],
     prescription: {
       odSph: '-3.00', odCyl: '-0.75', odAxis: '175', odAdd: '—',
-      osSph: '-3.25', osCyl: '-0.50', osAxis: '180', odAdd: '—',
+      osSph: '-3.25', osCyl: '-0.50', osAxis: '180', osAdd: '—',
       pd: '64.0'
     }
   },
