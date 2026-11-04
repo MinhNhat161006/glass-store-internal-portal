@@ -1,1027 +1,120 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { message, Modal } from 'antd';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Alert, Button, Drawer, Empty, Input, Modal, Table, Tag, message } from 'antd';
 import { orderApi } from '../../api/orderApi';
+import '../workspace.css';
+
+const statuses = {
+  PENDING: ['Chờ thanh toán', 'orange'], PENDING_PAYMENT: ['Chờ thanh toán', 'orange'],
+  PAID: ['Đã thanh toán', 'blue'], WAITING_RX: ['Chờ toa kính', 'orange'],
+  PROCESSING: ['Đang xử lý', 'blue'], QC_PACKAGING: ['Chờ kiểm tra', 'purple'],
+  SHIPPING: ['Đang giao', 'cyan'], COMPLETED: ['Hoàn tất', 'green'], CANCELLED: ['Đã hủy', 'default'],
+  PENDING_CONFIRMATION: ['Chờ xác nhận', 'orange'], CONFIRMED: ['Đã xác nhận', 'blue'],
+  PREPARING: ['Đang chuẩn bị', 'blue'], READY_FOR_PICKUP: ['Chờ nhận tại quầy', 'cyan'],
+  CANCEL_REQUESTED: ['Yêu cầu hủy', 'orange'], CANCEL_PENDING: ['Đang xử lý hủy', 'orange'],
+  REFUND_PENDING: ['Chờ hoàn tiền', 'orange'], REFUNDED: ['Đã hoàn tiền', 'default'],
+};
+const money = value => value == null ? '—' : Number(value).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+const date = value => value && !Number.isNaN(new Date(value).getTime()) ? new Date(value).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+const code = order => order.orderCode || `#${order.id}`;
+const statusTag = value => <Tag color={statuses[value]?.[1]}>{statuses[value]?.[0] || value || 'Chưa cập nhật'}</Tag>;
 
 export default function OrdersOmsPage() {
   const [orders, setOrders] = useState([]);
-  const [selectedOrderId, setSelectedOrderId] = useState('');
-  const [isDrawerOpen, setIsDrawerOpen] = useState(true);
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [channelFilter, setChannelFilter] = useState('all');
-  const [timeFilter, setTimeFilter] = useState('today');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedIds, setSelectedIds] = useState([]);
-
-  useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const liveOrders = await orderApi.getAllOrders();
-        if (Array.isArray(liveOrders)) {
-          if (liveOrders.length === 0) { setOrders([]); setSelectedOrderId(''); return; }
-          const mapped = liveOrders.map((bo, idx) => {
-            const firstItem = (bo.items && bo.items[0]) || {};
-            const secondItem = (bo.items && bo.items[1]) || {};
-            const code = bo.orderCode.startsWith('#') ? bo.orderCode : `#${bo.orderCode}`;
-            return {
-              dbId: bo.id,
-              id: code,
-              channel: bo.channel === 'POS' ? 'pos_q1' : 'online',
-              channelLabel: bo.channel === 'POS' ? (bo.branchName || 'Flagship Q.1') : 'Online App',
-              channelType: bo.channel === 'POS' ? 'pos' : 'online',
-              channelIcon: bo.channel === 'POS' ? 'storefront' : 'smartphone',
-              channelBadgeBg: bo.channel === 'POS' ? 'bg-[#cae6ff]' : 'bg-[#c6e7ff]',
-              channelBadgeText: bo.channel === 'POS' ? 'text-[#004b70]' : 'text-[#001e2d]',
-              time: '14:28:15',
-              date: 'Hôm nay',
-              staff: bo.staffName || 'STF-088',
-              customer: {
-                name: bo.customerName,
-                phone: bo.customerPhone,
-                tier: 'VIP Member',
-                tierBg: 'bg-[#c5e7ff]',
-                tierText: 'text-[#001e2d]',
-                history: `${idx * 2 + 1} đơn đã mua`,
-                address: bo.shippingAddress || 'TP. Hồ Chí Minh'
-              },
-              product: {
-                frameName: firstItem.productName || 'Gọng Kính Chính Hãng',
-                frameSku: firstItem.skuId || 'FRM-DEFAULT',
-                frameShelf: 'A-04-12',
-                framePrice: Number(firstItem.unitPrice || 3250000),
-                lensName: secondItem.productName || 'Tròng Kính Khúc Xạ',
-                lensSku: secondItem.skuId || 'LNS-DEFAULT',
-                lensShelf: 'Ngăn tròng: L-167-2',
-                lensPrice: Number(secondItem.unitPrice || 1980000),
-                lensShort: secondItem.productName || 'Essilor Crizal',
-                rxShort: '[OD -3.25 / OS -2.75]',
-                doctorApproved: 'BS. Vũ Anh Tuấn đã ký duyệt'
-              },
-              rx: {
-                doctorName: bo.doctorName || 'BS. Khúc Xạ',
-                od: { sph: '-3.25', cyl: '-0.50', axis: '180°', add: '—', pd: '63.0 mm' },
-                os: { sph: '-2.75', cyl: '-0.75', axis: '175°', add: '—', pd: '63.0 mm' },
-                sh: '21.5 mm',
-                cvd: '12.0 mm'
-              },
-              payment: {
-                totalItems: Number(bo.totalAmount || 5230000),
-                discount: Number(bo.discountAmount || 0),
-                discountLabel: 'Ưu đãi thành viên',
-                labFeeLabel: 'Miễn phí gia công',
-                finalTotal: Number(bo.finalAmount || 5230000),
-                method: bo.paymentMethod || 'VietQR',
-                methodBadgeBg: 'bg-[#cae6ff]',
-                methodBadgeText: 'text-[#005881]',
-                status: bo.status === 'PAID' || bo.status === 'PROCESSING' || bo.status === 'COMPLETED' ? 'Đã thanh toán' : 'Chờ thanh toán',
-                transactionRef: `Giao dịch ${bo.paymentMethod || 'VietQR'} - Đã hạch toán`
-              },
-              techStatus: {
-                label: bo.status === 'COMPLETED' ? 'Hoàn tất bàn giao' : bo.status === 'SHIPPING' ? 'Đang giao hàng' : 'Đang mài xưởng Lab',
-                badgeBg: 'bg-[#c5e7ff]',
-                badgeText: 'text-[#001e2d]',
-                icon: 'refresh',
-                spin: bo.status === 'PROCESSING',
-                eta: 'Dự kiến: Hôm nay',
-                machine: 'Essilor Kappa 200',
-                technician: bo.staffName || 'KTV Xưởng Lab',
-                techTime: '15:10'
-              },
-              statusCode: bo.status === 'COMPLETED' ? 'completed' : bo.status === 'SHIPPING' ? 'delivering_2h' : 'lab_processing',
-              auditStage: bo.status === 'COMPLETED' ? 6 : 4,
-              auditLog: 'Giai đoạn 4/6'
-            };
-          });
-          setOrders(mapped);
-          if (mapped.length > 0) {
-            setSelectedOrderId(mapped[0].id);
-          }
-        }
-      } catch (err) {
-        console.warn('Lấy đơn hàng backend lỗi:', err.message);
-      }
-    };
-    fetchOrders();
-  }, []);
-
-  // Selected order details object
-  const activeOrder = useMemo(() => {
-    return orders.find(o => o.id === selectedOrderId) || orders[0];
-  }, [orders, selectedOrderId]);
-
-  // Filtering logic
-  const filteredOrders = useMemo(() => {
-    return orders.filter(item => {
-      // Channel
-      if (channelFilter !== 'all' && item.channel !== channelFilter) return false;
-      // Status pill
-      if (statusFilter !== 'all') {
-        if (statusFilter === 'pending_payment' && item.statusCode !== 'pending_payment') return false;
-        if (statusFilter === 'paid' && item.statusCode !== 'paid' && item.payment.status !== 'Đã thanh toán') return false;
-        if (statusFilter === 'waiting_rx' && item.statusCode !== 'waiting_rx') return false;
-        if (statusFilter === 'lab_processing' && item.statusCode !== 'lab_processing') return false;
-        if (statusFilter === 'qc_packaging' && item.statusCode !== 'qc_packaging') return false;
-        if (statusFilter === 'delivering_2h' && item.statusCode !== 'delivering_2h') return false;
-        if (statusFilter === 'completed' && item.statusCode !== 'completed') return false;
-      }
-      // Search
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const matchId = item.id.toLowerCase().includes(q);
-        const matchName = item.customer.name.toLowerCase().includes(q);
-        const matchPhone = item.customer.phone.includes(q);
-        const matchTracking = item.techStatus.eta.toLowerCase().includes(q);
-        return matchId || matchName || matchPhone || matchTracking;
-      }
-      return true;
-    });
-  }, [orders, channelFilter, statusFilter, searchQuery]);
-
-  // Handle select all checkbox
-  const handleSelectAll = (e) => {
-    if (e.target.checked) {
-      setSelectedIds(filteredOrders.map(o => o.id));
-    } else {
-      setSelectedIds([]);
-    }
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [query, setQuery] = useState('');
+  const [status, setStatus] = useState('all');
+  const [channel, setChannel] = useState('all');
+  const [activeId, setActiveId] = useState(null);
+  const [updating, setUpdating] = useState(false);
+  const activeOrder = orders.find(order => order.id === activeId);
+  const loadOrders = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await orderApi.getAllOrders();
+      const data = response?.data ?? response;
+      if (!Array.isArray(data)) throw new Error('Dữ liệu đơn hàng không hợp lệ.');
+      setOrders(data);
+    } catch (err) { setError(err.message || 'Không tải được đơn hàng.'); }
+    finally { setLoading(false); }
   };
-
-  const handleToggleSelectRow = (id, e) => {
-    e.stopPropagation();
-    setSelectedIds(prev =>
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+  useEffect(() => { loadOrders(); }, []);
+  const filtered = useMemo(() => {
+    const keyword = query.trim().toLocaleLowerCase('vi-VN');
+    return orders.filter(order =>
+      (status === 'all' || order.status === status) && (channel === 'all' || order.channel === channel) &&
+      (!keyword || [code(order), order.customerName, order.customerPhone].some(value => String(value || '').toLocaleLowerCase('vi-VN').includes(keyword)))
     );
+  }, [orders, query, status, channel]);
+  const exportOrders = async () => {
+    try {
+      const XLSX = await import('xlsx');
+      const sheet = XLSX.utils.json_to_sheet(filtered.map(order => ({
+        'Mã đơn': code(order), 'Khách hàng': order.customerName, 'Điện thoại': order.customerPhone,
+        'Kênh': order.channel, 'Ngày tạo': date(order.createdAt), 'Tổng tiền': order.finalAmount,
+        'Trạng thái': statuses[order.status]?.[0] || order.status,
+      })));
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, sheet, 'Đơn hàng');
+      XLSX.writeFile(workbook, `Don-hang-${new Date().toLocaleDateString('sv-SE')}.xlsx`);
+    } catch { message.error('Không thể xuất danh sách đơn hàng.'); }
   };
-
-  const handleRowClick = (order) => {
-    setSelectedOrderId(order.id);
-    setIsDrawerOpen(true);
-  };
-
-  // Actions
-  const handleExportExcel = () => {
-    message.loading({ content: 'Đang trích xuất 128 đơn hàng ra định dạng Excel (XLSX)...', key: 'export', duration: 1 });
-    setTimeout(() => {
-      message.success({ content: 'Xuất file OptiVision_Orders_20241016.xlsx thành công!', key: 'export' });
-    }, 1000);
-  };
-
-  const handlePrintBatchA5 = () => {
-    message.info(`Chuẩn bị in hàng loạt phiếu kỹ thuật A5 cho ${selectedIds.length} đơn đã chọn.`);
-  };
-
-  const handleAdvanceLabStage = () => {
-    if (!activeOrder) return;
-    
-    // Update active order to QC Packaging (Stage 5)
-    setOrders(prev => prev.map(o => {
-      if (o.id === activeOrder.id) {
-        return {
-          ...o,
-          auditStage: 5,
-          statusCode: 'qc_packaging',
-          auditLog: 'Giai đoạn 5/6',
-          techStatus: {
-            ...o.techStatus,
-            label: 'Chờ đóng gói QC',
-            badgeBg: 'bg-[#dee8ff]',
-            badgeText: 'text-[#111c2d]',
-            icon: 'verified',
-            spin: false,
-            eta: 'Mài xong - Đang kiểm tra 12 thông số quang học'
-          }
-        };
-      }
-      return o;
-    }));
-
-    message.success(`Đã xác nhận hoàn tất mài lắp cho đơn ${activeOrder.id}. Chuyển sang bàn Kiểm Tra QC & Đóng Gói!`);
-  };
-
-  const handleApproveRx = (order, e) => {
-    e.stopPropagation();
+  const nextAction = ['READY_FOR_PICKUP', 'SHIPPING'].includes(activeOrder?.status)
+    ? { status: 'COMPLETED', label: 'Xác nhận bàn giao' } : null;
+  const advanceOrder = () => {
+    if (!nextAction || !activeOrder) return;
+    const orderId = activeOrder.id;
+    const action = nextAction;
     Modal.confirm({
-      title: `Phê duyệt toa kính khúc xạ: ${order.id}`,
-      content: (
-        <div>
-          <p className="text-sm text-gray-600">Khách hàng: <b>{order.customer.name}</b> ({order.customer.phone})</p>
-          <div className="bg-amber-50 p-3 rounded-lg border border-amber-200 text-xs text-amber-800 my-2">
-            ⚠️ <b>Cảnh báo lâm sàng:</b> Tròng 1.74 có độ cận cao (-7.50D) và khoảng cách đồng tử PD = 69.0mm. Đã gọi xác nhận và điều chỉnh tâm kính hợp lệ.
-          </div>
-          <p className="text-sm">Xác nhận ký duyệt toa y khoa và chuyển lệnh sang Xưởng Mài Lắp Essilor?</p>
-        </div>
-      ),
-      okText: 'Ký Duyệt & Chuyển Lab',
-      cancelText: 'Hủy bỏ',
-      okButtonProps: { style: { backgroundColor: '#004967' } },
-      onOk() {
-        setOrders(prev => prev.map(o => {
-          if (o.id === order.id) {
-            return {
-              ...o,
-              statusCode: 'lab_processing',
-              auditStage: 4,
-              techStatus: {
-                label: 'Đang mài Essilor',
-                badgeBg: 'bg-[#c5e7ff]',
-                badgeText: 'text-[#001e2d]',
-                icon: 'refresh',
-                spin: true,
-                eta: 'BS. Lâm Hoàng Phúc đã ký duyệt toa'
-              }
-            };
-          }
-          return o;
-        }));
-        message.success(`Toa kính ${order.id} đã được bác sĩ ký duyệt và gửi lệnh gia công tự động!`);
-      }
+      title: `${action.label}?`, content: `Đơn ${code(activeOrder)} · ${activeOrder.customerName}`,
+      okText: 'Xác nhận', cancelText: 'Quay lại',
+      async onOk() {
+        setUpdating(true);
+        try {
+          const response = await orderApi.updateOrderStatus(orderId, { status: action.status });
+          const saved = response?.data ?? response;
+          setOrders(previous => previous.map(order => order.id === orderId ? { ...order, ...saved } : order));
+          message.success('Đã cập nhật đơn hàng.');
+        } catch (err) { message.error(err.message || 'Không thể cập nhật đơn hàng.'); throw err; }
+        finally { setUpdating(false); }
+      },
     });
   };
-
+  const columns = [
+    { title: 'Mã đơn', key: 'code', width: 210, render: (_, order) => <div><button className="workspace-link" onClick={() => setActiveId(order.id)}>{code(order)}</button><div className="workspace-muted">{date(order.createdAt)}</div></div> },
+    { title: 'Khách hàng', dataIndex: 'customerName', render: (name, order) => <div><span className="workspace-name">{name || 'Khách vãng lai'}</span><div className="workspace-muted">{order.customerPhone || '—'}</div></div> },
+    { title: 'Kênh bán', dataIndex: 'channel', width: 130, render: value => value === 'POS' ? 'Tại quầy' : value === 'ONLINE' ? 'Online' : value || '—' },
+    { title: 'Tổng tiền', dataIndex: 'finalAmount', align: 'right', width: 170, render: value => <span className="workspace-name">{money(value)}</span> },
+    { title: 'Trạng thái', dataIndex: 'status', width: 160, render: statusTag },
+  ];
   return (
-    <div className="p-3.5 sm:p-5 max-w-[1600px] mx-auto w-full space-y-3.5">
-      {/* ---------------- 1. KPI BANNER / METRIC RIBBON (4 Operational Metrics) ---------------- */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        {/* KPI 1: Tổng đơn hôm nay */}
-        <div className="bg-white p-4 rounded-xl shadow-sm hover:shadow-md transition-all relative overflow-hidden group border border-[#d8e3fb]/40">
-          <div className="absolute right-0 top-0 w-24 h-24 bg-gradient-to-br from-[#004967]/5 via-[#8fcdfd]/10 to-transparent rounded-bl-full pointer-events-none" />
-          <div className="flex items-center justify-between">
-            <span className="text-[12px] font-semibold uppercase tracking-wider text-[#70787f]">Tổng đơn hôm nay</span>
-            <span className="p-2 rounded-xl bg-[#e7eeff] text-[#004967] flex items-center justify-center">
-              <span className="material-symbols-outlined text-[20px]">shopping_bag</span>
-            </span>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-[36px] font-bold text-[#111c2d] tracking-tight leading-none">{orders.length}</span>
-            <span className="text-[12px] text-[#004967] font-semibold flex items-center">
-              <span className="material-symbols-outlined text-[16px]">trending_up</span> +14.8%
-            </span>
-          </div>
-          <div className="mt-3 pt-2.5 bg-[#f0f3ff] px-3 py-1.5 rounded-lg flex items-center justify-between text-[13px] font-semibold text-[#40484e]">
-            <span>POS Q.1: <strong className="text-[#111c2d] font-bold">{orders.filter(o => o.channelType === 'pos').length}</strong></span><span className="text-[#c0c7cf]">|</span><span>Online App: <strong className="text-[#111c2d] font-bold">{orders.filter(o => o.channelType === 'online').length}</strong></span>
-          </div>
+    <div className="simple-workspace">
+      <header className="workspace-header"><div><h1>Đơn hàng</h1><p>{orders.length} đơn hàng</p></div><Button onClick={exportOrders} disabled={!filtered.length || loading || !!error}>Xuất Excel</Button></header>
+      <section className="workspace-panel">
+        <div className="workspace-toolbar">
+          <Input.Search allowClear aria-label="Tìm đơn hàng" placeholder="Mã đơn, tên hoặc số điện thoại" value={query} onChange={event => setQuery(event.target.value)} className="workspace-search" />
+          <select aria-label="Lọc trạng thái" value={status} onChange={event => setStatus(event.target.value)} className="workspace-filter"><option value="all">Tất cả trạng thái</option>{Object.entries(statuses).map(([value, [label]]) => <option key={value} value={value}>{label}</option>)}</select>
+          <select aria-label="Lọc kênh bán" value={channel} onChange={event => setChannel(event.target.value)} className="workspace-filter"><option value="all">Tất cả kênh</option>{[...new Set(orders.map(order => order.channel).filter(Boolean))].map(value => <option key={value} value={value}>{value === 'POS' ? 'Tại quầy' : value === 'ONLINE' ? 'Online' : value}</option>)}</select>
         </div>
-
-        {/* KPI 2: Chờ duyệt toa OD/OS (Cần KTV can thiệp) */}
-        <div className="bg-white p-4 rounded-xl shadow-sm hover:shadow-md transition-all relative overflow-hidden group border border-[#d8e3fb]/40">
-          <div className="absolute right-0 top-0 w-24 h-24 bg-gradient-to-br from-[#ba1a1a]/5 via-[#ffdad6]/20 to-transparent rounded-bl-full pointer-events-none" />
-          <div className="flex items-center justify-between">
-            <span className="text-[12px] font-semibold uppercase tracking-wider text-[#ba1a1a]">Chờ xác nhận kỹ thuật</span>
-            <span className="p-2 rounded-xl bg-[#ffdad6] text-[#ba1a1a] flex items-center justify-center">
-              <span className="material-symbols-outlined text-[20px]">eyeglasses</span>
-            </span>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-[36px] font-bold text-[#ba1a1a] tracking-tight leading-none">{orders.filter(o => o.statusCode === 'waiting_rx').length}</span>
-            <span className="text-[12px] font-semibold px-2 py-0.5 rounded-full bg-[#ffdad6] text-[#93000a]">Cần KTV duyệt</span>
-          </div>
-          <div className="mt-3 pt-2.5 bg-[#f0f3ff] px-3 py-1.5 rounded-lg flex items-center justify-between text-[13px] font-semibold text-[#40484e]">
-            <span>Độ cận cao (&gt;6.0D): <strong className="text-[#ba1a1a] font-bold">{orders.filter(o => o.statusCode === 'waiting_rx').length > 0 ? 1 : 0}</strong></span>
-            <span className="text-[#c0c7cf]">|</span>
-            <span>Loạn thị phức: <strong className="text-[#111c2d] font-bold">{orders.filter(o => o.statusCode === 'waiting_rx').length > 1 ? 1 : 0}</strong></span>
-          </div>
-        </div>
-
-        {/* KPI 3: Đang mài lắp tại Lab */}
-        <div className="bg-white p-4 rounded-xl shadow-sm hover:shadow-md transition-all relative overflow-hidden group border border-[#d8e3fb]/40">
-          <div className="absolute right-0 top-0 w-24 h-24 bg-gradient-to-br from-[#086288]/10 via-[#19648f]/10 to-transparent rounded-bl-full pointer-events-none" />
-          <div className="flex items-center justify-between">
-            <span className="text-[12px] font-semibold uppercase tracking-wider text-[#004967]">Đang mài lắp tại Lab</span>
-            <span className="p-2 rounded-xl bg-[#dee8ff] text-[#004967] flex items-center justify-center">
-              <span className="material-symbols-outlined text-[20px]">precision_manufacturing</span>
-            </span>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-[36px] font-bold text-[#004967] tracking-tight leading-none">{orders.filter(o => o.statusCode === 'lab_processing').length}</span>
-            <span className="text-[12px] text-[#19648f] font-semibold">Tự động Essilor Delta 200</span>
-          </div>
-          <div className="mt-3 pt-2.5 bg-[#f0f3ff] px-3 py-1.5 rounded-lg flex items-center justify-between text-[13px] font-semibold text-[#40484e]">
-            <span>Lab Trực tiếp: <strong className="text-[#111c2d] font-bold">{orders.filter(o => o.statusCode === 'lab_processing').length}</strong></span>
-            <span className="text-[#c0c7cf]">|</span>
-            <span>Chờ gia công RX: <strong className="text-[#111c2d] font-bold">0</strong></span>
-          </div>
-        </div>
-
-        {/* KPI 4: Đang vận chuyển & hỏa tốc */}
-        <div className="bg-white p-4 rounded-xl shadow-sm hover:shadow-md transition-all relative overflow-hidden group border border-[#d8e3fb]/40">
-          <div className="absolute right-0 top-0 w-24 h-24 bg-gradient-to-br from-[#cae6ff]/30 via-[#c5e7ff]/20 to-transparent rounded-bl-full pointer-events-none" />
-          <div className="flex items-center justify-between">
-            <span className="text-[12px] font-semibold uppercase tracking-wider text-[#19648f]">Đang giao vận chuyển</span>
-            <span className="p-2 rounded-xl bg-[#cae6ff] text-[#004b70] flex items-center justify-center">
-              <span className="material-symbols-outlined text-[20px]">local_shipping</span>
-            </span>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-[36px] font-bold text-[#111c2d] tracking-tight leading-none">{orders.filter(o => o.statusCode === 'delivering_2h').length}</span>
-            <span className="text-[12px] text-[#146285] font-semibold flex items-center">
-              AhaMove &amp; Ahamove Lab
-            </span>
-          </div>
-          <div className="mt-3 pt-2.5 bg-[#f0f3ff] px-3 py-1.5 rounded-lg flex items-center justify-between text-[13px] font-semibold text-[#40484e]">
-            <span className="text-[#004967] font-bold">Hỏa tốc 2H: {orders.filter(o => o.statusCode === 'delivering_2h').length}</span>
-            <span className="text-[#c0c7cf]">|</span>
-            <span>Tiêu chuẩn: 0</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ---------------- 2. MULTI-DIMENSIONAL OMNICHANNEL FILTER DECK ---------------- */}
-      <div className="bg-white p-4 rounded-xl shadow-sm space-y-3 border border-[#d8e3fb]/40">
-        {/* Row 1: Universal search + Dropdowns + Action buttons */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          {/* Universal Search Input */}
-          <div className="flex-1 min-w-[300px] max-w-xl relative">
-            <span className="material-symbols-outlined text-[#70787f] absolute left-3.5 top-1/2 -translate-y-1/2 text-[20px]">search</span>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm theo mã #OPT-XXXX, SĐT khách, Tên khách, Mã vận đơn SPX/Aha..."
-              className="w-full pl-10 pr-10 py-2.5 bg-[#f0f3ff] rounded-xl text-[#111c2d] text-sm placeholder:text-[#70787f] focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#004967] transition-all"
-            />
-            {searchQuery ? (
-              <span
-                onClick={() => setSearchQuery('')}
-                className="material-symbols-outlined text-[#70787f] absolute right-3.5 top-1/2 -translate-y-1/2 text-[18px] cursor-pointer hover:text-[#111c2d]"
-              >
-                close
-              </span>
-            ) : (
-              <span className="material-symbols-outlined text-[#70787f] absolute right-3.5 top-1/2 -translate-y-1/2 text-[18px] cursor-pointer hover:text-[#111c2d]">
-                qr_code_scanner
-              </span>
-            )}
-          </div>
-
-          {/* Filter Dropdowns & Quick Dates */}
-          <div className="flex flex-wrap items-center gap-2.5">
-            {/* Sales Channel Dropdown */}
-            <div className="relative">
-              <select
-                value={channelFilter}
-                onChange={(e) => setChannelFilter(e.target.value)}
-                className="appearance-none bg-[#f0f3ff] pl-3.5 pr-8 py-2 rounded-xl text-xs font-semibold text-[#111c2d] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#004967] border-0"
-              >
-                <option value="all">Tất cả kênh bán</option>
-                <option value="online">Kênh Online Web/App</option>
-                <option value="pos_q1">Kênh POS Flagship Q.1</option>
-                <option value="pos_tt">Kênh POS Tràng Tiền Plaza</option>
-              </select>
-              <span className="material-symbols-outlined text-[#70787f] absolute right-2.5 top-1/2 -translate-y-1/2 text-[18px] pointer-events-none">expand_more</span>
-            </div>
-
-            {/* Timeframe Selector */}
-            <div className="flex items-center bg-[#f0f3ff] p-1 rounded-xl">
-              <button
-                onClick={() => setTimeFilter('today')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  timeFilter === 'today'
-                    ? 'bg-white text-[#004967] shadow-sm'
-                    : 'text-[#70787f] hover:text-[#111c2d]'
-                }`}
-              >
-                Hôm nay
-              </button>
-              <button
-                onClick={() => setTimeFilter('7days')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  timeFilter === '7days'
-                    ? 'bg-white text-[#004967] shadow-sm'
-                    : 'text-[#70787f] hover:text-[#111c2d]'
-                }`}
-              >
-                7 ngày qua
-              </button>
-              <button
-                onClick={() => setTimeFilter('custom')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all ${
-                  timeFilter === 'custom'
-                    ? 'bg-white text-[#004967] shadow-sm'
-                    : 'text-[#70787f] hover:text-[#111c2d]'
-                }`}
-              >
-                <span>Tùy chọn</span>
-                <span className="material-symbols-outlined text-[16px]">calendar_month</span>
-              </button>
-            </div>
-
-            {/* Batch Action Buttons */}
-            <div className="h-6 w-px bg-[#c0c7cf] mx-1" />
-            <button
-              onClick={handleExportExcel}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#e7eeff] hover:bg-[#dee8ff] text-[#111c2d] text-xs font-semibold transition-all shadow-sm"
-            >
-              <span className="material-symbols-outlined text-[18px] text-[#004967]">download</span>
-              <span>Xuất Excel</span>
-            </button>
-            <button
-              onClick={handlePrintBatchA5}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#e7eeff] hover:bg-[#dee8ff] text-[#111c2d] text-xs font-semibold transition-all shadow-sm"
-            >
-              <span className="material-symbols-outlined text-[18px]">print</span>
-              <span>In hàng loạt (A5)</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Row 2: Status Pipeline Filter Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-nowrap scrollbar-thin">
-          <button
-            onClick={() => setStatusFilter('all')}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
-              statusFilter === 'all'
-                ? 'bg-[#004967] text-white shadow-sm'
-                : 'bg-[#f0f3ff] hover:bg-[#e7eeff] text-[#40484e]'
-            }`}
-          >
-            Tất cả ({orders.length})
-          </button>
-          <button
-            onClick={() => setStatusFilter('pending_payment')}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
-              statusFilter === 'pending_payment'
-                ? 'bg-[#004967] text-white shadow-sm'
-                : 'bg-[#f0f3ff] hover:bg-[#e7eeff] text-[#40484e]'
-            }`}
-          >
-            Chờ thanh toán ({orders.filter(o => o.statusCode === 'pending_payment').length})
-          </button>
-          <button
-            onClick={() => setStatusFilter('paid')}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
-              statusFilter === 'paid'
-                ? 'bg-[#004967] text-white shadow-sm'
-                : 'bg-[#f0f3ff] hover:bg-[#e7eeff] text-[#40484e]'
-            }`}
-          >
-            Đã thanh toán ({orders.filter(o => o.status === 'Đã thanh toán').length})
-          </button>
-          <button
-            onClick={() => setStatusFilter('waiting_rx')}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all ${
-              statusFilter === 'waiting_rx'
-                ? 'bg-[#ba1a1a] text-white shadow-sm'
-                : 'bg-[#ffdad6] text-[#93000a] hover:bg-[#ffdad6]/80'
-            }`}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-[#ba1a1a] animate-ping" />
-            Chờ duyệt ({orders.filter(o => o.status === 'Chờ duyệt').length})
-          </button>
-          <button
-            onClick={() => setStatusFilter('lab_processing')}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
-              statusFilter === 'lab_processing'
-                ? 'bg-[#004967] text-white shadow-sm'
-                : 'bg-[#cae6ff] text-[#001e30] hover:bg-[#cae6ff]/80'
-            }`}
-          >
-            Đang gia công ({orders.filter(o => o.status === 'Đang gia công').length})
-          </button>
-          <button
-            onClick={() => setStatusFilter('qc_packaging')}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
-              statusFilter === 'qc_packaging'
-                ? 'bg-[#004967] text-white shadow-sm'
-                : 'bg-[#f0f3ff] hover:bg-[#e7eeff] text-[#40484e]'
-            }`}
-          >
-            Chờ QC (0)
-          </button>
-          <button
-            onClick={() => setStatusFilter('delivering_2h')}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
-              statusFilter === 'delivering_2h'
-                ? 'bg-[#004967] text-white shadow-sm'
-                : 'bg-[#f0f3ff] hover:bg-[#e7eeff] text-[#40484e]'
-            }`}
-          >
-            Đang giao (0)
-          </button>
-          <button
-            onClick={() => setStatusFilter('completed')}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
-              statusFilter === 'completed'
-                ? 'bg-[#004967] text-white shadow-sm'
-                : 'bg-[#f0f3ff] hover:bg-[#e7eeff] text-[#40484e]'
-            }`}
-          >
-            Hoàn thành (0)
-          </button>
-          <button
-            onClick={() => setStatusFilter('cancelled')}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
-              statusFilter === 'cancelled'
-                ? 'bg-[#70787f] text-white shadow-sm'
-                : 'bg-[#f0f3ff] hover:bg-[#e7eeff] text-[#70787f]'
-            }`}
-          >
-            Đã hủy (0)
-          </button>
-        </div>
-      </div>
-
-      {/* ---------------- 3. MAIN CENTRAL OMS DATA TABLE & LIVE DETAIL DRAWER ---------------- */}
-      <div className="grid grid-cols-1 2xl:grid-cols-12 gap-4 items-start">
-        {/* Central OMS Orders Data Table (8 cols on 2XL, 12 on smaller) */}
-        <div className={`${isDrawerOpen ? '2xl:col-span-8' : '2xl:col-span-12'} bg-white rounded-xl shadow-sm overflow-hidden flex flex-col border border-[#d8e3fb]/40 transition-all duration-200`}>
-          {/* Table Header Bar / Selection counter */}
-          <div className="px-4 py-3 bg-[#f0f3ff] flex items-center justify-between border-b border-[#e7eeff]">
-            <div className="flex items-center gap-3">
-              <span className="text-[15px] font-bold text-[#111c2d]">Danh sách đơn hàng OMS</span>
-              <span className="px-2.5 py-0.5 rounded-full bg-[#d8e3fb] text-[12px] font-bold text-[#004967]">
-                Hiển thị {filteredOrders.length} đơn
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-[#70787f]">
-                Đã chọn: <strong className="text-[#004967] font-semibold">{selectedIds.length} đơn</strong>
-              </span>
-              <button
-                onClick={() => message.success('Đã đồng bộ dữ liệu đơn hàng mới nhất!')}
-                className="text-[#004967] hover:text-[#086288] p-1 rounded-lg hover:bg-[#e7eeff] transition-colors"
-                title="Làm mới dữ liệu"
-              >
-                <span className="material-symbols-outlined text-[18px]">sync</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Table Responsive Scroller */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[1080px]">
-              <thead>
-                <tr className="bg-[#dee8ff]/40 text-[#70787f] uppercase text-[11px] font-bold tracking-wider border-b border-[#e7eeff]">
-                  <th className="py-3 px-3 w-10 text-center">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.length > 0 && selectedIds.length === filteredOrders.length}
-                      onChange={handleSelectAll}
-                      className="rounded text-[#004967] focus:ring-0 cursor-pointer"
-                    />
-                  </th>
-                  <th className="py-3 px-3 whitespace-nowrap min-w-[130px]">Mã đơn &amp; Kênh</th>
-                  <th className="py-3 px-3 whitespace-nowrap min-w-[145px]">Thời gian / Nhân viên</th>
-                  <th className="py-3 px-3 whitespace-nowrap min-w-[160px]">Khách hàng</th>
-                  <th className="py-3 px-4 min-w-[280px]">Sản phẩm &amp; Toa kính y khoa</th>
-                  <th className="py-3 px-3 whitespace-nowrap min-w-[165px]">Thanh toán</th>
-                  <th className="py-3 px-3 whitespace-nowrap min-w-[190px]">Tiến độ kỹ thuật</th>
-                  <th className="py-3 px-3 whitespace-nowrap min-w-[90px] text-right">Tác vụ</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#e7eeff] text-sm text-[#111c2d]">
-                {filteredOrders.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="py-12 text-center text-slate-400">
-                      <span className="material-symbols-outlined text-[40px] block mb-2 text-slate-300">receipt_long</span>
-                      Chưa có đơn hàng nào trong hệ thống. Hãy vào màn hình POS để tạo đơn bán hàng thật.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredOrders.map(order => {
-                  const isSelected = order.id === selectedOrderId;
-                  const isChecked = selectedIds.includes(order.id);
-                  const isAlert = order.statusCode === 'waiting_rx';
-
-                  return (
-                    <tr
-                      key={order.id}
-                      onClick={() => handleRowClick(order)}
-                      className={`transition-colors cursor-pointer group ${
-                        isSelected
-                          ? 'bg-[#dee8ff]/30 hover:bg-[#dee8ff]/50'
-                          : isAlert
-                          ? 'bg-[#ffdad6]/10 hover:bg-[#ffdad6]/20'
-                          : 'hover:bg-[#f0f3ff]'
-                      }`}
-                    >
-                      {/* Checkbox */}
-                      <td className="py-3 px-3 text-center" onClick={(e) => handleToggleSelectRow(order.id, e)}>
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => {}}
-                          className="rounded text-[#004967] focus:ring-0 cursor-pointer"
-                        />
-                      </td>
-
-                      {/* Mã đơn & Kênh */}
-                      <td className="py-3 px-3 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[13px] font-mono text-[#004967] font-bold">{order.id}</span>
-                          {isSelected && <span className="w-2 h-2 rounded-full bg-[#004967]" title="Đang xem chi tiết" />}
-                        </div>
-                        <div className="mt-1 flex items-center gap-1">
-                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full ${order.channelBadgeBg} ${order.channelBadgeText} text-[11px] font-semibold whitespace-nowrap`}>
-                            <span className="material-symbols-outlined text-[13px]">{order.channelIcon}</span>
-                            <span>{order.channelLabel}</span>
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Thời gian / Nhân viên */}
-                      <td className="py-3 px-3 whitespace-nowrap">
-                        <div className="text-[13px] font-mono text-[#111c2d]">{order.time}</div>
-                        <div className="text-xs text-[#70787f]">{order.date}</div>
-                        <div className="text-xs text-[#70787f] flex items-center gap-0.5 mt-0.5 whitespace-nowrap">
-                          <span className="material-symbols-outlined text-[14px]">
-                            {order.staff.includes('Bot') ? 'robot' : order.staff.includes('Khách') ? 'person' : order.staff.includes('Telesales') ? 'call' : 'badge'}
-                          </span>
-                          <span>{order.staff}</span>
-                        </div>
-                      </td>
-
-                      {/* Khách hàng */}
-                      <td className="py-3 px-3 whitespace-nowrap">
-                        <div className="text-sm font-semibold text-[#111c2d] flex items-center gap-1.5 whitespace-nowrap">
-                          {order.customer.name}
-                          <span className={`px-1.5 py-0.5 rounded ${order.customer.tierBg} ${order.customer.tierText} text-[10px] font-semibold`}>
-                            {order.customer.tier}
-                          </span>
-                        </div>
-                        <div className="text-[12px] font-mono text-[#70787f] whitespace-nowrap">{order.customer.phone}</div>
-                        <div className="text-xs text-[#70787f] flex items-center gap-0.5 whitespace-nowrap">
-                          {order.customer.history.includes('đơn') && (
-                            <span className="material-symbols-outlined text-[13px]">history</span>
-                          )}
-                          <span>{order.customer.history || order.customer.address}</span>
-                        </div>
-                      </td>
-
-                      {/* Sản phẩm & Toa kính y khoa */}
-                      <td className="py-3 px-4">
-                        <div className="text-sm font-semibold text-[#111c2d] truncate max-w-xs">
-                          {order.product.frameName}
-                        </div>
-                        <div className="text-xs text-[#40484e] flex items-center gap-1.5 mt-0.5">
-                          <span className="px-1.5 py-0.5 rounded bg-[#e7eeff] text-[#004967] text-[11px] font-medium">
-                            {order.product.lensShort}
-                          </span>
-                          <span className="text-[12px] font-mono text-[#004967] font-semibold">
-                            {order.product.rxShort}
-                          </span>
-                        </div>
-                        <div className={`text-xs mt-0.5 flex items-center gap-1 ${order.product.isWarning ? 'text-[#ba1a1a] font-semibold' : 'text-[#70787f]'}`}>
-                          <span className={`material-symbols-outlined text-[13px] ${order.product.isWarning ? 'text-[#ba1a1a]' : 'text-[#004966]'}`}>
-                            {order.product.isWarning ? 'warning' : 'assignment_turned_in'}
-                          </span>
-                          <span>{order.product.doctorApproved}</span>
-                        </div>
-                      </td>
-
-                      {/* Thanh toán */}
-                      <td className="py-3 px-3 whitespace-nowrap">
-                        <div className="text-[13px] font-mono font-bold text-[#004967] whitespace-nowrap">
-                          {order.payment.finalTotal.toLocaleString('vi-VN')}&nbsp;₫
-                        </div>
-                        <div className="mt-1">
-                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full ${order.payment.methodBadgeBg} ${order.payment.methodBadgeText} text-[11px] font-semibold whitespace-nowrap`}>
-                            <span className="material-symbols-outlined text-[13px]">
-                              {order.payment.method.includes('QR') ? 'check_circle' : order.payment.method.includes('Apple') ? 'check_circle' : order.payment.method.includes('POS') ? 'credit_card' : 'schedule'}
-                            </span>
-                            <span>{order.payment.method}</span>
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Tiến độ kỹ thuật */}
-                      <td className="py-3 px-3 whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full ${order.techStatus.badgeBg} ${order.techStatus.badgeText} text-[11px] font-semibold whitespace-nowrap`}>
-                          <span className={`material-symbols-outlined text-[13px] ${order.techStatus.spin ? 'animate-spin' : ''}`}>
-                            {order.techStatus.icon}
-                          </span>
-                          <span>{order.techStatus.label}</span>
-                        </span>
-                        <div className={`text-xs mt-1 ${order.statusCode === 'waiting_rx' ? 'text-[#ba1a1a] font-semibold' : 'text-[#70787f]'}`}>
-                          {order.techStatus.eta}
-                        </div>
-                      </td>
-
-                      {/* Tác vụ */}
-                      <td className="py-3 px-3 text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-1">
-                          {order.statusCode === 'waiting_rx' ? (
-                            <button
-                              onClick={(e) => handleApproveRx(order, e)}
-                              className="px-2.5 py-1 rounded-lg bg-[#004967] text-white text-xs font-semibold shadow-sm hover:bg-[#086288] transition-all"
-                            >
-                              Duyệt toa
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => {
-                                setSelectedOrderId(order.id);
-                                setIsDrawerOpen(true);
-                              }}
-                              className="p-1.5 rounded-lg text-[#004967] hover:bg-[#e7eeff] transition-colors"
-                              title="Xem chi tiết đơn"
-                            >
-                              <span className="material-symbols-outlined text-[18px]">visibility</span>
-                            </button>
-                          )}
-                          <button
-                            onClick={() => message.info(`Đang in phiếu kỹ thuật cho đơn ${order.id}...`)}
-                            className="p-1.5 rounded-lg text-[#40484e] hover:bg-[#e7eeff] transition-colors"
-                            title="In phiếu mài ráp kỹ thuật A5"
-                          >
-                            <span className="material-symbols-outlined text-[18px]">print</span>
-                          </button>
-                          <button
-                            onClick={() => message.info(`Thao tác khác cho đơn ${order.id}`)}
-                            className="p-1.5 rounded-lg text-[#40484e] hover:bg-[#e7eeff] transition-colors"
-                            title="Thao tác khác"
-                          >
-                            <span className="material-symbols-outlined text-[18px]">more_vert</span>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                }))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Table Footer / Pagination */}
-          <div className="px-4 py-3 bg-[#f0f3ff] flex items-center justify-between border-t border-[#e7eeff]">
-            <div className="text-xs text-[#70787f]">
-              Tổng cộng: <strong className="text-[#111c2d] font-semibold">{filteredOrders.length} đơn</strong> trong khoảng lọc
-            </div>
-            <div className="flex items-center gap-1.5">
-              <button className="px-2.5 py-1 rounded-lg bg-white text-[#70787f] hover:text-[#111c2d] text-xs font-semibold shadow-sm disabled:opacity-50">
-                <span className="material-symbols-outlined text-[16px] align-middle">chevron_left</span>
-              </button>
-              <button className="px-3 py-1 rounded-lg bg-[#004967] text-white text-xs font-semibold">1</button>
-              <button className="px-2.5 py-1 rounded-lg bg-white text-[#70787f] hover:text-[#111c2d] text-xs font-semibold shadow-sm">
-                <span className="material-symbols-outlined text-[16px] align-middle">chevron_right</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* ---------------- 4. SLIDE-OVER / PINNED DETAIL DRAWER (4 cols on 2XL) ---------------- */}
-        {isDrawerOpen && activeOrder && (
-          <div className="2xl:col-span-4 bg-white rounded-xl shadow-md p-4 space-y-4 border border-[#d8e3fb]/60 transition-all">
-            {/* Drawer Header with Status & Close/Pin */}
-            <div className="flex items-start justify-between pb-3 bg-[#f0f3ff]/70 -m-4 p-4 rounded-t-xl border-b border-[#e7eeff]">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[20px] font-bold text-[#111c2d] tracking-tight">{activeOrder.id}</span>
-                  <span className={`px-2 py-0.5 rounded-full ${activeOrder.channelBadgeBg} ${activeOrder.channelBadgeText} text-xs font-semibold`}>
-                    {activeOrder.channelLabel}
-                  </span>
-                </div>
-                <div className="text-xs text-[#70787f] mt-0.5 flex items-center gap-1.5">
-                  <span>Tạo lúc: {activeOrder.time}, {activeOrder.date}</span>
-                  <span>•</span>
-                  <span className="text-[#004967] font-semibold">{activeOrder.channelType === 'pos' ? 'Bán lẻ tại quầy' : 'Đơn trực tuyến'}</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => message.info('Đã ghim chi tiết đơn hàng')}
-                  className="p-1.5 rounded-lg text-[#70787f] hover:text-[#111c2d] hover:bg-[#e7eeff] transition-colors"
-                  title="Thu nhỏ/Mở rộng"
-                >
-                  <span className="material-symbols-outlined text-[20px]">dock_to_right</span>
-                </button>
-                <button
-                  onClick={() => setIsDrawerOpen(false)}
-                  className="p-1.5 rounded-lg text-[#70787f] hover:text-[#ba1a1a] hover:bg-[#ffdad6] transition-colors"
-                  title="Đóng drawer"
-                >
-                  <span className="material-symbols-outlined text-[20px]">close</span>
-                </button>
-              </div>
-            </div>
-
-            {/* 6-Stage Audit Timeline (Tiến độ xử lý lâm sàng & hoàn tất) */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs uppercase tracking-wider font-semibold text-[#70787f]">Quy trình xử lý đơn hàng (Audit Trail)</span>
-                <span className="text-xs font-mono text-[#004967] font-bold">{activeOrder.auditLog}</span>
-              </div>
-              {/* Stepper Progress Bars */}
-              <div className="bg-[#f0f3ff] p-3 rounded-xl space-y-2.5 border border-[#e7eeff]">
-                <div className="grid grid-cols-6 gap-1 relative items-center">
-                  <div
-                    className={`h-1.5 rounded-full ${activeOrder.auditStage >= 1 ? 'bg-[#004967]' : 'bg-[#d8e3fb]'}`}
-                    title="1. Đặt đơn (Hoàn tất)"
-                  />
-                  <div
-                    className={`h-1.5 rounded-full ${activeOrder.auditStage >= 2 ? 'bg-[#004967]' : 'bg-[#d8e3fb]'}`}
-                    title="2. Thanh toán (Đã xác nhận)"
-                  />
-                  <div
-                    className={`h-1.5 rounded-full ${activeOrder.auditStage >= 3 ? 'bg-[#004967]' : 'bg-[#d8e3fb]'}`}
-                    title="3. Duyệt toa OD/OS (Đã ký)"
-                  />
-                  <div
-                    className={`h-1.5 rounded-full ${activeOrder.auditStage === 4 ? 'bg-[#19648f] animate-pulse' : activeOrder.auditStage > 4 ? 'bg-[#004967]' : 'bg-[#d8e3fb]'}`}
-                    title="4. Mài lắp Lab (Đang thực hiện)"
-                  />
-                  <div
-                    className={`h-1.5 rounded-full ${activeOrder.auditStage === 5 ? 'bg-[#19648f] animate-pulse' : activeOrder.auditStage > 5 ? 'bg-[#004967]' : 'bg-[#d8e3fb]'}`}
-                    title="5. QC & Đóng gói"
-                  />
-                  <div
-                    className={`h-1.5 rounded-full ${activeOrder.auditStage >= 6 ? 'bg-[#004967]' : 'bg-[#d8e3fb]'}`}
-                    title="6. Bàn giao khách"
-                  />
-                </div>
-                <div className="flex items-center justify-between text-xs font-mono text-[#111c2d]">
-                  <div className="flex items-center gap-1.5 text-[#004967] font-semibold">
-                    <span className="material-symbols-outlined text-[16px] animate-spin">precision_manufacturing</span>
-                    <span>{activeOrder.techStatus.label} ({activeOrder.techStatus.machine})</span>
-                  </div>
-                  <span className="text-[#70787f]">{activeOrder.techStatus.techTime} {activeOrder.techStatus.technician}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Patient & Prescription Matrix Card (Medical Rigor Component) */}
-            <div className="bg-[#f0f3ff] p-3 rounded-xl space-y-2.5 border border-[#e7eeff]">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-[#004967] text-[18px]">clinical_notes</span>
-                  <span className="text-sm font-bold text-[#111c2d]">Toa Kính Khúc Xạ Gắn Kèm</span>
-                </div>
-                <span className="px-2 py-0.5 rounded-full bg-[#cae6ff] text-[#004b70] text-[11px] font-semibold">
-                  {activeOrder.rx.doctorName}
-                </span>
-              </div>
-
-              {/* OD/OS Medical Matrix Table */}
-              <div className="bg-white rounded-lg p-2 overflow-x-auto shadow-sm border border-[#e7eeff]">
-                <table className="w-full text-center text-xs font-mono">
-                  <thead>
-                    <tr className="text-[#70787f] font-semibold border-b border-[#e7eeff] pb-1">
-                      <th className="py-1 text-left px-2">Mắt</th>
-                      <th className="py-1">SPH (Cầu)</th>
-                      <th className="py-1">CYL (Trụ)</th>
-                      <th className="py-1">AXIS (Trục)</th>
-                      <th className="py-1">ADD (Cộng)</th>
-                      <th className="py-1">PD (Đồng tử)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#e7eeff]">
-                    <tr className="text-[#111c2d]">
-                      <td className="py-1.5 text-left px-2 font-bold text-[#004967] flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-[#004967]" /> OD (Phải)
-                      </td>
-                      <td className="py-1.5 font-bold">{activeOrder.rx.od.sph}</td>
-                      <td className="py-1.5 text-[#70787f]">{activeOrder.rx.od.cyl}</td>
-                      <td className="py-1.5">{activeOrder.rx.od.axis}</td>
-                      <td className="py-1.5 text-[#70787f]">{activeOrder.rx.od.add}</td>
-                      <td className="py-1.5 font-bold" rowSpan={2}>{activeOrder.rx.od.pd}</td>
-                    </tr>
-                    <tr className="text-[#111c2d]">
-                      <td className="py-1.5 text-left px-2 font-bold text-[#19648f] flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-[#19648f]" /> OS (Trái)
-                      </td>
-                      <td className="py-1.5 font-bold">{activeOrder.rx.os.sph}</td>
-                      <td className="py-1.5 text-[#70787f]">{activeOrder.rx.os.cyl}</td>
-                      <td className="py-1.5">{activeOrder.rx.os.axis}</td>
-                      <td className="py-1.5 text-[#70787f]">{activeOrder.rx.os.add}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <div className="text-xs text-[#40484e] flex items-center justify-between px-1">
-                <span>Chiều cao tâm kính (SH): <strong className="text-[#111c2d] font-mono">{activeOrder.rx.sh}</strong></span>
-                <span>Khoảng cách đỉnh giác mạc (CVD): <strong className="text-[#111c2d] font-mono">{activeOrder.rx.cvd}</strong></span>
-              </div>
-            </div>
-
-            {/* Inventory Materials & Items List */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs uppercase tracking-wider font-semibold text-[#70787f]">
-                  Vật tư &amp; Sản phẩm xuất kho {activeOrder.channelLabel}
-                </span>
-                <span className="text-xs text-[#004967] font-semibold">Trừ kho tức thì</span>
-              </div>
-              <div className="bg-[#f0f3ff] rounded-xl p-3 space-y-2 border border-[#e7eeff]">
-                {/* Item 1: Frame */}
-                <div className="flex items-center gap-3 p-2 bg-white rounded-lg shadow-sm border border-[#e7eeff]">
-                  <div className="w-11 h-11 rounded-lg bg-[#e7eeff] flex items-center justify-center text-[#004967] shrink-0">
-                    <span className="material-symbols-outlined text-[24px]">eyeglasses</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-bold text-[#111c2d] truncate">{activeOrder.product.frameName}</div>
-                    <div className="text-[11px] font-mono text-[#70787f] flex items-center gap-2">
-                      <span>SKU: {activeOrder.product.frameSku}</span>
-                      <span>|</span>
-                      <span>SL: 01 cái</span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xs font-mono font-bold text-[#111c2d]">
-                      {activeOrder.product.framePrice.toLocaleString('vi-VN')} đ
-                    </div>
-                    <div className="text-[11px] text-[#70787f]">Kho kệ: {activeOrder.product.frameShelf}</div>
-                  </div>
-                </div>
-
-                {/* Item 2: Lenses Pair */}
-                <div className="flex items-center gap-3 p-2 bg-white rounded-lg shadow-sm border border-[#e7eeff]">
-                  <div className="w-11 h-11 rounded-lg bg-[#dee8ff] flex items-center justify-center text-[#19648f] shrink-0">
-                    <span className="material-symbols-outlined text-[24px]">lens</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-bold text-[#111c2d] truncate">{activeOrder.product.lensName}</div>
-                    <div className="text-[11px] font-mono text-[#70787f] flex items-center gap-2">
-                      <span>SKU: {activeOrder.product.lensSku}</span>
-                      <span>|</span>
-                      <span>OD/OS phôi sẵn</span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xs font-mono font-bold text-[#111c2d]">
-                      {activeOrder.product.lensPrice.toLocaleString('vi-VN')} đ
-                    </div>
-                    <div className="text-[11px] text-[#70787f]">{activeOrder.product.lensShelf}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Payment Breakdown Summary */}
-            <div className="bg-[#f0f3ff] rounded-xl p-3 space-y-1.5 text-xs border border-[#e7eeff]">
-              <div className="flex justify-between text-[#40484e]">
-                <span>Tổng tiền hàng (2 món)</span>
-                <span className="font-mono">{activeOrder.payment.totalItems.toLocaleString('vi-VN')} đ</span>
-              </div>
-              <div className="flex justify-between text-[#40484e]">
-                <span>{activeOrder.payment.discountLabel}</span>
-                <span className="font-mono text-[#004967]">{activeOrder.payment.discount.toLocaleString('vi-VN')} đ</span>
-              </div>
-              <div className="flex justify-between text-[#40484e]">
-                <span>Phí gia công mài lắp kỹ thuật cao</span>
-                <span className="font-mono text-[#004966]">{activeOrder.payment.labFeeLabel}</span>
-              </div>
-              <div className="pt-2 bg-white p-2 rounded-lg flex justify-between items-center text-sm font-bold text-[#111c2d] shadow-sm border border-[#e7eeff]">
-                <span>Thực thu quyết toán</span>
-                <span className="font-mono text-[#004967] text-[18px]">
-                  {activeOrder.payment.finalTotal.toLocaleString('vi-VN')} đ
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-[11px] text-[#70787f] pt-0.5 px-1">
-                <span className="flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[15px] text-[#004967]">qr_code_2</span>
-                  <span>{activeOrder.payment.transactionRef}</span>
-                </span>
-                <span className="text-[#004967] font-semibold">{activeOrder.payment.status}</span>
-              </div>
-            </div>
-
-            {/* Quick Action Deck for Staff / Technicians */}
-            <div className="space-y-2 pt-1">
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => message.info(`Đang tạo hóa đơn điện tử VAT cho ${activeOrder.id}...`)}
-                  className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-[#e7eeff] hover:bg-[#dee8ff] text-[#111c2d] text-xs font-semibold transition-all shadow-sm"
-                >
-                  <span className="material-symbols-outlined text-[18px]">receipt_long</span>
-                  <span>In HĐ VAT Điện tử</span>
-                </button>
-                <button
-                  onClick={() => message.info(`Đang in phiếu gia công kỹ thuật A5 cho ${activeOrder.id}...`)}
-                  className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-[#086288] text-white text-xs font-semibold shadow-sm hover:bg-[#004967] transition-all"
-                >
-                  <span className="material-symbols-outlined text-[18px]">print</span>
-                  <span>In Phiếu Kỹ Thuật A5</span>
-                </button>
-              </div>
-
-              {activeOrder.auditStage === 4 ? (
-                <button
-                  onClick={handleAdvanceLabStage}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#004967] text-white text-xs font-bold shadow-md hover:bg-[#086288] transition-all"
-                >
-                  <span className="material-symbols-outlined text-[20px]">check_circle</span>
-                  <span>Xác Nhận Lab Đã Xong - Chuyển QC &amp; Đóng Gói</span>
-                </button>
-              ) : activeOrder.auditStage === 5 ? (
-                <button
-                  onClick={() => {
-                    setOrders(prev => prev.map(o => o.id === activeOrder.id ? { ...o, auditStage: 6, statusCode: 'completed', auditLog: 'Giai đoạn 6/6' } : o));
-                    message.success(`Đơn ${activeOrder.id} đã hoàn tất kiểm tra QC và bàn giao vận chuyển!`);
-                  }}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#19648f] text-white text-xs font-bold shadow-md hover:bg-[#004967] transition-all"
-                >
-                  <span className="material-symbols-outlined text-[20px]">verified</span>
-                  <span>QC Đạt Chuẩn - Bàn Giao Khách / Shipper</span>
-                </button>
-              ) : (
-                <div className="w-full py-2.5 rounded-xl bg-[#f0f3ff] text-center text-xs text-[#004967] font-semibold border border-[#d8e3fb]">
-                  Đơn hàng đang ở trạng thái: {activeOrder.techStatus.label}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
+        {error ? <Alert type="error" showIcon message={error} action={<Button onClick={loadOrders}>Thử lại</Button>} /> : <Table rowKey="id" columns={columns} dataSource={filtered} loading={loading} scroll={{ x: 820 }} pagination={{ pageSize: 10, showSizeChanger: false, hideOnSinglePage: true }} locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Không có đơn hàng phù hợp" /> }} />}
+      </section>
+      <Drawer title={activeOrder ? `Đơn ${code(activeOrder)}` : 'Chi tiết đơn'} open={activeId !== null} onClose={() => setActiveId(null)} width={520}>
+        {activeOrder && <div className="simple-workspace workspace-detail">
+          <div>{statusTag(activeOrder.status)}</div>
+          <section><h2>Khách hàng</h2><p className="workspace-name">{activeOrder.customerName || 'Khách vãng lai'}</p><p>{activeOrder.customerPhone || 'Chưa có số điện thoại'}</p>{activeOrder.shippingAddress && <p className="workspace-muted">{activeOrder.shippingAddress}</p>}</section>
+          <section><h2>Sản phẩm</h2><div className="workspace-items">{(activeOrder.items || []).map((item, index) => <div className="workspace-item" key={item.id || index}><div><span className="workspace-name">{item.productName}</span><div className="workspace-muted">{item.quantity ?? 1} × {money(item.unitPrice)}</div>{item.prescriptionId && <div className="workspace-muted">Toa kính #{item.prescriptionId}</div>}</div><span>{money(item.subtotal ?? Number(item.unitPrice) * (item.quantity ?? 1))}</span></div>)}</div></section>
+          <section className="workspace-totals">
+            <div><span>Tiền hàng</span><span>{money(activeOrder.totalAmount)}</span></div>
+            {Number(activeOrder.discountAmount) > 0 && <div><span>Giảm giá</span><span>−{money(activeOrder.discountAmount)}</span></div>}
+            {Number(activeOrder.taxAmount) > 0 && <div><span>Thuế</span><span>{money(activeOrder.taxAmount)}</span></div>}
+            <div className="workspace-total"><strong>Tổng tiền</strong><strong>{money(activeOrder.finalAmount)}</strong></div>
+            <div className="workspace-muted"><span>Phương thức</span><span>{({ CASH: 'Tiền mặt', CARD: 'Thẻ', VIETQR: 'VietQR' })[activeOrder.paymentMethod] || activeOrder.paymentMethod || '—'}</span></div>
+          </section>
+          <details className="workspace-extra"><summary>Thông tin khác</summary><p>Ngày tạo: {date(activeOrder.createdAt)}</p><p>Chi nhánh: {activeOrder.branchName || '—'}</p><p>Nhân viên: {activeOrder.staffName || '—'}</p>{activeOrder.notes && <p>Ghi chú: {activeOrder.notes}</p>}</details>
+          {nextAction && <Button type="primary" block loading={updating} onClick={advanceOrder}>{nextAction.label}</Button>}
+        </div>}
+      </Drawer>
     </div>
   );
 }
-
-

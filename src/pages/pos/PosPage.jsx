@@ -546,7 +546,7 @@ export default function PosPage() {
                   person_search
                 </span>
                 <h3 className="text-base text-[#111c2d] font-bold">
-                  Tiếp Nhận Khách Hàng (Dữ Liệu Thật CSDL)
+                  Tiếp Nhận Khách Hàng 
                 </h3>
               </div>
               <button
@@ -615,7 +615,6 @@ export default function PosPage() {
             </div>
 
             <div className="flex justify-between items-center pt-2 border-t border-slate-100">
-              <span className="text-[11px] text-[#70787f]">CSDL: {dbCustomers.length} khách hàng</span>
               <button
                 type="button"
                 onClick={() => setIsCustomerModalOpen(false)}
