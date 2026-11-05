@@ -145,7 +145,15 @@ export default function PosPage() {
     }).catch(e => console.warn('Sync rx modal error:', e));
   }, []);
 
-  const offerKey = JSON.stringify({ items: cart.map(item => ({ skuId: item.sku, quantity: item.quantity })), customerId: customer.id || null, voucherCode: appliedVoucher, pointsToUse, branchCode, catalogVersion });
+  useEffect(() => {
+    if (catalogLoading || catalogError) return;
+    setCart(current => current.map(item => {
+      const product = catalogProducts.find(product => product.sku === item.sku);
+      return product ? { ...item, price: product.price, name: product.name, image: product.image } : item;
+    }));
+  }, [catalogProducts, catalogLoading, catalogError]);
+
+  const offerKey = JSON.stringify({ items: cart.map(item => ({ skuId: item.sku, quantity: item.quantity, price: item.price })), prescriptionId: linkedRx?.id || null, customerId: customer.id || null, voucherCode: appliedVoucher, pointsToUse, branchCode, catalogVersion });
   const offerReady = offer?.key === offerKey;
   const subtotal = offerReady ? Number(offer.subtotal) : cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const discountTotal = offerReady ? Number(offer.voucherDiscount) + Number(offer.pointsDiscount) : 0;
@@ -160,8 +168,9 @@ export default function PosPage() {
   useEffect(() => {
     let active = true; setOfferError('');
     if (!cart.length) { setOffer(null); return; }
-    const timer = setTimeout(() => promotionApi.quote({ customerId: customer.id || null, voucherCode: appliedVoucher, pointsToUse,
-      items: cart.map(item => ({ skuId: item.sku, productName: item.name, quantity: item.quantity, unitPrice: item.price }))
+    const timer = setTimeout(() => promotionApi.quote({ customerId: customer.id || null, prescriptionId: linkedRx?.id || null, voucherCode: appliedVoucher, pointsToUse,
+      items: cart.map(item => ({ skuId: item.sku, productName: item.name, quantity: item.quantity, unitPrice: item.price,
+        prescriptionId: linkedRx && catalogProducts.find(product => product.sku === item.sku)?.category === 'LENS' ? linkedRx.id : null }))
     }).then(result => { if (active) setOffer({ ...result, key: offerKey }); }).catch(error => { if (active) { setOffer(null); setOfferError(error.message); } }), 200);
     return () => { active = false; clearTimeout(timer); };
   }, [offerKey]);
@@ -362,22 +371,17 @@ export default function PosPage() {
         customerName: customer.name,
         customerPhone: customer.phone,
         channel: 'POS',
-        totalAmount: subtotal,
-        discountAmount: discountTotal,
         voucherCode: appliedVoucher || null,
         pointsToUse,
         cashReceived: payTab === 'cash' ? Number(cashGiven) : null,
-        finalAmount: grandTotal,
         paymentMethod: payTab === 'vietqr' ? 'VIETQR' : payTab === 'cash' ? 'CASH' : 'CARD',
         staffName: user?.staffName || user?.fullName || user?.staffId || 'Thu ngân',
         branchName: selectedBranch,
         branchCode,
-        status: 'PAID',
         items: cart.map(item => ({
           skuId: item.sku, productName: item.name,
           prescriptionId: linkedRx && catalogProducts.find(product => product.sku === item.sku)?.category === 'LENS' ? linkedRx.id : null,
-          quantity: item.quantity, unitPrice: item.price,
-          subtotal: item.price * item.quantity
+          quantity: item.quantity, expectedUnitPrice: item.price
         }))
       };
       const requestFingerprint = JSON.stringify({ ...orderPayload, cashReceived: undefined });
@@ -446,7 +450,11 @@ export default function PosPage() {
   return (
     <main className="pos-page">
       <div className="pos-today-tools"><HeldCartsPanel drafts={held.drafts} onHold={holdCart} onRestore={restoreCart} onDelete={id => { try { held.remove(id); } catch(error) { message.error(error.message); } }} disabled={paying || catalogLoading} />
-        <CancelOrderPanel lastOrder={lastOrder} onChanged={saved => { if (saved.id === lastOrder?.id) setLastOrder(saved); setCatalogVersion(value => value + 1); }} /></div>
+        <CancelOrderPanel lastOrder={lastOrder} onChanged={saved => { if (saved.id === lastOrder?.id) setLastOrder(saved); setCatalogVersion(value => value + 1); }} />
+        <button type="button" className="pos-outline" disabled={paying || catalogLoading} onClick={() => Modal.confirm({
+          title: 'Cập nhật giá và tồn kho?', content: 'Giỏ hàng được giữ nguyên số lượng. Giá sẽ lấy lại từ catalog; hãy kiểm tra tổng tiền mới trước khi thanh toán.',
+          okText: 'Cập nhật', cancelText: 'Giữ giá hiện tại', onOk: () => { setOffer(null); setCashGiven(0); setCatalogVersion(value => value + 1); }
+        })}>Cập nhật giá / tồn kho</button></div>
       <InventorySyncPanel branchCode={branchCode} selectedBranch={selectedBranch} lastOrder={lastOrder} onSynced={() => setCatalogVersion(value => value + 1)} />
       <ReceiptPreview order={lastOrder} open={receiptOpen} onClose={() => setReceiptOpen(false)} />
       {!catalogLoading && !catalogError && branchCode && catalogProducts.length > 0
