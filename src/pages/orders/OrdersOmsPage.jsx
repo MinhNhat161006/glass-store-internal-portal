@@ -10,6 +10,7 @@ const statuses = {
   PENDING: ['Chờ thanh toán', 'orange'],
   PENDING_PAYMENT: ['Chờ thanh toán', 'orange'],
   PAID: ['Đã thanh toán', 'blue'],
+  LAB_DISPATCH_FAILED: ['Chưa gửi được lệnh Lab', 'red'],
   WAITING_RX: ['Chờ toa kính', 'orange'],
   PROCESSING: ['Đang gia công', 'orange'],
   QC_PACKAGING: ['Chờ kiểm tra', 'purple'],
@@ -32,153 +33,6 @@ const CARRIERS = [
   { id: 'Nội bộ', name: 'Đội Vận Chuyển Nội Bộ', prefix: 'NB-DELI', color: 'blue', desc: 'Tài xế showroom giao trực tiếp tận tay' }
 ];
 
-const DEMO_ORDERS = [
-  {
-    id: 1,
-    orderCode: 'OPT-POS-2026-001',
-    channel: 'POS',
-    branchName: 'Flagship Q.1 (POS)',
-    status: 'PAID',
-    customerName: 'Trần Minh Quân',
-    customerPhone: '0901234567',
-    shippingAddress: 'Quầy Flagship Q.1, 123 Lê Lợi, P. Bến Nghé, Quận 1, TP.HCM',
-    staffName: 'Nguyễn Văn Nam (POS)',
-    paymentMethod: 'VIETQR',
-    totalAmount: 5700000,
-    discountAmount: 200000,
-    taxAmount: 440000,
-    finalAmount: 5940000,
-    notes: 'Khách yêu cầu mài lấy liền trong 45 phút',
-    createdAt: new Date().toISOString(),
-    carrierName: '',
-    trackingCode: '',
-    completedAt: null,
-    items: [
-      { id: 101, skuId: 'FRM-RB-AVIATOR', sku: 'FRM-RB-AVIATOR', productName: 'Gọng Kính Ray-Ban Aviator Classic', unitPrice: 3500000, quantity: 1, subtotal: 3500000 },
-      { id: 102, skuId: 'LNS-ESSILOR-167', sku: 'LNS-ESSILOR-167', productName: 'Tròng Kính Crizal Sapphire HR 1.67', unitPrice: 2200000, quantity: 1, subtotal: 2200000 }
-    ],
-    prescription: {
-      odSph: '-2.50', odCyl: '-0.50', odAxis: '180', odAdd: '—',
-      osSph: '-2.25', osCyl: '-0.50', osAxis: '175', osAdd: '—',
-      pd: '63.5'
-    }
-  },
-  {
-    id: 2,
-    orderCode: 'OPT-ONL-2026-002',
-    channel: 'ONLINE',
-    branchName: 'Trung Tâm Kho & Xưởng Lab TP.HCM',
-    status: 'PROCESSING',
-    customerName: 'Lê Thu Trang',
-    customerPhone: '0988776655',
-    shippingAddress: 'Toà Landmark 81, P.22, Bình Thạnh, TP.HCM',
-    staffName: 'Hệ Thống Online',
-    paymentMethod: 'CARD',
-    totalAmount: 4400000,
-    discountAmount: 150000,
-    taxAmount: 340000,
-    finalAmount: 4590000,
-    notes: 'Giao hàng hỏa tốc trong giờ hành chính',
-    createdAt: new Date().toISOString(),
-    carrierName: '',
-    trackingCode: '',
-    completedAt: null,
-    items: [
-      { id: 201, skuId: 'FRM-BOLON-7012', sku: 'FRM-BOLON-7012', productName: 'Gọng Kính Bolon Titanium BL7012', unitPrice: 2800000, quantity: 1, subtotal: 2800000 },
-      { id: 202, skuId: 'LNS-HOYA-BLUE', sku: 'LNS-HOYA-BLUE', productName: 'Tròng Cắt Ánh Sáng Xanh Hoya Stellify 1.60', unitPrice: 1600000, quantity: 1, subtotal: 1600000 }
-    ],
-    prescription: {
-      odSph: '-1.75', odCyl: '-0.25', odAxis: '170', odAdd: '—',
-      osSph: '-1.50', osCyl: '-0.50', osAxis: '180', osAdd: '—',
-      pd: '62.0'
-    }
-  },
-  {
-    id: 3,
-    orderCode: 'OPT-POS-2026-003',
-    channel: 'POS',
-    branchName: 'Flagship Q.1 (POS)',
-    status: 'SHIPPING',
-    customerName: 'Phạm Đức Hoàng',
-    customerPhone: '0912345678',
-    shippingAddress: '45 Võ Văn Tần, P.6, Quận 3, TP.HCM',
-    staffName: 'Nguyễn Văn Nam (POS)',
-    paymentMethod: 'VIETQR',
-    carrierName: 'GHTK',
-    trackingCode: 'GHTK-HN-2026884',
-    totalAmount: 9000000,
-    discountAmount: 500000,
-    taxAmount: 680000,
-    finalAmount: 9180000,
-    notes: 'Kính đã kiểm tra QC đạt chuẩn quang học 100%',
-    createdAt: new Date().toISOString(),
-    completedAt: null,
-    items: [
-      { id: 301, skuId: 'FRM-GUCCI-9988', sku: 'FRM-GUCCI-9988', productName: 'Gọng Kính Nhựa Cao Cấp Gucci GG0061O', unitPrice: 5200000, quantity: 1, subtotal: 5200000 },
-      { id: 302, skuId: 'LNS-ZEISS-PHOTO', sku: 'LNS-ZEISS-PHOTO', productName: 'Tròng Đổi Màu Zeiss PhotoFusion X 1.60', unitPrice: 3800000, quantity: 1, subtotal: 3800000 }
-    ],
-    prescription: {
-      odSph: '-3.00', odCyl: '-0.75', odAxis: '175', odAdd: '—',
-      osSph: '-3.25', osCyl: '-0.50', osAxis: '180', osAdd: '—',
-      pd: '64.0'
-    }
-  },
-  {
-    id: 4,
-    orderCode: 'OPT-ONL-2026-004',
-    channel: 'ONLINE',
-    branchName: 'Website Online',
-    status: 'COMPLETED',
-    customerName: 'Võ Thị Mai Lan',
-    customerPhone: '0977665544',
-    shippingAddress: '12 Nguyễn Trãi, Phường 2, Quận 5, TP.HCM',
-    staffName: 'Hệ Thống Online',
-    paymentMethod: 'VIETQR',
-    carrierName: 'AhaMove',
-    trackingCode: 'AHA-SG-993214',
-    completedAt: new Date(Date.now() - 3600000).toISOString(),
-    totalAmount: 3950000,
-    discountAmount: 0,
-    taxAmount: 316000,
-    finalAmount: 4266000,
-    notes: 'Khách nhận kính hài lòng, thị lực đạt 10/10',
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-    items: [
-      { id: 401, skuId: 'FRM-OAKLEY-5120', sku: 'FRM-OAKLEY-5120', productName: 'Gọng Kính Thể Thao Oakley Socket 5.0', unitPrice: 3100000, quantity: 1, subtotal: 3100000 },
-      { id: 402, skuId: 'LNS-CHEMI-U2', sku: 'LNS-CHEMI-U2', productName: 'Tròng Kính Chống Trầy Chemi Crystal U2 1.60', unitPrice: 850000, quantity: 1, subtotal: 850000 }
-    ],
-    prescription: {
-      odSph: '-1.25', odCyl: '0.00', odAxis: '0', odAdd: '—',
-      osSph: '-1.25', osCyl: '0.00', osAxis: '0', osAdd: '—',
-      pd: '61.5'
-    }
-  },
-  {
-    id: 5,
-    orderCode: 'OPT-ONL-2026-005',
-    channel: 'ONLINE',
-    branchName: 'Website Online',
-    status: 'CANCELLED',
-    customerName: 'Đặng Tuấn Anh',
-    customerPhone: '0933221100',
-    shippingAddress: '88 Bạch Đằng, P.2, Tân Bình, TP.HCM',
-    staffName: 'Hệ Thống Online',
-    paymentMethod: 'CASH',
-    carrierName: '',
-    trackingCode: '',
-    completedAt: null,
-    totalAmount: 2150000,
-    discountAmount: 0,
-    taxAmount: 172000,
-    finalAmount: 2322000,
-    notes: 'Khách yêu cầu hủy đơn do đổi sang mẫu gọng khác',
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-    items: [
-      { id: 501, skuId: 'FRM-VOGUE-2024', sku: 'FRM-VOGUE-2024', productName: 'Gọng Kính Nữ Vogue Eyewear VO5338', unitPrice: 2150000, quantity: 1, subtotal: 2150000 }
-    ],
-    prescription: null
-  }
-];
 
 const money = value => value == null ? '—' : Number(value).toLocaleString('vi-VN') + ' ₫';
 const date = value => value && !Number.isNaN(new Date(value).getTime()) ? new Date(value).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' }) : '—';
@@ -199,7 +53,7 @@ const statusTag = value => {
 export default function OrdersOmsPage() {
   const location = useLocation();
   const { user } = useAuth();
-  const [orders, setOrders] = useState(DEMO_ORDERS);
+  const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
@@ -241,11 +95,10 @@ export default function OrdersOmsPage() {
     try {
       const response = await orderApi.getAllOrders();
       const data = response?.data ?? response;
-      if (Array.isArray(data) && data.length > 0) {
-        setOrders(data);
-      }
+      if (!Array.isArray(data)) throw new Error("Dữ liệu đơn hàng không hợp lệ.");
+      setOrders(data);
     } catch (err) {
-      console.warn('Không kết nối được API backend, sử dụng danh sách mẫu:', err.message);
+      setError(err.message || 'Không tải được đơn hàng.');
     } finally {
       setLoading(false);
     }
@@ -254,6 +107,9 @@ export default function OrdersOmsPage() {
   useEffect(() => {
     loadOrders();
   }, []);
+  useEffect(() => {
+    setModalOrder(previous => previous ? orders.find(order => order.id === previous.id) || null : null);
+  }, [orders]);
 
   useEffect(() => {
     const requested = new URLSearchParams(location.search).get('order');
@@ -333,7 +189,6 @@ export default function OrdersOmsPage() {
       const currentOrder = orders.find(o => o.id === orderId);
       const payload = {
         status: targetStatus,
-        actor: user?.staffName || user?.fullName || user?.username || 'Huy Đức (Quản lý OMS)',
         reason: extraParams.reason || `Chuyển trạng thái sang ${targetStatus}`,
         carrierName: extraParams.carrierName || currentOrder?.carrierName || undefined,
         trackingCode: extraParams.trackingCode || currentOrder?.trackingCode || undefined
@@ -341,6 +196,7 @@ export default function OrdersOmsPage() {
 
       const response = await orderApi.updateOrderStatus(orderId, payload);
       const saved = response?.data ?? response;
+      if (!saved?.id || !saved?.status) throw new Error("Máy chủ chưa xác nhận trạng thái đã lưu.");
 
       // Cập nhật state local bảo toàn thông tin vận đơn trước đó
       setOrders(prev => prev.map(o => {
@@ -351,7 +207,7 @@ export default function OrdersOmsPage() {
         return {
           ...o,
           ...saved,
-          status: targetStatus,
+          status: saved.status,
           carrierName: carrier,
           trackingCode: tracking,
           completedAt: completed
@@ -387,6 +243,7 @@ export default function OrdersOmsPage() {
           duration: 3
         });
       }
+      return saved;
     } catch (err) {
       console.error('Lỗi khi chuyển trạng thái đơn hàng:', err);
       const errorMsg = err?.message || err?.data?.message || 'Máy chủ từ chối chuyển trạng thái đơn hàng (bước chuyển không hợp lệ).';
@@ -396,7 +253,8 @@ export default function OrdersOmsPage() {
         duration: 4
       });
       // Subtask 4.2: Khôi phục lại trạng thái giao diện chuẩn, tránh dữ liệu rác
-      loadOrders();
+      await loadOrders();
+      return null;
     } finally {
       setUpdating(false);
     }
@@ -432,17 +290,17 @@ export default function OrdersOmsPage() {
     const carrier = selectedCarrier;
     const tracking = inputTrackingCode.trim();
 
-    await handleUpdateStatus(orderId, 'SHIPPING', {
+    const saved = await handleUpdateStatus(orderId, 'SHIPPING', {
       carrierName: carrier,
       trackingCode: tracking,
       reason: shippingNote ? `Bàn giao ${carrier}: ${shippingNote}` : `Bàn giao đơn vị ${carrier} vận chuyển`
     });
 
+    if (!saved) return;
     setShippingModalOpen(false);
 
     if (andPrint) {
-      const targetOrder = orders.find(o => o.id === orderId) || shippingOrder;
-      setLabelOrder({ ...targetOrder, carrierName: carrier, trackingCode: tracking });
+      setLabelOrder(saved);
       setLabelOpen(true);
     }
   };
@@ -795,17 +653,35 @@ export default function OrdersOmsPage() {
                   <Tag color="default">Chế độ xem chỉ đọc (Không có quyền OMS)</Tag>
                 ) : (
                   <>
-                    <Button size="small" onClick={() => handleUpdateStatus(modalOrder.id, 'PAID', { reason: 'Xác nhận thanh toán' })}>PAID</Button>
-                    <Button size="small" onClick={() => handleUpdateStatus(modalOrder.id, 'PROCESSING', { reason: 'Chuyển xưởng Lab mài kính' })}>PROCESSING (Lab)</Button>
+                    {['PAID', 'CONFIRMED'].includes(modalOrder.status) && <Button size="small" loading={updating} onClick={() => handleUpdateStatus(modalOrder.id, 'PREPARING', { reason: 'Chuyển xưởng Lab mài kính' })}>Chuyển gia công</Button>}
+                    {normalizeStatus(modalOrder.status) === 'PROCESSING' && (
                     <Button size="small" type="primary" className="bg-indigo-600" onClick={() => openShippingModal(modalOrder)}>
                       Bàn giao Shipper (SHIPPING)
                     </Button>
+                    )}
+                    {['SHIPPING', 'READY_FOR_PICKUP'].includes(modalOrder.status) && (
                     <Button size="small" type="primary" className="bg-emerald-600" onClick={() => handleUpdateStatus(modalOrder.id, 'COMPLETED', { reason: 'Giao hàng thành công' })}>
                       COMPLETED (Hoàn tất)
                     </Button>
-                    <Button size="small" danger onClick={() => handleUpdateStatus(modalOrder.id, 'CANCELLED', { reason: 'Quản lý hủy đơn hàng' })}>
-                      CANCELLED (Hủy)
-                    </Button>
+                    )}
+                    {modalOrder.channel === 'POS' && ['PAID', 'CANCEL_PENDING'].includes(modalOrder.status) && (
+                      <Button size="small" danger loading={updating} onClick={() => Modal.confirm({
+                        title: 'Hủy đơn hàng?',
+                        content: 'Đơn đã thanh toán sẽ được đối soát kho và chờ xác nhận hoàn tiền.',
+                        okText: 'Hủy đơn', cancelText: 'Đóng',
+                        onOk: async () => {
+                          setUpdating(true);
+                          try {
+                            await orderApi.cancel(modalOrder.id, 'Quản lý hủy đơn hàng', false);
+                            await loadOrders();
+                            message.success('Đã tiếp nhận yêu cầu hủy đơn.');
+                          } catch (err) {
+                            message.error(err.message || 'Không thể hủy đơn.');
+                            throw err;
+                          } finally { setUpdating(false); }
+                        }
+                      })}>Hủy đơn</Button>
+                    )}
                   </>
                 )}
               </div>
@@ -939,7 +815,7 @@ export default function OrdersOmsPage() {
               <div className="grid grid-cols-2 gap-4 text-xs">
                 <div className="space-y-1">
                   <div className="text-slate-600">Phương thức: <strong className="text-[#004967]">{modalOrder.paymentMethod || 'VIETQR'}</strong></div>
-                  <div className="text-slate-600">Trạng thái thanh toán: <strong className="text-emerald-700">Đã thanh toán (PAID)</strong></div>
+                  <div className="text-slate-600">Trạng thái đơn: {statusTag(modalOrder.status)}</div>
                 </div>
 
                 <div className="space-y-1 text-right">

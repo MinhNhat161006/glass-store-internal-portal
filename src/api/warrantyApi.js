@@ -16,7 +16,7 @@ export const warrantyApi = {
   updateRepair: (id, payload) => request(`/api/repair-services/${id}/status`, { method: 'PATCH', body: JSON.stringify(payload) }),
   getAllWarranties: () => apiFetch('/api/warranties'),
   getWarrantyById: (id) => apiFetch(`/api/warranties/${id}`),
-  createWarranty: (data) => apiFetch('/api/warranties', {
+  createWarranty: (data) => apiFetch('/api/warranties/activate', {
     method: 'POST',
     body: JSON.stringify(data)
   }),

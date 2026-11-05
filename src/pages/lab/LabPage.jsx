@@ -20,7 +20,7 @@ export default function LabPage() {
       if (Array.isArray(jobs)) {
         const mapped = jobs.map((j, idx) => {
           const status = (j.status || 'PENDING').toUpperCase();
-          const rawStatus = status === 'QC_CHECK' ? 'QC_PENDING' : status;
+          const rawStatus = ({ CREATED: 'PENDING', QUEUED: 'RECEIVED', QC_CHECK: 'QC_PENDING' })[status] || status;
 
           // Map status styling and human readable labels
           let statusLabel = 'Chờ nạp máy';
@@ -61,7 +61,7 @@ export default function LabPage() {
             id: `#LAB-2026-0${j.id}`,
             dbId: j.id,
             rawStatus,
-            tray: `Khay Xanh #${j.id < 10 ? '0' + j.id : j.id}`,
+            tray: j.trayNumber || `Khay #${j.id}`,
             orderId: j.orderCode || (j.orderId ? `#${j.orderId}` : 'Chưa liên kết đơn'),
             customer: j.customerName || j.prescription?.customerName || 'Khách hàng',
             phone: j.customerPhone || '—',
