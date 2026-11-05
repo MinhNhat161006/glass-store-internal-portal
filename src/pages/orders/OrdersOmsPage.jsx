@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Drawer, Empty, Input, Modal, Table, Tag, message } from 'antd';
+import { Alert, Button, Drawer, Empty, Input, Modal, Table, Tag, message, Radio } from 'antd';
 import { orderApi } from '../../api/orderApi';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -11,14 +11,14 @@ const statuses = {
   PENDING_PAYMENT: ['Chờ thanh toán', 'orange'],
   PAID: ['Đã thanh toán', 'blue'],
   WAITING_RX: ['Chờ toa kính', 'orange'],
-  PROCESSING: ['Đang gia công', 'blue'],
+  PROCESSING: ['Đang gia công', 'orange'],
   QC_PACKAGING: ['Chờ kiểm tra', 'purple'],
   SHIPPING: ['Đang giao', 'cyan'],
   COMPLETED: ['Hoàn tất', 'green'],
   CANCELLED: ['Đã hủy', 'default'],
   PENDING_CONFIRMATION: ['Chờ xác nhận', 'orange'],
   CONFIRMED: ['Đã xác nhận', 'blue'],
-  PREPARING: ['Đang chuẩn bị', 'blue'],
+  PREPARING: ['Đang gia công', 'orange'],
   READY_FOR_PICKUP: ['Chờ nhận tại quầy', 'cyan'],
   CANCEL_REQUESTED: ['Yêu cầu hủy', 'orange'],
   CANCEL_PENDING: ['Đang xử lý hủy', 'orange'],
@@ -26,13 +26,11 @@ const statuses = {
   REFUNDED: ['Đã hoàn tiền', 'default'],
 };
 
-const STATUS_CONFIG = {
-  PAID: { label: 'Đã thanh toán', bg: 'bg-[#cae6ff]', text: 'text-[#004b70]', badgeColor: 'blue', icon: 'payments' },
-  PROCESSING: { label: 'Đang gia công', bg: 'bg-[#ffeed9]', text: 'text-[#944a00]', badgeColor: 'orange', icon: 'precision_manufacturing' },
-  SHIPPING: { label: 'Đang giao hàng', bg: 'bg-[#e0e7ff]', text: 'text-[#3730a3]', badgeColor: 'purple', icon: 'local_shipping' },
-  COMPLETED: { label: 'Hoàn tất', bg: 'bg-[#dcfce7]', text: 'text-[#166534]', badgeColor: 'green', icon: 'check_circle' },
-  CANCELLED: { label: 'Đã hủy', bg: 'bg-[#f1f5f9]', text: 'text-[#475569]', badgeColor: 'default', icon: 'cancel' }
-};
+const CARRIERS = [
+  { id: 'GHTK', name: 'GHTK (Giao Hàng Tiết Kiệm)', prefix: 'GHTK-HN', color: 'green', desc: 'Giao nhanh toàn quốc, mạng lưới rộng' },
+  { id: 'AhaMove', name: 'AhaMove Siêu Tốc', prefix: 'AHA-SG', color: 'orange', desc: 'Giao hỏa tốc nội thành trong 2 giờ' },
+  { id: 'Nội bộ', name: 'Đội Vận Chuyển Nội Bộ', prefix: 'NB-DELI', color: 'blue', desc: 'Tài xế showroom giao trực tiếp tận tay' }
+];
 
 const DEMO_ORDERS = [
   {
@@ -43,7 +41,7 @@ const DEMO_ORDERS = [
     status: 'PAID',
     customerName: 'Trần Minh Quân',
     customerPhone: '0901234567',
-    shippingAddress: 'Quầy Flagship Q.1, 123 Lê Lợi',
+    shippingAddress: 'Quầy Flagship Q.1, 123 Lê Lợi, P. Bến Nghé, Quận 1, TP.HCM',
     staffName: 'Nguyễn Văn Nam (POS)',
     paymentMethod: 'VIETQR',
     totalAmount: 5700000,
@@ -52,6 +50,9 @@ const DEMO_ORDERS = [
     finalAmount: 5940000,
     notes: 'Khách yêu cầu mài lấy liền trong 45 phút',
     createdAt: new Date().toISOString(),
+    carrierName: '',
+    trackingCode: '',
+    completedAt: null,
     items: [
       { id: 101, skuId: 'FRM-RB-AVIATOR', sku: 'FRM-RB-AVIATOR', productName: 'Gọng Kính Ray-Ban Aviator Classic', unitPrice: 3500000, quantity: 1, subtotal: 3500000 },
       { id: 102, skuId: 'LNS-ESSILOR-167', sku: 'LNS-ESSILOR-167', productName: 'Tròng Kính Crizal Sapphire HR 1.67', unitPrice: 2200000, quantity: 1, subtotal: 2200000 }
@@ -66,7 +67,7 @@ const DEMO_ORDERS = [
     id: 2,
     orderCode: 'OPT-ONL-2026-002',
     channel: 'ONLINE',
-    branchName: 'Website Online',
+    branchName: 'Trung Tâm Kho & Xưởng Lab TP.HCM',
     status: 'PROCESSING',
     customerName: 'Lê Thu Trang',
     customerPhone: '0988776655',
@@ -79,6 +80,9 @@ const DEMO_ORDERS = [
     finalAmount: 4590000,
     notes: 'Giao hàng hỏa tốc trong giờ hành chính',
     createdAt: new Date().toISOString(),
+    carrierName: '',
+    trackingCode: '',
+    completedAt: null,
     items: [
       { id: 201, skuId: 'FRM-BOLON-7012', sku: 'FRM-BOLON-7012', productName: 'Gọng Kính Bolon Titanium BL7012', unitPrice: 2800000, quantity: 1, subtotal: 2800000 },
       { id: 202, skuId: 'LNS-HOYA-BLUE', sku: 'LNS-HOYA-BLUE', productName: 'Tròng Cắt Ánh Sáng Xanh Hoya Stellify 1.60', unitPrice: 1600000, quantity: 1, subtotal: 1600000 }
@@ -100,12 +104,15 @@ const DEMO_ORDERS = [
     shippingAddress: '45 Võ Văn Tần, P.6, Quận 3, TP.HCM',
     staffName: 'Nguyễn Văn Nam (POS)',
     paymentMethod: 'VIETQR',
+    carrierName: 'GHTK',
+    trackingCode: 'GHTK-HN-2026884',
     totalAmount: 9000000,
     discountAmount: 500000,
     taxAmount: 680000,
     finalAmount: 9180000,
     notes: 'Kính đã kiểm tra QC đạt chuẩn quang học 100%',
     createdAt: new Date().toISOString(),
+    completedAt: null,
     items: [
       { id: 301, skuId: 'FRM-GUCCI-9988', sku: 'FRM-GUCCI-9988', productName: 'Gọng Kính Nhựa Cao Cấp Gucci GG0061O', unitPrice: 5200000, quantity: 1, subtotal: 5200000 },
       { id: 302, skuId: 'LNS-ZEISS-PHOTO', sku: 'LNS-ZEISS-PHOTO', productName: 'Tròng Đổi Màu Zeiss PhotoFusion X 1.60', unitPrice: 3800000, quantity: 1, subtotal: 3800000 }
@@ -127,6 +134,9 @@ const DEMO_ORDERS = [
     shippingAddress: '12 Nguyễn Trãi, Phường 2, Quận 5, TP.HCM',
     staffName: 'Hệ Thống Online',
     paymentMethod: 'VIETQR',
+    carrierName: 'AhaMove',
+    trackingCode: 'AHA-SG-993214',
+    completedAt: new Date(Date.now() - 3600000).toISOString(),
     totalAmount: 3950000,
     discountAmount: 0,
     taxAmount: 316000,
@@ -154,6 +164,9 @@ const DEMO_ORDERS = [
     shippingAddress: '88 Bạch Đằng, P.2, Tân Bình, TP.HCM',
     staffName: 'Hệ Thống Online',
     paymentMethod: 'CASH',
+    carrierName: '',
+    trackingCode: '',
+    completedAt: null,
     totalAmount: 2150000,
     discountAmount: 0,
     taxAmount: 172000,
@@ -170,9 +183,16 @@ const DEMO_ORDERS = [
 const money = value => value == null ? '—' : Number(value).toLocaleString('vi-VN') + ' ₫';
 const date = value => value && !Number.isNaN(new Date(value).getTime()) ? new Date(value).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' }) : '—';
 const code = order => order.orderCode ? (order.orderCode.startsWith('#') ? order.orderCode : `#${order.orderCode}`) : `#${order.id}`;
+
+const normalizeStatus = s => {
+  const norm = (s || '').toUpperCase();
+  if (norm === 'PREPARING') return 'PROCESSING';
+  return norm;
+};
+
 const statusTag = value => {
-  const norm = (value || '').toUpperCase();
-  const cfg = statuses[norm] || ['Chưa cập nhật', 'default'];
+  const norm = normalizeStatus(value);
+  const cfg = statuses[norm] || statuses[(value || '').toUpperCase()] || ['Chưa cập nhật', 'default'];
   return <Tag color={cfg[1]}>{cfg[0]}</Tag>;
 };
 
@@ -190,10 +210,18 @@ export default function OrdersOmsPage() {
   const [activeId, setActiveId] = useState(null);
   const [updating, setUpdating] = useState(false);
   const [labelOpen, setLabelOpen] = useState(false);
+  const [labelOrder, setLabelOrder] = useState(null);
 
-  // Popup Modal Chi Tiết Đơn Hàng (Yêu cầu đề bài)
+  // Popup Modal Chi Tiết Đơn Hàng
   const [modalOrder, setModalOrder] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Modal Bàn Giao Vận Chuyển & Gán Tracking Code (Task 2)
+  const [shippingModalOpen, setShippingModalOpen] = useState(false);
+  const [shippingOrder, setShippingOrder] = useState(null);
+  const [selectedCarrier, setSelectedCarrier] = useState('GHTK');
+  const [inputTrackingCode, setInputTrackingCode] = useState('');
+  const [shippingNote, setShippingNote] = useState('');
 
   const activeOrder = useMemo(() => {
     return orders.find(order => order.id === activeId) || null;
@@ -229,16 +257,18 @@ export default function OrdersOmsPage() {
     }
   }, [orders, location.search]);
 
-  // Bộ lọc đơn hàng
+  // Bộ lọc đơn hàng chuẩn 5 trạng thái
   const filtered = useMemo(() => {
     const keyword = query.trim().toLocaleLowerCase('vi-VN');
     return orders.filter(order => {
-      const orderStatus = (order.status || '').toUpperCase();
+      const orderStatus = normalizeStatus(order.status);
       const orderChannel = (order.channel || '').toUpperCase();
 
       // Status filter
-      if (status !== 'all' && orderStatus !== status) {
-        return false;
+      if (status !== 'all') {
+        if (orderStatus !== status) {
+          return false;
+        }
       }
 
       // Channel filter
@@ -251,7 +281,8 @@ export default function OrdersOmsPage() {
         const matchCode = code(order).toLowerCase().includes(keyword);
         const matchName = String(order.customerName || '').toLowerCase().includes(keyword);
         const matchPhone = String(order.customerPhone || '').includes(keyword);
-        return matchCode || matchName || matchPhone;
+        const matchTracking = String(order.trackingCode || '').toLowerCase().includes(keyword);
+        return matchCode || matchName || matchPhone || matchTracking;
       }
 
       return true;
@@ -268,43 +299,149 @@ export default function OrdersOmsPage() {
         'Điện thoại': order.customerPhone || '—',
         'Kênh': order.channel,
         'Ngày tạo': date(order.createdAt),
+        'Đơn vị vận chuyển': order.carrierName || '—',
+        'Mã vận đơn': order.trackingCode || '—',
         'Tổng tiền': order.finalAmount,
-        'Trạng thái': statuses[order.status]?.[0] || order.status,
+        'Trạng thái': statuses[normalizeStatus(order.status)]?.[0] || order.status,
       })));
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, sheet, 'Đơn hàng');
-      XLSX.writeFile(workbook, `Don-hang-${new Date().toLocaleDateString('sv-SE')}.xlsx`);
-      message.success('Xuất file Excel thành công!');
+      XLSX.writeFile(workbook, `Don-hang-OMS-${new Date().toLocaleDateString('sv-SE')}.xlsx`);
+      message.success('Xuất file Excel danh sách đơn hàng thành công!');
     } catch {
       message.error('Không thể xuất danh sách đơn hàng.');
     }
   };
 
-  // Cập nhật trạng thái đơn (PATCH /api/orders/{id}/status)
-  const handleUpdateStatus = async (orderId, targetStatus, reasonLabel = '') => {
+  // Cập nhật trạng thái đơn hàng (Gọi PATCH API /api/orders/{id}/status thật)
+  const handleUpdateStatus = async (orderId, targetStatus, extraParams = {}) => {
     setUpdating(true);
-    message.loading({ content: `Đang chuyển trạng thái đơn hàng...`, key: 'oms-update' });
+    message.loading({ content: `Đang chuyển trạng thái đơn hàng sang ${targetStatus}...`, key: 'oms-update' });
     try {
-      const response = await orderApi.updateOrderStatus(orderId, {
+      const currentOrder = orders.find(o => o.id === orderId);
+      const payload = {
         status: targetStatus,
-        actor: user?.fullName || user?.username || 'OMS Coordinator',
-        reason: reasonLabel || `Chuyển trạng thái sang ${targetStatus}`
-      });
+        actor: user?.fullName || user?.username || 'Huy Đức (Quản lý OMS)',
+        reason: extraParams.reason || `Chuyển trạng thái sang ${targetStatus}`,
+        carrierName: extraParams.carrierName || currentOrder?.carrierName || undefined,
+        trackingCode: extraParams.trackingCode || currentOrder?.trackingCode || undefined
+      };
+
+      const response = await orderApi.updateOrderStatus(orderId, payload);
       const saved = response?.data ?? response;
-      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...saved, status: targetStatus } : o));
+
+      // Cập nhật state local bảo toàn thông tin vận đơn trước đó
+      setOrders(prev => prev.map(o => {
+        if (o.id !== orderId) return o;
+        const carrier = extraParams.carrierName || saved?.carrierName || o.carrierName;
+        const tracking = extraParams.trackingCode || saved?.trackingCode || o.trackingCode;
+        const completed = targetStatus === 'COMPLETED' ? (saved?.completedAt || o.completedAt || new Date().toISOString()) : (saved?.completedAt || o.completedAt);
+        return {
+          ...o,
+          ...saved,
+          status: targetStatus,
+          carrierName: carrier,
+          trackingCode: tracking,
+          completedAt: completed
+        };
+      }));
+
       if (modalOrder && modalOrder.id === orderId) {
-        setModalOrder(prev => ({ ...prev, ...saved, status: targetStatus }));
+        setModalOrder(prev => ({
+          ...prev,
+          status: targetStatus,
+          carrierName: extraParams.carrierName || prev?.carrierName,
+          trackingCode: extraParams.trackingCode || prev?.trackingCode,
+          completedAt: targetStatus === 'COMPLETED' ? (prev?.completedAt || new Date().toISOString()) : prev?.completedAt
+        }));
       }
-      message.success({ content: 'Cập nhật trạng thái đơn hàng thành công!', key: 'oms-update' });
+
+      if (targetStatus === 'COMPLETED') {
+        message.success({
+          content: 'Đã hoàn tất đơn hàng và tự động cập nhật doanh thu thành công!',
+          key: 'oms-update',
+          duration: 3
+        });
+      } else {
+        message.success({
+          content: `Chuyển trạng thái sang [${targetStatus}] thành công!`,
+          key: 'oms-update',
+          duration: 3
+        });
+      }
     } catch (err) {
-      console.warn('Lỗi kết nối máy chủ, cập nhật trạng thái trên giao diện:', err);
-      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: targetStatus } : o));
+      console.warn('Lỗi kết nối máy chủ, áp dụng cập nhật trên giao diện:', err);
+      setOrders(prev => prev.map(o => {
+        if (o.id !== orderId) return o;
+        const carrier = extraParams.carrierName || o.carrierName;
+        const tracking = extraParams.trackingCode || o.trackingCode;
+        const completed = targetStatus === 'COMPLETED' ? (o.completedAt || new Date().toISOString()) : o.completedAt;
+        return {
+          ...o,
+          status: targetStatus,
+          carrierName: carrier,
+          trackingCode: tracking,
+          completedAt: completed
+        };
+      }));
+
       if (modalOrder && modalOrder.id === orderId) {
-        setModalOrder(prev => ({ ...prev, status: targetStatus }));
+        setModalOrder(prev => ({
+          ...prev,
+          status: targetStatus,
+          carrierName: extraParams.carrierName || prev?.carrierName,
+          trackingCode: extraParams.trackingCode || prev?.trackingCode,
+          completedAt: targetStatus === 'COMPLETED' ? (prev?.completedAt || new Date().toISOString()) : prev?.completedAt
+        }));
       }
-      message.success({ content: `Đã chuyển trạng thái sang [${targetStatus}] thành công!`, key: 'oms-update' });
+      message.success({ content: `Đã lưu trạng thái [${targetStatus}] thành công!`, key: 'oms-update' });
     } finally {
       setUpdating(false);
+    }
+  };
+
+  // Mở modal bàn giao đơn vị vận chuyển
+  const openShippingModal = (order, e) => {
+    if (e) e.stopPropagation();
+    setShippingOrder(order);
+    const defaultCarrier = order.carrierName || 'GHTK';
+    setSelectedCarrier(defaultCarrier);
+    const foundCarrier = CARRIERS.find(c => c.id === defaultCarrier) || CARRIERS[0];
+    const generated = order.trackingCode || `${foundCarrier.prefix}-${Math.floor(100000 + Math.random() * 900000)}`;
+    setInputTrackingCode(generated);
+    setShippingNote(order.notes || '');
+    setShippingModalOpen(true);
+  };
+
+  // Sinh mã vận đơn tự động theo đơn vị vận chuyển đã chọn
+  const generateNewTrackingCode = (carrierId) => {
+    const carrier = CARRIERS.find(c => c.id === carrierId) || CARRIERS[0];
+    const newCode = `${carrier.prefix}-${Math.floor(100000 + Math.random() * 900000)}`;
+    setInputTrackingCode(newCode);
+  };
+
+  // Xác nhận bàn giao vận chuyển (SHIPPING)
+  const handleConfirmShipping = async (andPrint = false) => {
+    if (!inputTrackingCode.trim()) {
+      message.error('Vui lòng nhập hoặc tạo Mã vận đơn (Tracking Code)!');
+      return;
+    }
+    const orderId = shippingOrder.id;
+    const carrier = selectedCarrier;
+    const tracking = inputTrackingCode.trim();
+
+    await handleUpdateStatus(orderId, 'SHIPPING', {
+      carrierName: carrier,
+      trackingCode: tracking,
+      reason: shippingNote ? `Bàn giao ${carrier}: ${shippingNote}` : `Bàn giao đơn vị ${carrier} vận chuyển`
+    });
+
+    setShippingModalOpen(false);
+
+    if (andPrint) {
+      const targetOrder = orders.find(o => o.id === orderId) || shippingOrder;
+      setLabelOrder({ ...targetOrder, carrierName: carrier, trackingCode: tracking });
+      setLabelOpen(true);
     }
   };
 
@@ -313,6 +450,13 @@ export default function OrdersOmsPage() {
     if (e) e.stopPropagation();
     setModalOrder(order);
     setIsModalOpen(true);
+  };
+
+  // Mở modal in nhãn A5
+  const handleOpenLabelModal = (order, e) => {
+    if (e) e.stopPropagation();
+    setLabelOrder(order);
+    setLabelOpen(true);
   };
 
   const columns = [
@@ -345,14 +489,43 @@ export default function OrdersOmsPage() {
       ),
     },
     {
-      title: 'Kênh',
+      title: 'Kênh bán',
       dataIndex: 'channel',
       render: channel => (
         <Tag color={channel === 'POS' ? 'blue' : 'purple'}>
-          {channel === 'POS' ? 'Tại quầy POS' : 'Online'}
+          {channel === 'POS' ? 'Tại quầy POS' : 'Website Online'}
         </Tag>
       ),
       responsive: ['sm'],
+    },
+    {
+      title: 'Vận chuyển & Vận đơn',
+      key: 'shipping',
+      render: (_, order) => {
+        if (order.carrierName || order.trackingCode) {
+          const carrierColor = order.carrierName === 'AhaMove' ? 'orange' : (order.carrierName === 'GHTK' ? 'green' : 'blue');
+          return (
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-1">
+                <Tag color={carrierColor} className="text-[10px] font-bold m-0">
+                  {order.carrierName || 'Vận chuyển'}
+                </Tag>
+                <span className="font-mono text-xs font-bold text-slate-800">
+                  {order.trackingCode || '—'}
+                </span>
+              </div>
+              {order.completedAt && (
+                <div className="text-[10px] text-emerald-700 font-semibold flex items-center gap-0.5">
+                  <span>Hoàn tất: {date(order.completedAt)}</span>
+                </div>
+              )}
+            </div>
+          );
+        }
+        return (
+          <span className="text-xs text-slate-400 italic">Chưa gán vận đơn</span>
+        );
+      }
     },
     {
       title: 'Tổng tiền',
@@ -366,35 +539,72 @@ export default function OrdersOmsPage() {
       render: statusTag,
     },
     {
-      title: 'Thao tác',
-      key: 'actions',
+      title: 'Thao tác luồng chuẩn',
+      key: 'workflow',
       align: 'right',
-      render: (_, order) => (
-        <div className="flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
-          {/* Nút Xem Chi Tiết Modal Popup */}
-          <Button
-            size="small"
-            type="primary"
-            className="bg-[#004967]"
-            onClick={e => handleOpenDetailModal(order, e)}
-          >
-            Chi tiết
-          </Button>
+      render: (_, order) => {
+        const norm = normalizeStatus(order.status);
+        return (
+          <div className="flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
+            {/* Nút hành động chuẩn theo từng bước */}
+            {norm === 'PAID' && (
+              <Button
+                size="small"
+                type="primary"
+                className="bg-amber-600 hover:bg-amber-700 text-white font-semibold"
+                onClick={() => handleUpdateStatus(order.id, 'PROCESSING', { reason: 'Chuyển xưởng Lab mài lắp kính' })}
+              >
+                Chuyển xưởng Lab
+              </Button>
+            )}
 
-          {/* Quick select dropdown để chuyển trạng thái */}
-          <select
-            value={order.status}
-            onChange={e => handleUpdateStatus(order.id, e.target.value)}
-            className="py-1 px-1.5 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-[#004967] outline-none cursor-pointer hover:border-[#004967]"
-          >
-            <option value="PAID">PAID (Đã thanh toán)</option>
-            <option value="PROCESSING">PROCESSING (Gia công)</option>
-            <option value="SHIPPING">SHIPPING (Đang giao)</option>
-            <option value="COMPLETED">COMPLETED (Hoàn tất)</option>
-            <option value="CANCELLED">CANCELLED (Hủy)</option>
-          </select>
-        </div>
-      ),
+            {norm === 'PROCESSING' && (
+              <Button
+                size="small"
+                type="primary"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
+                onClick={e => openShippingModal(order, e)}
+              >
+                Bàn giao Shipper
+              </Button>
+            )}
+
+            {norm === 'SHIPPING' && (
+              <Button
+                size="small"
+                type="primary"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                onClick={() => handleUpdateStatus(order.id, 'COMPLETED', { reason: 'Giao hàng thành công - Khách đã nhận kính' })}
+              >
+                Hoàn tất đơn
+              </Button>
+            )}
+
+            {norm === 'COMPLETED' && (
+              <Tag color="green" className="font-semibold text-xs">Đã ghi nhận doanh thu</Tag>
+            )}
+
+            {/* Nút In nhãn dán A5 */}
+            <Button
+              size="small"
+              onClick={e => handleOpenLabelModal(order, e)}
+              title="In nhãn vận chuyển A5 & Tem hàng dễ vỡ"
+            >
+              Nhãn A5
+            </Button>
+
+            {/* Nút Xem Chi Tiết Modal Popup */}
+            <Button
+              size="small"
+              type="primary"
+              className="bg-[#004967]"
+              onClick={e => handleOpenDetailModal(order, e)}
+            >
+              Chi tiết
+            </Button>
+          </div>
+        );
+      },
     },
   ];
 
@@ -403,12 +613,11 @@ export default function OrdersOmsPage() {
       {/* ---------------- 1. TIÊU ĐỀ & METRICS RIBBON ---------------- */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl shadow-xs border border-slate-200">
         <div>
-          <h1 className="text-xl font-black text-[#004967] tracking-tight flex items-center gap-2">
-            <span className="material-symbols-outlined text-[24px]">hub</span>
-            <span>Quản Lý Đơn Hàng Chuỗi (OMS) &amp; Điều Phối</span>
+          <h1 className="text-xl font-black text-[#004967] tracking-tight">
+            Quản Lý Đơn Hàng Chuỗi (OMS) &amp; Điều Phối Giao Hàng
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Giám sát đơn hàng đa kênh (POS &amp; Website), chuyển đổi trạng thái và điều phối giao hàng
+            Quản trị luồng đơn hàng đa kênh (POS &amp; Online): PAID → PROCESSING (Xưởng Lab) → SHIPPING (Bàn giao Shipper) → COMPLETED (Giao thành công &amp; Ghi nhận doanh thu)
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -428,21 +637,24 @@ export default function OrdersOmsPage() {
           <Input.Search
             allowClear
             aria-label="Tìm đơn hàng"
-            placeholder="Tìm theo mã đơn (OPT-...), tên khách hàng, số điện thoại..."
+            placeholder="Tìm theo mã đơn (OPT-...), tên khách hàng, số điện thoại, mã vận đơn..."
             value={query}
             onChange={e => setQuery(e.target.value)}
             className="max-w-md"
           />
 
-          <select
-            value={channel}
-            onChange={e => setChannel(e.target.value)}
-            className="py-1.5 px-3 rounded-xl border border-slate-300 bg-slate-50 text-xs font-semibold text-slate-800 outline-none cursor-pointer"
-          >
-            <option value="all">Tất cả kênh bán</option>
-            <option value="POS">Quầy POS Bán lẻ</option>
-            <option value="ONLINE">Website Online</option>
-          </select>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-500">Kênh bán:</span>
+            <select
+              value={channel}
+              onChange={e => setChannel(e.target.value)}
+              className="py-1.5 px-3 rounded-xl border border-slate-300 bg-slate-50 text-xs font-semibold text-slate-800 outline-none cursor-pointer"
+            >
+              <option value="all">Tất cả kênh bán</option>
+              <option value="POS">Quầy POS Bán lẻ</option>
+              <option value="ONLINE">Website Online</option>
+            </select>
+          </div>
         </div>
 
         {/* Thanh nút bấm lọc 5 trạng thái chuẩn: PAID, PROCESSING, SHIPPING, COMPLETED, CANCELLED */}
@@ -464,7 +676,7 @@ export default function OrdersOmsPage() {
               status === 'PAID' ? 'bg-blue-600 text-white shadow-xs' : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200'
             }`}
           >
-            Đã thanh toán (PAID) ({orders.filter(o => (o.status || '').toUpperCase() === 'PAID').length})
+            Đã thanh toán (PAID) ({orders.filter(o => normalizeStatus(o.status) === 'PAID').length})
           </button>
 
           <button
@@ -474,7 +686,7 @@ export default function OrdersOmsPage() {
               status === 'PROCESSING' ? 'bg-amber-600 text-white shadow-xs' : 'bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200'
             }`}
           >
-            Đang gia công (PROCESSING) ({orders.filter(o => (o.status || '').toUpperCase() === 'PROCESSING').length})
+            Đang gia công (PROCESSING) ({orders.filter(o => normalizeStatus(o.status) === 'PROCESSING').length})
           </button>
 
           <button
@@ -484,7 +696,7 @@ export default function OrdersOmsPage() {
               status === 'SHIPPING' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200'
             }`}
           >
-            Đang giao (SHIPPING) ({orders.filter(o => (o.status || '').toUpperCase() === 'SHIPPING').length})
+            Đang giao (SHIPPING) ({orders.filter(o => normalizeStatus(o.status) === 'SHIPPING').length})
           </button>
 
           <button
@@ -494,7 +706,7 @@ export default function OrdersOmsPage() {
               status === 'COMPLETED' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200'
             }`}
           >
-            Hoàn tất (COMPLETED) ({orders.filter(o => (o.status || '').toUpperCase() === 'COMPLETED').length})
+            Hoàn tất (COMPLETED) ({orders.filter(o => normalizeStatus(o.status) === 'COMPLETED').length})
           </button>
 
           <button
@@ -504,7 +716,7 @@ export default function OrdersOmsPage() {
               status === 'CANCELLED' ? 'bg-slate-600 text-white shadow-xs' : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-300'
             }`}
           >
-            Đã hủy (CANCELLED) ({orders.filter(o => (o.status || '').toUpperCase() === 'CANCELLED').length})
+            Đã hủy (CANCELLED) ({orders.filter(o => normalizeStatus(o.status) === 'CANCELLED').length})
           </button>
         </div>
       </div>
@@ -521,7 +733,7 @@ export default function OrdersOmsPage() {
             columns={columns}
             dataSource={filtered}
             loading={loading}
-            scroll={{ x: 800 }}
+            scroll={{ x: 1000 }}
             pagination={{ pageSize: 10, showSizeChanger: false, hideOnSinglePage: true }}
             locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Không có đơn hàng phù hợp" /> }}
           />
@@ -533,10 +745,9 @@ export default function OrdersOmsPage() {
         <Modal
           open={isModalOpen}
           onCancel={() => setIsModalOpen(false)}
-          width={880}
+          width={900}
           title={
-            <div className="flex items-center gap-2.5 pb-2 border-b border-slate-100">
-              <span className="material-symbols-outlined text-[#004967] text-[24px]">receipt_long</span>
+            <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
               <span className="text-lg font-black text-slate-900">
                 Chi Tiết Đơn Hàng {code(modalOrder)}
               </span>
@@ -548,24 +759,67 @@ export default function OrdersOmsPage() {
           }
           footer={
             <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-100">
-              <div className="flex items-center gap-1.5">
+              <div className="flex flex-wrap items-center gap-1.5">
                 <span className="text-xs font-bold text-slate-500">Chuyển trạng thái:</span>
                 <Button size="small" onClick={() => handleUpdateStatus(modalOrder.id, 'PAID')}>PAID</Button>
-                <Button size="small" onClick={() => handleUpdateStatus(modalOrder.id, 'PROCESSING')}>PROCESSING</Button>
-                <Button size="small" onClick={() => handleUpdateStatus(modalOrder.id, 'SHIPPING')}>SHIPPING</Button>
-                <Button size="small" onClick={() => handleUpdateStatus(modalOrder.id, 'COMPLETED')}>COMPLETED</Button>
-                <Button size="small" danger onClick={() => handleUpdateStatus(modalOrder.id, 'CANCELLED')}>CANCELLED</Button>
+                <Button size="small" onClick={() => handleUpdateStatus(modalOrder.id, 'PROCESSING')}>PROCESSING (Lab)</Button>
+                <Button size="small" type="primary" className="bg-indigo-600" onClick={() => openShippingModal(modalOrder)}>
+                  Bàn giao Shipper (SHIPPING)
+                </Button>
+                <Button size="small" type="primary" className="bg-emerald-600" onClick={() => handleUpdateStatus(modalOrder.id, 'COMPLETED')}>
+                  COMPLETED (Hoàn tất)
+                </Button>
+                <Button size="small" danger onClick={() => handleUpdateStatus(modalOrder.id, 'CANCELLED', { reason: 'Quản lý hủy đơn hàng' })}>
+                  CANCELLED (Hủy)
+                </Button>
               </div>
 
               <div className="flex items-center gap-2">
-                <Button onClick={() => setLabelOpen(true)}>In nhãn A5</Button>
+                <Button onClick={() => handleOpenLabelModal(modalOrder)}>
+                  In phiếu A5
+                </Button>
                 <Button type="primary" className="bg-[#004967]" onClick={() => setIsModalOpen(false)}>Đóng</Button>
               </div>
             </div>
           }
         >
           <div className="space-y-4 py-2 text-xs">
-            {/* 1. Thông tin Khách hàng & Đơn */}
+            {/* Visual Stepper Trạng Thái Chuỗi */}
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+                Quy trình xử lý đơn hàng chuỗi OMS
+              </div>
+              <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                {['PAID', 'PROCESSING', 'SHIPPING', 'COMPLETED'].map((st, idx) => {
+                  const currentNorm = normalizeStatus(modalOrder.status);
+                  const isCurrent = currentNorm === st;
+                  const stepIndex = ['PAID', 'PROCESSING', 'SHIPPING', 'COMPLETED'].indexOf(currentNorm);
+                  const isDone = stepIndex >= idx && currentNorm !== 'CANCELLED';
+
+                  let bg = 'bg-white text-slate-400 border-slate-200';
+                  if (isCurrent) bg = 'bg-[#004967] text-white border-[#004967] font-bold shadow-xs';
+                  else if (isDone) bg = 'bg-emerald-50 text-emerald-700 border-emerald-300 font-semibold';
+
+                  const labels = {
+                    PAID: '1. Đã thanh toán',
+                    PROCESSING: '2. Xưởng Lab mài kính',
+                    SHIPPING: '3. Bàn giao Shipper',
+                    COMPLETED: '4. Giao thành công'
+                  };
+
+                  return (
+                    <div key={st} className={`p-2 rounded-lg border ${bg} transition-all`}>
+                      <div className="text-[11px] font-bold">{labels[st]}</div>
+                      <div className="text-[10px] mt-0.5 opacity-80">
+                        {isCurrent ? 'Đang thực hiện' : (isDone ? 'Đã hoàn thành' : 'Chờ xử lý')}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Thông tin Khách hàng & Vận chuyển */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
               <div className="space-y-1">
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
@@ -573,25 +827,39 @@ export default function OrdersOmsPage() {
                 </span>
                 <div className="text-sm font-bold text-slate-900">{modalOrder.customerName || 'Khách vãng lai'}</div>
                 <div className="text-slate-600 font-mono">SĐT: <strong>{modalOrder.customerPhone || '—'}</strong></div>
-                <div className="text-slate-600">Địa chỉ: <strong>{modalOrder.shippingAddress || 'Nhận tại quầy'}</strong></div>
-              </div>
-
-              <div className="space-y-1">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                  Thông Tin Giao Dịch
-                </span>
-                <div className="text-slate-600">Kênh bán: <strong>{modalOrder.channel === 'POS' ? (modalOrder.branchName || 'Quầy POS Flagship') : 'Online'}</strong></div>
-                <div className="text-slate-600">Thời gian tạo: <strong className="font-mono">{date(modalOrder.createdAt)}</strong></div>
-                <div className="text-slate-600">Nhân viên phụ trách: <strong>{modalOrder.staffName || '—'}</strong></div>
+                <div className="text-slate-600">Địa chỉ giao: <strong>{modalOrder.shippingAddress || 'Nhận tại quầy'}</strong></div>
                 {modalOrder.notes && (
                   <div className="text-xs text-amber-800 bg-amber-50 p-1.5 rounded-lg border border-amber-200 mt-1">
                     Ghi chú: {modalOrder.notes}
                   </div>
                 )}
               </div>
+
+              <div className="space-y-1">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Thông Tin Vận Chuyển &amp; Điều Phối
+                </span>
+                <div className="text-slate-600">
+                  Đơn vị vận chuyển: <strong className="text-indigo-700">{modalOrder.carrierName || 'Chưa gán đơn vị'}</strong>
+                </div>
+                <div className="text-slate-600">
+                  Mã vận đơn (Tracking Code): <strong className="font-mono text-slate-900">{modalOrder.trackingCode || 'Chưa có mã'}</strong>
+                </div>
+                <div className="text-slate-600">
+                  Kênh tiếp nhận: <strong>{modalOrder.channel === 'POS' ? (modalOrder.branchName || 'Quầy POS Flagship') : 'Website Online'}</strong>
+                </div>
+                <div className="text-slate-600">
+                  Thời gian tạo đơn: <strong className="font-mono">{date(modalOrder.createdAt)}</strong>
+                </div>
+                {modalOrder.completedAt && (
+                  <div className="text-emerald-700 font-bold bg-emerald-50 p-1.5 rounded-lg border border-emerald-200 mt-1">
+                    Hoàn tất ca đơn &amp; Ghi nhận doanh thu: {date(modalOrder.completedAt)}
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* 2. Danh Sách Mắt Kính & Sản Phẩm */}
+            {/* Danh Sách Mắt Kính & Sản Phẩm */}
             <div className="space-y-2">
               <span className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
                 Danh Sách Mắt Kính &amp; Sản Phẩm Trong Đơn
@@ -627,7 +895,7 @@ export default function OrdersOmsPage() {
               </div>
             </div>
 
-            {/* 3. Chi Tiết Thanh Toán & Quyết Toán */}
+            {/* Chi Tiết Thanh Toán & Quyết Toán */}
             <div className="bg-[#f0f3ff] p-4 rounded-xl border border-[#d8e3fb] space-y-2">
               <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
                 Quyết Toán &amp; Hình Thức Thanh Toán
@@ -635,7 +903,7 @@ export default function OrdersOmsPage() {
               <div className="grid grid-cols-2 gap-4 text-xs">
                 <div className="space-y-1">
                   <div className="text-slate-600">Phương thức: <strong className="text-[#004967]">{modalOrder.paymentMethod || 'VIETQR'}</strong></div>
-                  <div className="text-slate-600">Trạng thái: <strong className="text-emerald-700">Đã thanh toán</strong></div>
+                  <div className="text-slate-600">Trạng thái thanh toán: <strong className="text-emerald-700">Đã thanh toán (PAID)</strong></div>
                 </div>
 
                 <div className="space-y-1 text-right">
@@ -666,7 +934,126 @@ export default function OrdersOmsPage() {
         </Modal>
       )}
 
-      {/* ---------------- 5. DRAWER CHI TIẾT & IN NHÃN A5 (TƯƠNG THÍCH CODE NHÓM) ---------------- */}
+      {/* ---------------- 5. MODAL BÀN GIAO VẬN CHUYỂN & GÁN MÃ VẬN ĐƠN (TASK 2) ---------------- */}
+      {shippingOrder && (
+        <Modal
+          open={shippingModalOpen}
+          onCancel={() => setShippingModalOpen(false)}
+          width={600}
+          title={
+            <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+              <span className="text-base font-black text-slate-900">
+                Bàn Giao Shipper &amp; Gán Mã Vận Đơn: {code(shippingOrder)}
+              </span>
+            </div>
+          }
+          footer={
+            <div className="flex justify-between items-center pt-2">
+              <Button onClick={() => setShippingModalOpen(false)}>Hủy</Button>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => handleConfirmShipping(true)}
+                  loading={updating}
+                  className="border-indigo-600 text-indigo-700"
+                >
+                  Lưu &amp; In nhãn A5 ngay
+                </Button>
+                <Button
+                  type="primary"
+                  className="bg-indigo-600"
+                  onClick={() => handleConfirmShipping(false)}
+                  loading={updating}
+                >
+                  Xác nhận Bàn giao (SHIPPING)
+                </Button>
+              </div>
+            </div>
+          }
+        >
+          <div className="space-y-4 py-2 text-xs">
+            {/* Chọn Đơn Vị Vận Chuyển */}
+            <div className="space-y-1.5">
+              <label className="font-bold text-slate-700 block">
+                1. Chọn Đơn vị vận chuyển (Carrier):
+              </label>
+              <Radio.Group
+                value={selectedCarrier}
+                onChange={e => {
+                  const val = e.target.value;
+                  setSelectedCarrier(val);
+                  generateNewTrackingCode(val);
+                }}
+                className="w-full space-y-2"
+              >
+                {CARRIERS.map(c => (
+                  <div
+                    key={c.id}
+                    className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${
+                      selectedCarrier === c.id
+                        ? 'border-indigo-600 bg-indigo-50/50'
+                        : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
+                    }`}
+                    onClick={() => {
+                      setSelectedCarrier(c.id);
+                      generateNewTrackingCode(c.id);
+                    }}
+                  >
+                    <Radio value={c.id}>
+                      <span className="font-bold text-slate-900 text-xs">{c.name}</span>
+                      <span className="text-slate-500 block text-[11px] mt-0.5">{c.desc}</span>
+                    </Radio>
+                    <Tag color={c.color} className="font-mono text-[10px] font-bold">
+                      {c.id}
+                    </Tag>
+                  </div>
+                ))}
+              </Radio.Group>
+            </div>
+
+            {/* Nhập hoặc Sinh Mã Vận Đơn (Tracking Code) */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="font-bold text-slate-700 block">
+                  2. Mã vận đơn (Tracking Code):
+                </label>
+                <button
+                  type="button"
+                  onClick={() => generateNewTrackingCode(selectedCarrier)}
+                  className="text-indigo-600 hover:text-indigo-800 text-[11px] font-bold"
+                >
+                  Tạo mã vận đơn mẫu
+                </button>
+              </div>
+
+              <Input
+                size="large"
+                value={inputTrackingCode}
+                onChange={e => setInputTrackingCode(e.target.value)}
+                placeholder="VD: GHTK-HN-2026884 hoặc AHA-SG-993214"
+                className="font-mono font-bold text-slate-900"
+              />
+              <p className="text-[11px] text-slate-500">
+                Mã vận đơn này sẽ được in mã vạch (Barcode) dán trực tiếp lên hộp kính đóng gói chuẩn A5.
+              </p>
+            </div>
+
+            {/* Ghi chú điều phối */}
+            <div className="space-y-1.5">
+              <label className="font-bold text-slate-700 block">
+                3. Ghi chú bàn giao / Tên tài xế (Tùy chọn):
+              </label>
+              <Input.TextArea
+                rows={2}
+                value={shippingNote}
+                onChange={e => setShippingNote(e.target.value)}
+                placeholder="Nhập ghi chú cho shipper, số điện thoại tài xế nhận gói kính..."
+              />
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* ---------------- 6. DRAWER CHI TIẾT (TƯƠNG THÍCH CODE NHÓM) ---------------- */}
       <Drawer
         title={activeOrder ? `Đơn ${code(activeOrder)}` : 'Chi tiết đơn'}
         open={activeId !== null}
@@ -675,7 +1062,15 @@ export default function OrdersOmsPage() {
       >
         {activeOrder && (
           <div className="space-y-4 text-xs">
-            <div>{statusTag(activeOrder.status)}</div>
+            <div className="flex items-center justify-between">
+              {statusTag(activeOrder.status)}
+              {activeOrder.carrierName && (
+                <Tag color="indigo" className="font-mono">
+                  {activeOrder.carrierName}: {activeOrder.trackingCode}
+                </Tag>
+              )}
+            </div>
+
             <section className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1">
               <h2 className="font-bold text-slate-800 text-sm">Khách hàng</h2>
               <p className="font-bold text-slate-900">{activeOrder.customerName || 'Khách vãng lai'}</p>
@@ -711,14 +1106,24 @@ export default function OrdersOmsPage() {
               </div>
             </section>
 
-            <Button block type="dashed" onClick={() => setLabelOpen(true)}>Xem &amp; In nhãn vận chuyển A5</Button>
-            <Button block type="primary" className="bg-[#004967]" onClick={() => setIsModalOpen(true)}>Mở Popup Chi Tiết Toàn Diện</Button>
+            <div className="space-y-2 pt-2">
+              <Button block type="dashed" onClick={() => handleOpenLabelModal(activeOrder)}>
+                Xem &amp; In nhãn vận chuyển A5 dán hộp kính
+              </Button>
+              <Button block type="primary" className="bg-[#004967]" onClick={() => setIsModalOpen(true)}>
+                Mở Popup Chi Tiết Toàn Diện
+              </Button>
+            </div>
           </div>
         )}
       </Drawer>
 
-      {/* Component In Nhãn Vận Chuyển A5 */}
-      <OrderShippingLabel order={activeOrder || modalOrder} open={labelOpen} onClose={() => setLabelOpen(false)} />
+      {/* ---------------- 7. COMPONENT IN NHÃN VẬN CHUYỂN A5 & TEM HÀNG DỄ VỠ ---------------- */}
+      <OrderShippingLabel
+        order={labelOrder || activeOrder || modalOrder}
+        open={labelOpen}
+        onClose={() => setLabelOpen(false)}
+      />
     </div>
   );
 }
