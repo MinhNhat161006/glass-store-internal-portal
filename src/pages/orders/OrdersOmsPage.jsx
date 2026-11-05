@@ -215,6 +215,14 @@ export default function OrdersOmsPage() {
   // Popup Modal Chi Tiết Đơn Hàng
   const [modalOrder, setModalOrder] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [orderHistory, setOrderHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  // Phân quyền theo vai trò (Subtask 4.1 GS-132)
+  const userRole = (user?.role || '').toLowerCase();
+  const isLabStaff = userRole === 'lab';
+  const isOptometrist = userRole === 'optometry';
+  const isReadOnly = isLabStaff || isOptometrist;
 
   // Modal Bàn Giao Vận Chuyển & Gán Tracking Code (Task 2)
   const [shippingModalOpen, setShippingModalOpen] = useState(false);
@@ -315,13 +323,17 @@ export default function OrdersOmsPage() {
 
   // Cập nhật trạng thái đơn hàng (Gọi PATCH API /api/orders/{id}/status thật)
   const handleUpdateStatus = async (orderId, targetStatus, extraParams = {}) => {
+    if (isReadOnly) {
+      message.warning('Tài khoản của bạn chỉ có quyền xem, không có thẩm quyền chuyển trạng thái đơn hàng OMS.');
+      return;
+    }
     setUpdating(true);
     message.loading({ content: `Đang chuyển trạng thái đơn hàng sang ${targetStatus}...`, key: 'oms-update' });
     try {
       const currentOrder = orders.find(o => o.id === orderId);
       const payload = {
         status: targetStatus,
-        actor: user?.fullName || user?.username || 'Huy Đức (Quản lý OMS)',
+        actor: user?.staffName || user?.fullName || user?.username || 'Huy Đức (Quản lý OMS)',
         reason: extraParams.reason || `Chuyển trạng thái sang ${targetStatus}`,
         carrierName: extraParams.carrierName || currentOrder?.carrierName || undefined,
         trackingCode: extraParams.trackingCode || currentOrder?.trackingCode || undefined
@@ -354,6 +366,12 @@ export default function OrdersOmsPage() {
           trackingCode: extraParams.trackingCode || prev?.trackingCode,
           completedAt: targetStatus === 'COMPLETED' ? (prev?.completedAt || new Date().toISOString()) : prev?.completedAt
         }));
+
+        // Làm mới danh sách lịch sử chuyển trạng thái
+        orderApi.getOrderHistory(orderId).then(res => {
+          const histList = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+          setOrderHistory(histList);
+        }).catch(() => {});
       }
 
       if (targetStatus === 'COMPLETED') {
@@ -370,31 +388,15 @@ export default function OrdersOmsPage() {
         });
       }
     } catch (err) {
-      console.warn('Lỗi kết nối máy chủ, áp dụng cập nhật trên giao diện:', err);
-      setOrders(prev => prev.map(o => {
-        if (o.id !== orderId) return o;
-        const carrier = extraParams.carrierName || o.carrierName;
-        const tracking = extraParams.trackingCode || o.trackingCode;
-        const completed = targetStatus === 'COMPLETED' ? (o.completedAt || new Date().toISOString()) : o.completedAt;
-        return {
-          ...o,
-          status: targetStatus,
-          carrierName: carrier,
-          trackingCode: tracking,
-          completedAt: completed
-        };
-      }));
-
-      if (modalOrder && modalOrder.id === orderId) {
-        setModalOrder(prev => ({
-          ...prev,
-          status: targetStatus,
-          carrierName: extraParams.carrierName || prev?.carrierName,
-          trackingCode: extraParams.trackingCode || prev?.trackingCode,
-          completedAt: targetStatus === 'COMPLETED' ? (prev?.completedAt || new Date().toISOString()) : prev?.completedAt
-        }));
-      }
-      message.success({ content: `Đã lưu trạng thái [${targetStatus}] thành công!`, key: 'oms-update' });
+      console.error('Lỗi khi chuyển trạng thái đơn hàng:', err);
+      const errorMsg = err?.message || err?.data?.message || 'Máy chủ từ chối chuyển trạng thái đơn hàng (bước chuyển không hợp lệ).';
+      message.error({
+        content: `Không thể chuyển bước: ${errorMsg}`,
+        key: 'oms-update',
+        duration: 4
+      });
+      // Subtask 4.2: Khôi phục lại trạng thái giao diện chuẩn, tránh dữ liệu rác
+      loadOrders();
     } finally {
       setUpdating(false);
     }
@@ -445,11 +447,24 @@ export default function OrdersOmsPage() {
     }
   };
 
-  // Mở Popup xem chi tiết đơn hàng
+  // Mở Popup xem chi tiết đơn hàng (tự động nạp lịch sử trạng thái Audit Trail)
   const handleOpenDetailModal = (order, e) => {
     if (e) e.stopPropagation();
     setModalOrder(order);
     setIsModalOpen(true);
+    setOrderHistory([]);
+    setLoadingHistory(true);
+    orderApi.getOrderHistory(order.id)
+      .then(res => {
+        const histList = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        setOrderHistory(histList);
+      })
+      .catch(err => {
+        console.warn('Lỗi tải lịch sử đơn hàng:', err);
+      })
+      .finally(() => {
+        setLoadingHistory(false);
+      });
   };
 
   // Mở modal in nhãn A5
@@ -546,13 +561,15 @@ export default function OrdersOmsPage() {
         const norm = normalizeStatus(order.status);
         return (
           <div className="flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
-            {/* Nút hành động chuẩn theo từng bước */}
+            {/* Nút hành động chuẩn theo từng bước (Chỉ người có thẩm quyền mới được bấm) */}
             {norm === 'PAID' && (
               <Button
                 size="small"
                 type="primary"
-                className="bg-amber-600 hover:bg-amber-700 text-white font-semibold"
+                disabled={isReadOnly}
+                className="bg-amber-600 hover:bg-amber-700 text-white font-semibold disabled:opacity-40"
                 onClick={() => handleUpdateStatus(order.id, 'PROCESSING', { reason: 'Chuyển xưởng Lab mài lắp kính' })}
+                title={isReadOnly ? 'Vai trò của bạn không có quyền chuyển bước OMS' : 'Chuyển xưởng Lab gia công'}
               >
                 Chuyển xưởng Lab
               </Button>
@@ -562,8 +579,10 @@ export default function OrdersOmsPage() {
               <Button
                 size="small"
                 type="primary"
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
+                disabled={isReadOnly}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold disabled:opacity-40"
                 onClick={e => openShippingModal(order, e)}
+                title={isReadOnly ? 'Vai trò của bạn không có quyền chuyển bước OMS' : 'Bàn giao cho đơn vị vận chuyển'}
               >
                 Bàn giao Shipper
               </Button>
@@ -573,8 +592,10 @@ export default function OrdersOmsPage() {
               <Button
                 size="small"
                 type="primary"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                disabled={isReadOnly}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold disabled:opacity-40"
                 onClick={() => handleUpdateStatus(order.id, 'COMPLETED', { reason: 'Giao hàng thành công - Khách đã nhận kính' })}
+                title={isReadOnly ? 'Vai trò của bạn không có quyền chuyển bước OMS' : 'Xác nhận hoàn tất đơn & ghi nhận doanh thu'}
               >
                 Hoàn tất đơn
               </Button>
@@ -629,6 +650,15 @@ export default function OrdersOmsPage() {
           </Button>
         </div>
       </div>
+
+      {/* Cảnh báo phân quyền chỉ xem (Subtask 4.1 GS-132) */}
+      {isReadOnly && (
+        <Alert
+          type="info"
+          showIcon
+          message={`Chế độ xem chỉ đọc đối với vai trò ${user?.staffName || userRole.toUpperCase()}: Bạn không có thẩm quyền điều phối giao hàng OMS. Vui lòng đăng nhập tài khoản Quản lý chuỗi hoặc Thu ngân POS để thực hiện chuyển bước.`}
+        />
+      )}
 
       {/* ---------------- 2. BỘ LỌC ĐƠN HÀNG THEO TRẠNG THÁI (YÊU CẦU ĐỀ BÀI) ---------------- */}
       <div className="bg-white p-4 rounded-xl shadow-xs border border-slate-200 space-y-3">
@@ -761,17 +791,23 @@ export default function OrdersOmsPage() {
             <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-100">
               <div className="flex flex-wrap items-center gap-1.5">
                 <span className="text-xs font-bold text-slate-500">Chuyển trạng thái:</span>
-                <Button size="small" onClick={() => handleUpdateStatus(modalOrder.id, 'PAID')}>PAID</Button>
-                <Button size="small" onClick={() => handleUpdateStatus(modalOrder.id, 'PROCESSING')}>PROCESSING (Lab)</Button>
-                <Button size="small" type="primary" className="bg-indigo-600" onClick={() => openShippingModal(modalOrder)}>
-                  Bàn giao Shipper (SHIPPING)
-                </Button>
-                <Button size="small" type="primary" className="bg-emerald-600" onClick={() => handleUpdateStatus(modalOrder.id, 'COMPLETED')}>
-                  COMPLETED (Hoàn tất)
-                </Button>
-                <Button size="small" danger onClick={() => handleUpdateStatus(modalOrder.id, 'CANCELLED', { reason: 'Quản lý hủy đơn hàng' })}>
-                  CANCELLED (Hủy)
-                </Button>
+                {isReadOnly ? (
+                  <Tag color="default">Chế độ xem chỉ đọc (Không có quyền OMS)</Tag>
+                ) : (
+                  <>
+                    <Button size="small" onClick={() => handleUpdateStatus(modalOrder.id, 'PAID', { reason: 'Xác nhận thanh toán' })}>PAID</Button>
+                    <Button size="small" onClick={() => handleUpdateStatus(modalOrder.id, 'PROCESSING', { reason: 'Chuyển xưởng Lab mài kính' })}>PROCESSING (Lab)</Button>
+                    <Button size="small" type="primary" className="bg-indigo-600" onClick={() => openShippingModal(modalOrder)}>
+                      Bàn giao Shipper (SHIPPING)
+                    </Button>
+                    <Button size="small" type="primary" className="bg-emerald-600" onClick={() => handleUpdateStatus(modalOrder.id, 'COMPLETED', { reason: 'Giao hàng thành công' })}>
+                      COMPLETED (Hoàn tất)
+                    </Button>
+                    <Button size="small" danger onClick={() => handleUpdateStatus(modalOrder.id, 'CANCELLED', { reason: 'Quản lý hủy đơn hàng' })}>
+                      CANCELLED (Hủy)
+                    </Button>
+                  </>
+                )}
               </div>
 
               <div className="flex items-center gap-2">
@@ -929,6 +965,55 @@ export default function OrdersOmsPage() {
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* Lịch Sử Chuyển Trạng Thái (Audit Trail - Subtask 4.2 GS-133) */}
+            <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
+                  Lịch Sử Chuyển Trạng Thái (Audit Trail)
+                </span>
+                {loadingHistory && <span className="text-[11px] text-slate-400 font-medium">Đang tải lịch sử...</span>}
+              </div>
+
+              {orderHistory.length === 0 && !loadingHistory ? (
+                <div className="text-xs text-slate-400 italic p-3 bg-slate-50 rounded-lg border border-slate-200 text-center">
+                  Chưa ghi nhận bản ghi thay đổi trạng thái nào cho đơn hàng này.
+                </div>
+              ) : (
+                <div className="border border-slate-200 rounded-lg overflow-hidden">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-100 text-slate-600 uppercase text-[10px] font-bold">
+                      <tr>
+                        <th className="p-2">Thời gian</th>
+                        <th className="p-2">Chuyển trạng thái</th>
+                        <th className="p-2">Người thực hiện</th>
+                        <th className="p-2">Lý do / Ghi chú</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {orderHistory.map((h, i) => (
+                        <tr key={h.id || i} className="hover:bg-slate-50">
+                          <td className="p-2 text-slate-500 font-mono text-[11px] whitespace-nowrap">
+                            {h.changedAt ? new Date(h.changedAt).toLocaleString('vi-VN') : '—'}
+                          </td>
+                          <td className="p-2 font-semibold">
+                            <span className="text-slate-500">{h.fromStatus || 'Khởi tạo'}</span>
+                            <span className="mx-1 text-slate-400">→</span>
+                            <span className="text-[#004967] font-bold">{h.toStatus}</span>
+                          </td>
+                          <td className="p-2 text-slate-700 whitespace-nowrap">
+                            <Tag color="geekblue" className="text-[10px] m-0">{h.actor || 'SYSTEM'}</Tag>
+                          </td>
+                          <td className="p-2 text-slate-600">
+                            {h.reason || 'Cập nhật trạng thái chuỗi'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         </Modal>
