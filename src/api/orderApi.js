@@ -20,5 +20,6 @@ export const orderApi = {
   updateOrderStatus: (id, statusData) => requestOrder(`/api/orders/${id}/status`, {
     method: 'PATCH',
     body: JSON.stringify(statusData)
-  })
+  }),
+  getOrderHistory: (id) => requestOrder(`/api/orders/${id}/history`)
 };
