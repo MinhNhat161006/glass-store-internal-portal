@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { message, Modal } from 'antd';
+import { Alert, message, Modal } from 'antd';
 import { orderApi } from '../../api/orderApi';
 import { productApi } from '../../api/productApi';
 import { useAuth } from '../../context/AuthContext';
@@ -449,6 +449,10 @@ export default function PosPage() {
         <CancelOrderPanel lastOrder={lastOrder} onChanged={saved => { if (saved.id === lastOrder?.id) setLastOrder(saved); setCatalogVersion(value => value + 1); }} /></div>
       <InventorySyncPanel branchCode={branchCode} selectedBranch={selectedBranch} lastOrder={lastOrder} onSynced={() => setCatalogVersion(value => value + 1)} />
       <ReceiptPreview order={lastOrder} open={receiptOpen} onClose={() => setReceiptOpen(false)} />
+      {!catalogLoading && !catalogError && branchCode && catalogProducts.length > 0
+        && !catalogProducts.some(product => product.stockQuantity > 0) && <Alert showIcon type="info"
+          message="Chi nhánh này chưa có hàng để bán. Cần tạo phiếu điều chuyển và xác nhận nhận hàng từ kho nguồn."
+          style={{ marginBottom: 12 }} />}
       <div className="pos-workspace">
         <ProductCatalog products={filteredProducts} count={catalogProducts.length} cart={cart}
           loading={catalogLoading} error={catalogError} category={selectedCategory} setCategory={setSelectedCategory}
