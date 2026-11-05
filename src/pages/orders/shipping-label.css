@@ -1,11 +1,250 @@
-.order-shipping-label { background: white; color: #111; border: 1px solid #d5dbe2; padding: 24px; font-family: Arial, sans-serif; overflow-wrap: anywhere; }
-.order-shipping-label header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding-bottom: 20px; border-bottom: 2px solid #111; }
-.order-shipping-label header strong { font-size: 21px; }
-.order-shipping-label header p { font-size: 16px; font-weight: 700; margin-top: 12px; }
-.order-shipping-label section { padding: 20px 0; border-bottom: 1px solid #b8bec5; }
-.order-shipping-label section > span { color: #626b75; font-size: 11px; letter-spacing: 1px; }
-.order-shipping-label h2 { font-size: 20px; font-weight: 700; margin: 12px 0; }
-.order-shipping-label section p { margin: 8px 0; font-size: 14px; }
-.order-shipping-label footer { padding-top: 24px; text-align: center; }
-.order-shipping-label footer strong { font-size: 17px; }
-.order-shipping-label footer p { font-size: 11px; margin-top: 12px; }
+.order-shipping-label-wrapper {
+  background: #f8fafc;
+  display: flex;
+  justify-content: center;
+  padding: 12px 0;
+}
+
+.order-shipping-label {
+  background: white;
+  color: #0f172a;
+  border: 2px solid #0f172a;
+  padding: 18px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  width: 100%;
+  max-width: 540px;
+  box-sizing: border-box;
+  position: relative;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.order-shipping-label header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #0f172a;
+}
+
+.order-shipping-label .brand-name {
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  color: #004967;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.order-shipping-label .brand-sub {
+  font-size: 10px;
+  color: #64748b;
+  margin: 2px 0 0 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.order-shipping-label .tracking-banner {
+  background: #f1f5f9;
+  border: 1.5px dashed #0f172a;
+  border-radius: 6px;
+  padding: 10px;
+  margin: 12px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.order-shipping-label .carrier-badge {
+  display: inline-block;
+  background: #004967;
+  color: white;
+  font-weight: 800;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.order-shipping-label .carrier-badge.ahamove {
+  background: #ea580c;
+}
+
+.order-shipping-label .carrier-badge.ghtk {
+  background: #15803d;
+}
+
+.order-shipping-label .section-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #cbd5e1;
+}
+
+.order-shipping-label .info-box {
+  background: #f8fafc;
+  padding: 8px 10px;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+.order-shipping-label .info-title {
+  font-size: 9px;
+  font-weight: 800;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.order-shipping-label .customer-name {
+  font-size: 14px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 3px 0;
+}
+
+.order-shipping-label .customer-phone {
+  font-size: 13px;
+  font-weight: 700;
+  font-family: monospace;
+  color: #004967;
+  margin: 0 0 3px 0;
+}
+
+.order-shipping-label .customer-addr {
+  font-size: 11px;
+  color: #334155;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.order-shipping-label .items-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+  font-size: 11px;
+}
+
+.order-shipping-label .items-table th {
+  background: #f1f5f9;
+  padding: 6px 8px;
+  text-align: left;
+  border: 1px solid #cbd5e1;
+  font-weight: 700;
+  color: #334155;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.order-shipping-label .items-table td {
+  padding: 6px 8px;
+  border: 1px solid #cbd5e1;
+  color: #1e293b;
+}
+
+/* TEM CẢNH BÁO HÀNG DỄ VỠ - TRÁNH ĐÈ NÉN */
+.order-shipping-label .fragile-stamp {
+  border: 2.5px solid #dc2626;
+  background: #fef2f2;
+  color: #991b1b;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin: 12px 0;
+  text-align: center;
+  position: relative;
+}
+
+.order-shipping-label .fragile-title {
+  font-size: 13px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.order-shipping-label .fragile-desc {
+  font-size: 10px;
+  font-weight: 600;
+  margin-top: 3px;
+  color: #b91c1c;
+}
+
+.order-shipping-label .cod-box {
+  background: #ecfdf5;
+  border: 1.5px solid #059669;
+  border-radius: 4px;
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 10px 0;
+}
+
+.order-shipping-label .cod-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #065f46;
+}
+
+.order-shipping-label .cod-amount {
+  font-size: 15px;
+  font-weight: 900;
+  font-family: monospace;
+  color: #065f46;
+}
+
+.order-shipping-label .signatures {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  text-align: center;
+  padding-top: 10px;
+  border-top: 1px dashed #cbd5e1;
+  margin-top: 10px;
+}
+
+.order-shipping-label .sig-title {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: 30px;
+}
+
+.order-shipping-label .sig-note {
+  font-size: 9px;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+@media print {
+  @page {
+    size: A5 portrait;
+    margin: 5mm;
+  }
+  body, html {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+  .order-shipping-label-wrapper {
+    padding: 0 !important;
+    background: white !important;
+  }
+  .order-shipping-label {
+    box-shadow: none !important;
+    border: 2px solid #000 !important;
+    width: 136mm !important;
+    max-width: 136mm !important;
+    margin: 0 auto !important;
+    padding: 5mm !important;
+  }
+}
