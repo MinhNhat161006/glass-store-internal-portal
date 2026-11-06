@@ -96,8 +96,8 @@ export default function OptometryPage() {
   // Bác sĩ bấm "Ký duyệt đơn kính"
   const handleSignAndPush = async () => {
     if (!patient.customerId) { message.warning('Vui lòng chọn khách hàng.'); return; }
-    const required = [odSph, odCyl, odAxis, odPd, osSph, osCyl, osAxis, osPd];
-    if (required.some(value => value == null || !Number.isFinite(Number(value)))) {
+    const required = [odSph, odCyl, odAxis, odAdd, odPd, osSph, osCyl, osAxis, osAdd, osPd];
+    if (required.some(value => value == null || value === '' || !Number.isFinite(Number(value)))) {
       message.warning('Vui lòng nhập đủ SPH, CYL, AXIS và PD cho hai mắt.');
       return;
     }
@@ -105,13 +105,18 @@ export default function OptometryPage() {
       message.warning('Kiểm tra AXIS (0–180°) và PD mỗi mắt (trên 0 đến 50 mm).');
       return;
     }
+    if ([odSph, osSph].some(v => v < -30 || v > 30)
+      || [odCyl, osCyl].some(v => v < -10 || v > 10)
+      || [odAdd, osAdd].some(v => v < 0 || v > 4)
+      || Number(pd) < 40 || Number(pd) > 90) {
+      message.warning('SPH: -30..30; CYL: -10..10; ADD: 0..4; PD: 40..90 mm.');
+      return;
+    }
     try {
       setSaving(true);
       const payload = {
         customerId: patient.customerId,
         customerName: patient.customerName || 'Khách Hàng Mới',
-        optometristId: user?.id || 1,
-        optometristName: user?.staffName || user?.fullName || '',
         odSph: Number(odSph),
         odCyl: Number(odCyl),
         odAxis: Number(odAxis),

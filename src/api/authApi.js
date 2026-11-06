@@ -1,4 +1,4 @@
-import { apiFetch } from './client';
+import { apiFetch } from './client.js';
 
 export const authApi = {
   /**
@@ -6,16 +6,25 @@ export const authApi = {
    * @param {Object} credentials { username, password }
    */
   async login(credentials) {
+    authApi.logout();
     const res = await apiFetch('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
     });
 
-    if (res?.data?.token) {
-      localStorage.setItem('optivision_jwt_token', res.data.token);
-    }
+    if (!res?.data?.token || res.data.token.split('.').length !== 3)
+      throw new Error('Máy chủ không trả về phiên đăng nhập hợp lệ.');
+    localStorage.setItem('optivision_jwt_token', res.data.token);
 
     return res?.data;
+  },
+
+  async getMe() {
+    const token = localStorage.getItem('optivision_jwt_token');
+    if (!token || token.split('.').length !== 3) { authApi.logout(); return null; }
+    const response = await apiFetch('/api/auth/me');
+    if (!response?.data?.id) throw new Error('Không xác thực được phiên đăng nhập.');
+    return response.data;
   },
 
   logout() {
