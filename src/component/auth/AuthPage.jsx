@@ -74,7 +74,7 @@ export default function AuthPage({ onLoginSuccess }) {
       return;
     }
 
-    const trimmedPassword = password.trim();
+    const trimmedPassword = password;
     if (!trimmedPassword) {
       message.error('Vui lòng nhập mật khẩu!');
       return;
@@ -281,22 +281,22 @@ export default function AuthPage({ onLoginSuccess }) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setStaffId('pos'); setPassword('123456'); }}
-                  className={`py-1.5 px-1 rounded-lg text-[11px] font-bold transition text-center ${staffId === 'pos' ? 'bg-[#004967] text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'}`}
+                  onClick={() => { setStaffId('staff'); setPassword('123456'); }}
+                  className={`py-1.5 px-1 rounded-lg text-[11px] font-bold transition text-center ${staffId === 'staff' ? 'bg-[#004967] text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'}`}
                 >
                   Thu ngân
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setStaffId('optometry'); setPassword('123456'); }}
-                  className={`py-1.5 px-1 rounded-lg text-[11px] font-bold transition text-center ${staffId === 'optometry' ? 'bg-[#004967] text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'}`}
+                  onClick={() => { setStaffId('optometrist'); setPassword('123456'); }}
+                  className={`py-1.5 px-1 rounded-lg text-[11px] font-bold transition text-center ${staffId === 'optometrist' ? 'bg-[#004967] text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'}`}
                 >
                   Khúc xạ
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setStaffId('lab'); setPassword('123456'); }}
-                  className={`py-1.5 px-1 rounded-lg text-[11px] font-bold transition text-center ${staffId === 'lab' ? 'bg-[#004967] text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'}`}
+                  onClick={() => { setStaffId('labtech'); setPassword('123456'); }}
+                  className={`py-1.5 px-1 rounded-lg text-[11px] font-bold transition text-center ${staffId === 'labtech' ? 'bg-[#004967] text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'}`}
                 >
                   KTV Lab
                 </button>

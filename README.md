@@ -1,51 +1,69 @@
-# 🏬 GlassStore Internal Portal (Hệ Thống Quản Trị Nội Bộ & POS Bán Hàng)
+# GlassStore Internal Portal
 
-Cổng thông tin vận hành nội bộ dành cho Nhân viên Bán hàng tại quầy (POS), Kỹ thuật viên Khúc xạ (Optometry), Kỹ thuật viên Xưởng kính Lab và Quản lý Kho chi nhánh.
+React/Vite operations portal for POS, OMS, optometry, Lab/QC, inventory, CRM and administration. The complete Java/MySQL setup and shared launcher are documented in backend/README.md.
 
----
+## Standard local environment
 
-## 🎨 Bảng Màu Chuẩn (Official Palette)
+| Component | Address |
+|---|---|
+| Internal portal | http://127.0.0.1:5174/login |
+| Customer web | http://127.0.0.1:5173 |
+| API Gateway | http://127.0.0.1:8080 |
+| MySQL used by backend | 127.0.0.1:3306 |
 
-Tất cả thành viên trong nhóm code UI portal phải tuân thủ bảng màu chính thức:
+Use Node.js 20 or newer. Frontend never connects directly to a database. It calls relative /api URLs through Vite and the gateway.
 
-| Tên Màu | Mã HEX | RGB | Ứng Dụng |
-| :--- | :--- | :--- | :--- |
-| **Primary Dark** | `#086288` | `rgb(8, 98, 136)` | Sidebar nền, Nút hành động chính, Header text, Tổng tiền bill |
-| **Ocean Blue** | `#4D8DBA` | `rgb(77, 141, 186)` | Menu mục đang chọn (Active), Viền nút In bill |
-| **Sky Accent** | `#97D7FF` | `rgb(151, 215, 255)` | Đường viền ngăn cách, Card Mắt Phải (OD) |
-| **Warm Cream** | `#FFEFC4` | `rgb(255, 239, 196)` | Tag SKU sản phẩm, Badge chi nhánh, Card Mắt Trái (OS) |
+## Run the complete workspace
 
-> Xem chi tiết tại [DESIGN_PALETTE.md](./DESIGN_PALETTE.md).
+Use this folder layout:
 
----
+```text
+GlassStore/
+  backend/
+  frontend/
+    customer-web/
+    internal-portal/
+```
 
-## 🚀 Khởi Chạy Dự Án
+Prepare backend/.env and initialize only a fresh database using the backend guide. Then run backend/START_GLASSSTORE.bat. The launcher builds five BE services, installs missing frontend dependencies and starts both FE sites. It does not stop an existing MySQL service, delete data or silently choose different ports.
 
-```bash
-# 1. Cài đặt thư viện
-npm install
+Use backend/CHECK_GLASSSTORE.bat to check readiness, and backend/STOP_GLASSSTORE.bat to stop applications owned by the launcher. Logs and process records are in backend/.runtime.
 
-# 2. Chạy môi trường phát triển (Port 5174)
+## Run only the portal
+
+```powershell
+npm ci
 npm run dev
 ```
 
-Truy cập: `http://localhost:5174`
+Vite binds to 127.0.0.1:5174 and uses strictPort. Keep the backend/gateway running. Optional frontend .env configuration:
 
----
+```text
+VITE_API_GATEWAY_URL=
+VITE_PROXY_TARGET=http://127.0.0.1:8080
+VITE_PORT=5174
+```
 
-## 📋 Các Phân Hệ Chức Năng (Modules)
+Keep the API base empty for the shared proxy setup. Remove old direct API overrides from .env.local. Never put JWT_SECRET or DB credentials in frontend environment variables. .env files are ignored by Git; restart Vite after changing them.
 
-1. **Bán Hàng POS Quầy (`pos`)**:
-   - Quét mã vạch Barcode / nhập SKU nhanh
-   - Tự động cộng dồn số lượng, tính tổng tiền hàng, áp mã Voucher
-   - Nút In hóa đơn nhiệt K80 và Xác nhận thanh toán VietQR
-2. **Phòng Đo Khám Khúc Xạ (`optometry`)**:
-   - Nhập thông số chuẩn nhãn khoa riêng biệt: Mắt Phải (OD) & Mắt Trái (OS)
-   - Lưu các chỉ số SPH, CYL, AXIS, ADD, PD (khoảng cách đồng tử)
-   - In phiếu khám khúc xạ chuẩn A5
-3. **Xưởng Mài Lắp Kính & QC (`lab`)**:
-   - Quản lý quy trình gia công từ đơn kính thuốc
-   - Chuyển trạng thái quy trình: Chờ xử lý -> Đang mài tròng -> Đạt kiểm định QC -> Sẵn sàng giao
-4. **Quản Trị & Tồn Kho (`dashboard`)**:
-   - Báo cáo doanh thu ca làm việc, số đơn bán ra, số ca đo mắt
-   - Bảng theo dõi tồn kho khả dụng của chi nhánh
+## Canonical local accounts
+
+| Role | Username | Email | Demo password |
+|---|---|---|---|
+| Admin | admin | adminoptic@gmail.com | 123456 |
+| POS cashier | staff | posoptic@gmail.com | 123456 |
+| Optometrist | optometrist | optometryoptic@gmail.com | 123456 |
+| Lab technician | labtech | laboptic@gmail.com | 123456 |
+
+These accounts belong to the canonical fresh SQL dataset. Usernames pos/optometry/lab are not aliases for these SQL accounts. Authentication must pass the backend BCrypt check; there is no offline-token login or universal-password bypass. Custom passwords on an existing server are not reset by setup.
+
+The sample dataset has inventory at BRANCH_01 and BRANCH_02. For an existing database, missing branch stock must be resolved by actual transfers, not by displaying LAB/global stock as branch availability. A 401 is an authentication/session issue, not proof that products or customers disappeared.
+
+## Verification
+
+```powershell
+node --test src/api/authApi.test.js src/api/orderApi.test.js src/api/warrantyApi.test.js
+npm run build
+```
+
+Check actual login and API permissions for each role. Frontend route guards do not replace backend authorization. Use a consistent hostname; localhost and 127.0.0.1 store separate sessions.

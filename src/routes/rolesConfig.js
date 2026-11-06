@@ -1,7 +1,3 @@
-// ============================================================
-// OptiVision RBAC (Role-Based Access Control) Constants
-// ============================================================
-
 export const ROLES = {
   ADMIN: 'admin',
   POS: 'pos',
