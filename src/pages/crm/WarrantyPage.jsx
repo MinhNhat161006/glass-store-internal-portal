@@ -44,10 +44,18 @@ export default function WarrantyPage() {
   }
   function openReception(purchase) {
     form.resetFields();
-    form.setFieldsValue({customerName:purchase?.customerName || '',customerPhone:purchase?.customerPhone || '',
-      productName:purchase?.productName || '',productBarcode:purchase?.productBarcode || '',
-      expectedPickupAt:pickupDefault(),requestedServices:['FRAME_ADJUSTMENT'],
-      notes:purchase?.orderCode ? `Tiếp nhận từ đơn ${purchase.orderCode}` : ''});
+    form.setFieldsValue({
+      customerId: purchase?.customerId ?? '',
+      orderId: purchase?.orderId ?? '',
+      orderItemId: purchase?.orderItemId ?? '',
+      customerName: purchase?.customerName || '',
+      customerPhone: purchase?.customerPhone || '',
+      productName: purchase?.productName || '',
+      productBarcode: purchase?.productBarcode || '',
+      expectedPickupAt: pickupDefault(),
+      requestedServices: ['FRAME_ADJUSTMENT'],
+      notes: purchase?.orderCode ? `Tiếp nhận từ đơn ${purchase.orderCode}` : ''
+    });
     setFormOpen(true);
   }
   async function create(values) {

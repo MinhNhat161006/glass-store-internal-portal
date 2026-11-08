@@ -4,51 +4,7 @@ import { useReactToPrint } from 'react-to-print';
 import './shipping-label.css';
 import labelStyles from './shipping-label.css?inline';
 
-// Vector SVG Barcode generator for reliable, high-resolution printing
-function BarcodeSvg({ value = 'TRACKING123456', height = 40 }) {
-  const bars = [];
-  let currentX = 8;
-
-  // Start guard bars
-  bars.push(<rect key="sg-1" x={currentX} y={0} width={2} height={height} fill="#000" />);
-  bars.push(<rect key="sg-2" x={currentX + 4} y={0} width={2} height={height} fill="#000" />);
-  currentX += 8;
-
-  const str = String(value || 'OPTIVISION');
-  for (let i = 0; i < str.length; i++) {
-    const code = str.charCodeAt(i);
-    const pattern = [
-      (code % 2) + 1,
-      ((code >> 1) % 2) + 1,
-      ((code >> 2) % 2) + 1,
-      ((code >> 3) % 2) + 1,
-    ];
-    for (let p = 0; p < pattern.length; p++) {
-      const w = pattern[p];
-      if (p % 2 === 0) {
-        bars.push(<rect key={`bar-${i}-${p}`} x={currentX} y={0} width={w} height={height} fill="#000" />);
-      }
-      currentX += w + 1;
-    }
-    currentX += 1;
-  }
-
-  // Stop guard bars
-  bars.push(<rect key="eg-1" x={currentX} y={0} width={2} height={height} fill="#000" />);
-  bars.push(<rect key="eg-2" x={currentX + 4} y={0} width={3} height={height} fill="#000" />);
-  const totalWidth = currentX + 12;
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <svg width={Math.min(totalWidth, 320)} height={height} viewBox={`0 0 ${totalWidth} ${height}`} style={{ maxWidth: '100%' }}>
-        {bars}
-      </svg>
-      <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 800, letterSpacing: '2px', marginTop: '2px' }}>
-        {value}
-      </span>
-    </div>
-  );
-}
+import { collectionAmount } from './shippingLabelUtils.js';
 
 export default function OrderShippingLabel({ order, open, onClose }) {
   const labelRef = useRef(null);
@@ -73,8 +29,9 @@ export default function OrderShippingLabel({ order, open, onClose }) {
   const url = new URL('/orders', window.location.origin);
   url.searchParams.set('order', order.orderCode || String(order.id));
 
-  const trackingCode = order.trackingCode || (order.orderCode ? `VN-${order.orderCode.replace('#', '')}` : `VN-OPT-${order.id}`);
-  const carrierName = (order.carrierName || 'GHTK').toUpperCase();
+  const trackingCode = order.trackingCode;
+  const carrierName = (order.carrierName || '').toUpperCase();
+  const codAmount = collectionAmount(order);
   const carrierClass = carrierName.includes('AHA') ? 'ahamove' : (carrierName.includes('GHTK') ? 'ghtk' : '');
 
   return (
@@ -122,11 +79,11 @@ export default function OrderShippingLabel({ order, open, onClose }) {
           <div className="tracking-banner">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
               <span className={`carrier-badge ${carrierClass}`}>
-                ĐƠN VỊ VẬN CHUYỂN: {order.carrierName || 'GHTK (Giao Hàng Tiết Kiệm)'}
+                ĐƠN VỊ VẬN CHUYỂN: {order.carrierName || 'Chưa gán đơn vị vận chuyển'}
               </span>
-              <span style={{ fontSize: '10px', color: '#475569', fontWeight: 700 }}>DỊCH VỤ: HỎA TỐC</span>
+
             </div>
-            <BarcodeSvg value={trackingCode} height={42} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>{trackingCode && <QRCode value={trackingCode} type="svg" size={72} bordered={false} />}<strong style={{ fontFamily: 'monospace' }}>{trackingCode || 'Chưa có mã vận đơn'}</strong></div>
           </div>
 
           {/* 3. Thông tin Người Nhận & Người Gửi */}
@@ -145,7 +102,7 @@ export default function OrderShippingLabel({ order, open, onClose }) {
               <span className="info-title" style={{ color: '#1d4ed8' }}>Người nhận / Ship To:</span>
               <h3 className="customer-name">{order.customerName || 'Khách vãng lai'}</h3>
               <p className="customer-phone">SĐT: <strong>{order.customerPhone || 'Chưa có SĐT'}</strong></p>
-              <p className="customer-addr">Địa chỉ: {order.shippingAddress || 'Nhận tại quầy Flagship'}</p>
+              <p className="customer-addr">Địa chỉ: {order.shippingAddress || (order.channel === 'POS' ? 'Nhận tại quầy' : 'Chưa có địa chỉ giao hàng')}</p>
             </div>
           </div>
 
@@ -180,9 +137,9 @@ export default function OrderShippingLabel({ order, open, onClose }) {
           <div className="cod-box">
             <div>
               <span className="cod-label">TIỀN THU NGƯỜI NHẬN (COD):</span>
-              <div style={{ fontSize: '9px', color: '#047857' }}>Đơn hàng đã được thanh toán online / trả trước</div>
+              <div style={{ fontSize: '9px', color: '#047857' }}>{codAmount === 0 ? 'Không thu thêm tiền theo dữ liệu thanh toán' : codAmount == null ? 'Cần đối soát thanh toán trước khi giao' : 'Thu hộ theo dữ liệu đơn hàng'}</div>
             </div>
-            <span className="cod-amount">0 ₫</span>
+            <span className="cod-amount">{codAmount == null ? 'Chưa xác nhận' : codAmount.toLocaleString('vi-VN') + ' ₫'}</span>
           </div>
 
           {/* 6. TEM CẢNH BÁO ĐẶC BIỆT: HÀNG DỄ VỠ - TRÁNH ĐÈ NÉN */}

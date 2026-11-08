@@ -1,57 +1,40 @@
-import { apiFetch } from './client';
+import { apiFetch } from './client.js';
+import { validateMeasurements } from '../pages/optometry/prescriptionUtils.js';
+
+const list = response => {
+  if (!Array.isArray(response?.data)) throw new Error('Dữ liệu toa kính không hợp lệ.');
+  return response.data;
+};
+const record = response => {
+  if (!response?.data?.id || response.data.version == null) {
+    throw new Error('Chưa nhận được toa kính và phiên bản đã lưu. Vui lòng tải lại để kiểm tra.');
+  }
+  return response.data;
+};
+async function validate(data) {
+  const rules = await prescriptionApi.getValidationRules();
+  const errors = validateMeasurements(data, rules);
+  if (errors.length) throw new Error(errors.join('; '));
+}
 
 export const prescriptionApi = {
-  /**
-   * Lấy danh sách tất cả toa kính
-   */
-  async getAllPrescriptions() {
-    const res = await apiFetch('/api/prescriptions');
-    return res?.data || [];
-  },
-
-  /**
-   * Lấy lịch sử khúc xạ theo ID khách hàng
-   */
-  async getByCustomerId(customerId) {
-    const res = await apiFetch(`/api/prescriptions/customer/${customerId}`);
-    return res?.data || [];
-  },
-
-  /**
-   * Lấy chi tiết một toa kính
-   */
-  async getById(id) {
-    const res = await apiFetch(`/api/prescriptions/${id}`);
-    return res?.data;
-  },
-
-  /**
-   * Bác sĩ ký duyệt và lưu toa kính mới
-   */
-  async createPrescription(data) {
+  async getAllPrescriptions() { return list(await apiFetch('/api/prescriptions')); },
+  async getByCustomerId(customerId) { return list(await apiFetch(`/api/prescriptions/customer/${customerId}`)); },
+  async getById(id) { return record(await apiFetch(`/api/prescriptions/${id}`)); },
+  async getValidationRules() {
     const rules = (await apiFetch('/api/prescriptions/validation-rules'))?.data;
-    if (!rules) throw new Error('Kh?ng t?i ???c quy t?c toa k?nh.');
-    for (const [field, rule] of Object.entries(rules)) {
-      const value = data[field];
-      if (value == null || value === '') {
-        if (rule.required) throw new Error(field + ': thi?u d? li?u');
-        continue;
-      }
-      if (rule.min != null || rule.max != null || rule.integer || rule.fraction != null) {
-        const number = Number(value);
-        if (!Number.isFinite(number) || (rule.min != null && number < Number(rule.min))
-          || (rule.max != null && number > Number(rule.max))
-          || (rule.integer && !Number.isInteger(number))
-          || (rule.fraction != null && Math.abs(number * 10 ** rule.fraction - Math.round(number * 10 ** rule.fraction)) > 1e-7)) {
-          throw new Error(field + ': s? ?o ngo?i mi?n h?p l?');
-        }
-      }
-    }
-    const res = await apiFetch('/api/prescriptions', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-    return res?.data;
-  }
+    if (!rules?.odSph || !rules?.pd) throw new Error('Không tải được quy tắc kiểm tra toa kính.');
+    return rules;
+  },
+  async getRevisions(id) { return list(await apiFetch(`/api/prescriptions/${id}/revisions`)); },
+  async createPrescription(data) {
+    await validate(data);
+    return record(await apiFetch('/api/prescriptions', { method: 'POST', body: JSON.stringify(data) }));
+  },
+  async updatePrescription(id, data) {
+    if (!Number.isInteger(data.expectedVersion) || data.expectedVersion < 0) throw new Error('Thiếu phiên bản của toa kính.');
+    if (!data.reason?.trim() || data.reason.trim().length > 500) throw new Error('Nhập lý do cập nhật từ 1 đến 500 ký tự.');
+    await validate(data);
+    return record(await apiFetch(`/api/prescriptions/${id}`, { method: 'PATCH', body: JSON.stringify({ ...data, reason: data.reason.trim() }) }));
+  },
 };
-
