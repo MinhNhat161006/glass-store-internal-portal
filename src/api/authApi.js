@@ -30,5 +30,30 @@ export const authApi = {
   logout() {
     localStorage.removeItem('optivision_jwt_token');
     localStorage.removeItem('optivision_auth_user');
+  },
+
+  async sendOtp(payload) {
+    const res = await apiFetch('/api/auth/otp/send', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return res?.data;
+  },
+
+  async verifyPhoneOtp(payload) {
+    const res = await apiFetch('/api/auth/otp/verify', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return res?.data;
+  },
+
+  async resetPassword(payload) {
+    const res = await apiFetch('/api/auth/password/reset', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    authApi.logout();
+    return res?.data;
   }
 };

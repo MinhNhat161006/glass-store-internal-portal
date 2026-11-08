@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { staffApi } from '../../api/staffApi';
+import { authApi } from '../../api/authApi';
 import { message, Modal } from 'antd';
 
 // Department roles for registration
@@ -45,6 +46,12 @@ export default function AuthPage({ onLoginSuccess }) {
   const [regAgreed, setRegAgreed] = useState(true);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [resetModalOpen, setResetModalOpen] = useState(false);
+  const [resetIdentifier, setResetIdentifier] = useState('');
+  const [resetPhone, setResetPhone] = useState('');
+  const [resetChallenge, setResetChallenge] = useState(null);
+  const [resetOtpCode, setResetOtpCode] = useState('');
+  const [resetNewPassword, setResetNewPassword] = useState('');
 
   // Simplified Password Strength (Yếu, Trung bình, Mạnh)
   const getPasswordStrength = (pwd) => {
@@ -397,10 +404,16 @@ export default function AuthPage({ onLoginSuccess }) {
 
               <div className="text-center pt-2">
                 <span
-                  onClick={() => message.info('Vui lòng liên hệ Quản trị viên để được cấp lại mật khẩu.')}
+                  onClick={() => {
+                    setResetIdentifier(staffId);
+                    setResetChallenge(null);
+                    setResetOtpCode('');
+                    setResetNewPassword('');
+                    setResetModalOpen(true);
+                  }}
                   className="text-xs text-slate-500 hover:text-[#004967] cursor-pointer"
                 >
-                  Quên mật khẩu?
+                  Quên mật khẩu / Xác thực OTP?
                 </span>
               </div>
             </form>
@@ -541,6 +554,103 @@ export default function AuthPage({ onLoginSuccess }) {
       <footer className="w-full py-4 text-center text-xs text-slate-400 border-t border-slate-200 bg-white">
         © 2026 OptiVision Eyecare Systems.
       </footer>
+
+      <Modal
+        title="Đặt lại mật khẩu qua SMS OTP"
+        open={resetModalOpen}
+        onCancel={() => setResetModalOpen(false)}
+        footer={null}
+      >
+        <div className="space-y-3 pt-2">
+          <div>
+            <label className="text-xs font-semibold text-slate-700">Tài khoản / Email / Mã NV</label>
+            <input
+              type="text"
+              value={resetIdentifier}
+              onChange={(e) => setResetIdentifier(e.target.value)}
+              placeholder="Nhập username, email hoặc mã NV..."
+              className="w-full h-10 px-3 rounded-lg border border-slate-300 text-xs mt-1"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-slate-700">Số điện thoại đã đăng ký</label>
+            <div className="flex gap-2 mt-1">
+              <input
+                type="tel"
+                value={resetPhone}
+                onChange={(e) => setResetPhone(e.target.value)}
+                placeholder="0901000000"
+                className="flex-1 h-10 px-3 rounded-lg border border-slate-300 text-xs"
+              />
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const chg = await authApi.sendOtp({
+                      identifier: resetIdentifier.trim(),
+                      phoneNumber: resetPhone.trim() || undefined,
+                      purpose: 'PASSWORD_RESET',
+                    });
+                    setResetChallenge(chg);
+                    message.success(`Đã gửi mã OTP tới ${chg.maskedPhone}`);
+                  } catch (err) {
+                    message.error(err.message || 'Không gửi được mã OTP');
+                  }
+                }}
+                className="px-3 h-10 rounded-lg bg-[#004967] text-white text-xs font-bold cursor-pointer"
+              >
+                Gửi OTP
+              </button>
+            </div>
+          </div>
+          {resetChallenge && (
+            <>
+              <div>
+                <label className="text-xs font-semibold text-slate-700">
+                  Mã OTP (đã gửi tới {resetChallenge.maskedPhone})
+                </label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  value={resetOtpCode}
+                  onChange={(e) => setResetOtpCode(e.target.value.replace(/\D/g, ''))}
+                  placeholder="Nhập 6 chữ số OTP"
+                  className="w-full h-10 px-3 rounded-lg border border-slate-300 text-xs font-mono mt-1"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-700">Mật khẩu mới</label>
+                <input
+                  type="password"
+                  value={resetNewPassword}
+                  onChange={(e) => setResetNewPassword(e.target.value)}
+                  placeholder="Tối thiểu 6 ký tự..."
+                  className="w-full h-10 px-3 rounded-lg border border-slate-300 text-xs mt-1"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await authApi.resetPassword({
+                      challengeId: resetChallenge.challengeId,
+                      otpCode: resetOtpCode.trim(),
+                      newPassword: resetNewPassword,
+                    });
+                    message.success('Đặt lại mật khẩu thành công! Vui lòng đăng nhập lại.');
+                    setResetModalOpen(false);
+                  } catch (err) {
+                    message.error(err.message || 'Xác thực OTP thất bại');
+                  }
+                }}
+                className="w-full h-10 rounded-lg bg-emerald-600 text-white text-xs font-bold cursor-pointer"
+              >
+                Xác nhận đặt lại mật khẩu
+              </button>
+            </>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }

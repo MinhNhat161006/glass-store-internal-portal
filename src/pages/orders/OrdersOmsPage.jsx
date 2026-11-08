@@ -418,19 +418,29 @@ export default function OrdersOmsPage() {
             )}
 
             {norm === 'PROCESSING' && (
-              <Button
-                size="small"
-                type="primary"
-                disabled={isReadOnly || updating}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold disabled:opacity-40"
-                onClick={e => openShippingModal(order, e)}
-                title={isReadOnly ? 'Vai trò của bạn không có quyền chuyển bước OMS' : 'Bàn giao cho đơn vị vận chuyển'}
-              >
-                Bàn giao Shipper
-              </Button>
+              <>
+                <Button
+                  size="small"
+                  type="primary"
+                  disabled={isReadOnly || updating}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold disabled:opacity-40"
+                  onClick={e => openShippingModal(order, e)}
+                  title={isReadOnly ? 'Vai trò của bạn không có quyền chuyển bước OMS' : 'Bàn giao cho đơn vị vận chuyển'}
+                >
+                  Bàn giao Shipper
+                </Button>
+                <Button
+                  size="small"
+                  disabled={isReadOnly || updating}
+                  className="border-cyan-600 text-cyan-700 font-semibold"
+                  onClick={() => handleUpdateStatus(order.id, 'READY_FOR_PICKUP', { reason: 'Sẵn sàng giao kính tại quầy' })}
+                >
+                  Nhận tại quầy
+                </Button>
+              </>
             )}
 
-            {norm === 'SHIPPING' && (
+            {(norm === 'SHIPPING' || norm === 'READY_FOR_PICKUP') && (
               <Button
                 size="small"
                 type="primary"
@@ -440,6 +450,71 @@ export default function OrdersOmsPage() {
                 title={isReadOnly ? 'Vai trò của bạn không có quyền chuyển bước OMS' : 'Xác nhận hoàn tất đơn & ghi nhận doanh thu'}
               >
                 Hoàn tất đơn
+              </Button>
+            )}
+
+            {norm === 'CANCEL_REQUESTED' && (
+              <>
+                <Button
+                  size="small"
+                  danger
+                  disabled={isReadOnly || updating}
+                  onClick={async () => {
+                    setUpdating(true);
+                    try {
+                      await orderApi.approveCancelRequest(order.id, 'Nhân viên duyệt yêu cầu hủy đơn');
+                      await loadOrders();
+                      message.success('Đã duyệt hủy đơn hàng và giải phóng tồn kho.');
+                    } catch (err) {
+                      message.error(err.message || 'Không thể duyệt hủy đơn.');
+                    } finally {
+                      setUpdating(false);
+                    }
+                  }}
+                >
+                  Duyệt hủy
+                </Button>
+                <Button
+                  size="small"
+                  disabled={isReadOnly || updating}
+                  onClick={async () => {
+                    setUpdating(true);
+                    try {
+                      await orderApi.rejectCancelRequest(order.id, 'Từ chối yêu cầu hủy - Đơn tiếp tục xử lý');
+                      await loadOrders();
+                      message.success('Đã từ chối yêu cầu hủy và khôi phục trạng thái đơn.');
+                    } catch (err) {
+                      message.error(err.message || 'Không thể từ chối yêu cầu hủy.');
+                    } finally {
+                      setUpdating(false);
+                    }
+                  }}
+                >
+                  Từ chối hủy
+                </Button>
+              </>
+            )}
+
+            {norm === 'REFUND_PENDING' && (
+              <Button
+                size="small"
+                type="primary"
+                disabled={isReadOnly || updating}
+                className="bg-amber-600 hover:bg-amber-700 text-white font-semibold"
+                onClick={async () => {
+                  setUpdating(true);
+                  try {
+                    await orderApi.confirmRefund(order.id);
+                    await loadOrders();
+                    message.success('Đã xác nhận hoàn tiền thành công!');
+                  } catch (err) {
+                    message.error(err.message || 'Không thể xác nhận hoàn tiền.');
+                  } finally {
+                    setUpdating(false);
+                  }
+                }}
+              >
+                Xác nhận hoàn tiền
               </Button>
             )}
 
@@ -639,14 +714,55 @@ export default function OrdersOmsPage() {
                   <>
                     {['PAID', 'CONFIRMED'].includes(modalOrder.status) && <Button size="small" loading={updating} onClick={() => handleUpdateStatus(modalOrder.id, 'PREPARING', { reason: 'Chuyển xưởng Lab mài kính' })}>Chuyển gia công</Button>}
                     {normalizeStatus(modalOrder.status) === 'PROCESSING' && (
-                    <Button size="small" type="primary" className="bg-indigo-600" onClick={() => openShippingModal(modalOrder)}>
-                      Bàn giao Shipper (SHIPPING)
-                    </Button>
+                    <>
+                      <Button size="small" type="primary" className="bg-indigo-600" onClick={() => openShippingModal(modalOrder)}>
+                        Bàn giao Shipper (SHIPPING)
+                      </Button>
+                      <Button size="small" className="border-cyan-600 text-cyan-700" onClick={() => handleUpdateStatus(modalOrder.id, 'READY_FOR_PICKUP', { reason: 'Sẵn sàng giao kính tại quầy' })}>
+                        Chờ nhận tại quầy (READY_FOR_PICKUP)
+                      </Button>
+                    </>
                     )}
                     {['SHIPPING', 'READY_FOR_PICKUP'].includes(modalOrder.status) && (
                     <Button size="small" type="primary" className="bg-emerald-600" onClick={() => handleUpdateStatus(modalOrder.id, 'COMPLETED', { reason: 'Giao hàng thành công' })}>
                       COMPLETED (Hoàn tất)
                     </Button>
+                    )}
+                    {modalOrder.status === 'CANCEL_REQUESTED' && (
+                      <>
+                        <Button size="small" danger loading={updating} onClick={async () => {
+                          setUpdating(true);
+                          try {
+                            await orderApi.approveCancelRequest(modalOrder.id, 'Duyệt yêu cầu hủy đơn');
+                            await loadOrders();
+                            message.success('Đã duyệt hủy đơn hàng.');
+                          } catch (err) {
+                            message.error(err.message || 'Không thể duyệt hủy đơn.');
+                          } finally { setUpdating(false); }
+                        }}>Duyệt hủy</Button>
+                        <Button size="small" loading={updating} onClick={async () => {
+                          setUpdating(true);
+                          try {
+                            await orderApi.rejectCancelRequest(modalOrder.id, 'Từ chối yêu cầu hủy đơn');
+                            await loadOrders();
+                            message.success('Đã từ chối yêu cầu hủy đơn.');
+                          } catch (err) {
+                            message.error(err.message || 'Không thể từ chối hủy đơn.');
+                          } finally { setUpdating(false); }
+                        }}>Từ chối hủy</Button>
+                      </>
+                    )}
+                    {modalOrder.status === 'REFUND_PENDING' && (
+                      <Button size="small" type="primary" className="bg-amber-600" loading={updating} onClick={async () => {
+                        setUpdating(true);
+                        try {
+                          await orderApi.confirmRefund(modalOrder.id);
+                          await loadOrders();
+                          message.success('Đã xác nhận hoàn tiền thành công.');
+                        } catch (err) {
+                          message.error(err.message || 'Không thể xác nhận hoàn tiền.');
+                        } finally { setUpdating(false); }
+                      }}>Xác nhận hoàn tiền</Button>
                     )}
                     {modalOrder.channel === 'POS' && ['PAID', 'CANCEL_PENDING'].includes(modalOrder.status) && (
                       <Button size="small" danger loading={updating} onClick={() => Modal.confirm({

@@ -7,6 +7,8 @@ const requestOrder = async (path, options) => {
 
 export const orderApi = {
   cancel: (id, reason, refundConfirmed) => requestOrder(`/api/orders/${id}/cancel`, { method: 'PATCH', body: JSON.stringify({ reason, refundConfirmed }) }),
+  approveCancelRequest: (id, reason) => requestOrder(`/api/orders/${id}/cancel`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  rejectCancelRequest: (id, reason) => requestOrder(`/api/orders/${id}/cancel-reject`, { method: 'POST', body: JSON.stringify({ reason }) }),
   confirmRefund: id => requestOrder(`/api/orders/${id}/refund-confirm`, { method: 'POST' }),
   retryInventory: (id, branchCode) => requestOrder(`/api/orders/${id}/inventory/retry`, { method: 'POST', body: JSON.stringify({ branchCode }) }),
   getAllOrders: () => requestOrder('/api/orders'),
