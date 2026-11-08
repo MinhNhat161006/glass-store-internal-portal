@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { ROLES } from '../../routes/rolesConfig';
+import { message } from 'antd';
+import { catalogManagementApi } from '../../api/catalogManagementApi';
 
 
 export default function MainLayout() {
@@ -12,15 +14,28 @@ export default function MainLayout() {
   // Current logged in role
   const currentRole = user?.role || ROLES.ADMIN;
 
-  const [selectedBranch, setSelectedBranch] = useState('Chi nhánh 01 - Lê Thánh Tôn');
+  const [selectedBranch, setSelectedBranch] = useState('');
+  const [locations, setLocations] = useState([]);
+  const [locationsLoading, setLocationsLoading] = useState(true);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
-  const branches = [
-    'Chi nhánh 01 - Lê Thánh Tôn',
-    'Chi nhánh 02 - Tràng Tiền (HN)',
-    'Trung tâm Lab Lens Tân Bình',
-    'Trụ sở Quản trị Toàn quốc'
-  ];
+  useEffect(() => {
+    let active = true;
+    catalogManagementApi.getPublicLocations()
+      .then((response) => {
+        if (!Array.isArray(response?.data)) throw new Error('Dữ liệu địa điểm không hợp lệ.');
+        if (!active) return;
+        setLocations(response.data);
+        setSelectedBranch(response.data[0]?.code || '');
+      })
+      .catch((error) => {
+        if (active) message.error(error.message || 'Không thể tải danh sách địa điểm.');
+      })
+      .finally(() => {
+        if (active) setLocationsLoading(false);
+      });
+    return () => { active = false; };
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -146,6 +161,12 @@ export default function MainLayout() {
           label: 'Cấu hình hệ thống (FR-ADM)',
           icon: 'settings',
           allowedRoles: [ROLES.ADMIN]
+        },
+        {
+          key: '/catalog-management',
+          label: 'Danh mục, thương hiệu & địa điểm',
+          icon: 'category',
+          allowedRoles: [ROLES.ADMIN]
         }
       ]
     }
@@ -253,11 +274,13 @@ export default function MainLayout() {
               <select
                 value={selectedBranch}
                 onChange={(e) => setSelectedBranch(e.target.value)}
+                disabled={locationsLoading || locations.length === 0}
+                aria-label="Chọn địa điểm"
                 className="appearance-none bg-[#e7eeff] hover:bg-[#dee8ff] text-[#111c2d] text-xs font-bold pl-8 pr-7 py-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#086288] cursor-pointer transition-colors"
               >
-                {branches.map((b, i) => (
-                  <option key={i} value={b}>
-                    {b}
+                {locations.map((location) => (
+                  <option key={location.code} value={location.code}>
+                    {location.name}
                   </option>
                 ))}
               </select>
@@ -392,6 +415,4 @@ export default function MainLayout() {
     </div>
   );
 }
-
-
 
