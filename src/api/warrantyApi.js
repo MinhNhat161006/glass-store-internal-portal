@@ -23,6 +23,12 @@ export const warrantyApi = {
   updateWarrantyStatus: (id, updateData) => apiFetch(`/api/warranties/${id}/status`, {
     method: 'PATCH',
     body: JSON.stringify(updateData)
-  })
+  }),
+  getPolicies: () => request('/api/warranties/policies'),
+  updatePolicy: (benefitType, payload) => request(`/api/warranties/policies/${encodeURIComponent(benefitType)}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload)
+  }),
+  getWarrantyHistory: id => request(`/api/warranties/${id}/history`)
 };
 

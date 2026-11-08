@@ -26,15 +26,22 @@ export default function WarrantyPage() {
   const [saving,setSaving] = useState(false);
   const [activeId,setActiveId] = useState(null);
   const [receipt,setReceipt] = useState(null);
+  const [policies,setPolicies] = useState([]);
   const [form] = Form.useForm();
   const active = repairs.find(item => item.id === activeId);
+  async function loadPolicies() {
+    try {
+      const list = await warrantyApi.getPolicies();
+      if (Array.isArray(list)) setPolicies(list);
+    } catch {}
+  }
   async function loadRepairs(query = repairQuery) {
     setLoading(true); setRepairError('');
     try { const rows=await warrantyApi.getRepairs(query); if(!Array.isArray(rows))throw new Error('Dữ liệu phiếu không hợp lệ.');setRepairs(rows); }
     catch(error){setRepairError(error.message || 'Không tải được phiếu sửa chữa.');}
     finally{setLoading(false);}
   }
-  useEffect(()=>{loadRepairs('');},[]);
+  useEffect(()=>{loadRepairs(''); loadPolicies();},[]);
   async function search() {
     if(!lookup.trim()){setLookupError('Vui lòng nhập số điện thoại hoặc mã vạch.');return;}
     setLookupBusy(true);setLookupError('');
@@ -111,6 +118,20 @@ export default function WarrantyPage() {
       {key:'repairs',label:'Phiếu sửa chữa',children:<>
         <div className="workspace-toolbar" style={{padding:'8px 0 20px'}}><Input.Search allowClear className="workspace-search" aria-label="Tìm phiếu sửa chữa" placeholder="Mã phiếu hoặc số điện thoại" value={repairQuery} onChange={event=>setRepairQuery(event.target.value)} onSearch={()=>loadRepairs()} /><Button onClick={()=>loadRepairs()} loading={loading}>Làm mới</Button></div>
         {repairError?<Alert type="error" showIcon message={repairError}/>:<Table rowKey="id" columns={repairColumns} dataSource={repairs} loading={loading} scroll={{x:850}} pagination={{pageSize:10,hideOnSinglePage:true}} locale={{emptyText:<Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có phiếu phù hợp"/>}}/>}
+      </>},
+      {key:'policies',label:'Chính sách bảo hành',children:<>
+        <Table
+          rowKey={p => `${p.benefitType}-${p.version}`}
+          dataSource={policies}
+          pagination={false}
+          columns={[
+            { title: 'Quyền lợi', dataIndex: 'benefitType', render: benefitName },
+            { title: 'Mã chính sách', dataIndex: 'policyCode' },
+            { title: 'Phiên bản', dataIndex: 'version', render: v => <Tag color="blue">v{v || 1}</Tag> },
+            { title: 'Thời hạn', dataIndex: 'durationDays', render: d => d ? `${d} ngày` : 'Trọn đời' },
+            { title: 'Điều kiện áp dụng', dataIndex: 'coverageTerms' },
+          ]}
+        />
       </>},
     ]}/></section>
     <Modal title="Tiếp nhận sửa chữa" open={formOpen} onCancel={()=>!saving&&setFormOpen(false)} footer={null} width={700} maskClosable={!saving} closable={!saving}>
