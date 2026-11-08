@@ -81,7 +81,7 @@ export default function OrderShippingLabel({ order, open, onClose }) {
               <span className={`carrier-badge ${carrierClass}`}>
                 ĐƠN VỊ VẬN CHUYỂN: {order.carrierName || 'Chưa gán đơn vị vận chuyển'}
               </span>
-              
+
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>{trackingCode && <QRCode value={trackingCode} type="svg" size={72} bordered={false} />}<strong style={{ fontFamily: 'monospace' }}>{trackingCode || 'Chưa có mã vận đơn'}</strong></div>
           </div>
