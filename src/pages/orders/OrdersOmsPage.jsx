@@ -4,6 +4,7 @@ import { orderApi } from '../../api/orderApi';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import OrderShippingLabel from './OrderShippingLabel';
+import { assertSavedTransition } from './shippingLabelUtils.js';
 import '../workspace.css';
 
 const statuses = {
@@ -179,6 +180,7 @@ export default function OrdersOmsPage() {
 
   // Cập nhật trạng thái đơn hàng (Gọi PATCH API /api/orders/{id}/status thật)
   const handleUpdateStatus = async (orderId, targetStatus, extraParams = {}) => {
+    if (updating) return null;
     if (isReadOnly) {
       message.warning('Tài khoản của bạn chỉ có quyền xem, không có thẩm quyền chuyển trạng thái đơn hàng OMS.');
       return;
@@ -196,31 +198,21 @@ export default function OrdersOmsPage() {
 
       const response = await orderApi.updateOrderStatus(orderId, payload);
       const saved = response?.data ?? response;
-      if (!saved?.id || !saved?.status) throw new Error("Máy chủ chưa xác nhận trạng thái đã lưu.");
+      assertSavedTransition(saved, orderId, targetStatus);
 
       // Cập nhật state local bảo toàn thông tin vận đơn trước đó
       setOrders(prev => prev.map(o => {
         if (o.id !== orderId) return o;
-        const carrier = extraParams.carrierName || saved?.carrierName || o.carrierName;
-        const tracking = extraParams.trackingCode || saved?.trackingCode || o.trackingCode;
-        const completed = targetStatus === 'COMPLETED' ? (saved?.completedAt || o.completedAt || new Date().toISOString()) : (saved?.completedAt || o.completedAt);
         return {
           ...o,
           ...saved,
-          status: saved.status,
-          carrierName: carrier,
-          trackingCode: tracking,
-          completedAt: completed
         };
       }));
 
       if (modalOrder && modalOrder.id === orderId) {
         setModalOrder(prev => ({
           ...prev,
-          status: targetStatus,
-          carrierName: extraParams.carrierName || prev?.carrierName,
-          trackingCode: extraParams.trackingCode || prev?.trackingCode,
-          completedAt: targetStatus === 'COMPLETED' ? (prev?.completedAt || new Date().toISOString()) : prev?.completedAt
+          ...saved,
         }));
 
         // Làm mới danh sách lịch sử chuyển trạng thái
@@ -232,7 +224,7 @@ export default function OrdersOmsPage() {
 
       if (targetStatus === 'COMPLETED') {
         message.success({
-          content: 'Đã hoàn tất đơn hàng và tự động cập nhật doanh thu thành công!',
+          content: 'Máy chủ đã xác nhận hoàn tất đơn hàng.',
           key: 'oms-update',
           duration: 3
         });
@@ -266,24 +258,16 @@ export default function OrdersOmsPage() {
     setShippingOrder(order);
     const defaultCarrier = order.carrierName || 'GHTK';
     setSelectedCarrier(defaultCarrier);
-    const foundCarrier = CARRIERS.find(c => c.id === defaultCarrier) || CARRIERS[0];
-    const generated = order.trackingCode || `${foundCarrier.prefix}-${Math.floor(100000 + Math.random() * 900000)}`;
-    setInputTrackingCode(generated);
+    setInputTrackingCode(order.trackingCode || '');
     setShippingNote(order.notes || '');
     setShippingModalOpen(true);
   };
 
-  // Sinh mã vận đơn tự động theo đơn vị vận chuyển đã chọn
-  const generateNewTrackingCode = (carrierId) => {
-    const carrier = CARRIERS.find(c => c.id === carrierId) || CARRIERS[0];
-    const newCode = `${carrier.prefix}-${Math.floor(100000 + Math.random() * 900000)}`;
-    setInputTrackingCode(newCode);
-  };
-
   // Xác nhận bàn giao vận chuyển (SHIPPING)
   const handleConfirmShipping = async (andPrint = false) => {
+    if (!shippingOrder || updating) return;
     if (!inputTrackingCode.trim()) {
-      message.error('Vui lòng nhập hoặc tạo Mã vận đơn (Tracking Code)!');
+      message.error('Vui lòng nhập mã vận đơn được đơn vị vận chuyển cung cấp.');
       return;
     }
     const orderId = shippingOrder.id;
@@ -424,9 +408,9 @@ export default function OrdersOmsPage() {
               <Button
                 size="small"
                 type="primary"
-                disabled={isReadOnly}
+                disabled={isReadOnly || updating}
                 className="bg-amber-600 hover:bg-amber-700 text-white font-semibold disabled:opacity-40"
-                onClick={() => handleUpdateStatus(order.id, 'PROCESSING', { reason: 'Chuyển xưởng Lab mài lắp kính' })}
+                onClick={() => handleUpdateStatus(order.id, 'PREPARING', { reason: 'Chuyển xưởng Lab mài lắp kính' })}
                 title={isReadOnly ? 'Vai trò của bạn không có quyền chuyển bước OMS' : 'Chuyển xưởng Lab gia công'}
               >
                 Chuyển xưởng Lab
@@ -437,7 +421,7 @@ export default function OrdersOmsPage() {
               <Button
                 size="small"
                 type="primary"
-                disabled={isReadOnly}
+                disabled={isReadOnly || updating}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold disabled:opacity-40"
                 onClick={e => openShippingModal(order, e)}
                 title={isReadOnly ? 'Vai trò của bạn không có quyền chuyển bước OMS' : 'Bàn giao cho đơn vị vận chuyển'}
@@ -450,7 +434,7 @@ export default function OrdersOmsPage() {
               <Button
                 size="small"
                 type="primary"
-                disabled={isReadOnly}
+                disabled={isReadOnly || updating}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold disabled:opacity-40"
                 onClick={() => handleUpdateStatus(order.id, 'COMPLETED', { reason: 'Giao hàng thành công - Khách đã nhận kính' })}
                 title={isReadOnly ? 'Vai trò của bạn không có quyền chuyển bước OMS' : 'Xác nhận hoàn tất đơn & ghi nhận doanh thu'}
@@ -942,7 +926,7 @@ export default function OrdersOmsPage() {
                 onChange={e => {
                   const val = e.target.value;
                   setSelectedCarrier(val);
-                  generateNewTrackingCode(val);
+                  setInputTrackingCode('');
                 }}
                 className="w-full space-y-2"
               >
@@ -956,7 +940,7 @@ export default function OrdersOmsPage() {
                     }`}
                     onClick={() => {
                       setSelectedCarrier(c.id);
-                      generateNewTrackingCode(c.id);
+                      setInputTrackingCode('');
                     }}
                   >
                     <Radio value={c.id}>
@@ -977,13 +961,6 @@ export default function OrdersOmsPage() {
                 <label className="font-bold text-slate-700 block">
                   2. Mã vận đơn (Tracking Code):
                 </label>
-                <button
-                  type="button"
-                  onClick={() => generateNewTrackingCode(selectedCarrier)}
-                  className="text-indigo-600 hover:text-indigo-800 text-[11px] font-bold"
-                >
-                  Tạo mã vận đơn mẫu
-                </button>
               </div>
 
               <Input
@@ -994,7 +971,7 @@ export default function OrdersOmsPage() {
                 className="font-mono font-bold text-slate-900"
               />
               <p className="text-[11px] text-slate-500">
-                Mã vận đơn này sẽ được in mã vạch (Barcode) dán trực tiếp lên hộp kính đóng gói chuẩn A5.
+                Nhập mã thật đã được cấp. Mã QR trên nhãn A5 chứa đúng mã vận đơn đã lưu.
               </p>
             </div>
 

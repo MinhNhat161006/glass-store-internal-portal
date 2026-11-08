@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Alert, Button, Drawer, Empty, Form, Input, Modal, Select, Table, Tag, message } from 'antd';
 import { appointmentApi } from '../../api/appointmentApi';
 import { customerApi } from '../../api/customerApi';
+import { useAuth } from '../../context/AuthContext';
 import '../workspace.css';
 
 const statuses = {
@@ -17,6 +18,8 @@ const date = value => value && !Number.isNaN(new Date(value).getTime())
 
 export default function OptometryAppointmentsPage() {
   const navigate = useNavigate();
+  const { user, hasRole } = useAuth();
+  const canExamine = hasRole(['optometry']);
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -64,7 +67,7 @@ export default function OptometryAppointmentsPage() {
 
   const rooms = useMemo(() => {
     const existing = [...new Set(appointments.map(item => item.roomName).filter(Boolean))];
-    return existing.length ? existing : ['Phòng Đo Mắt 01', 'Phòng Đo Mắt 02'];
+    return existing;
   }, [appointments]);
   const filtered = useMemo(() => {
     const keyword = query.trim().toLocaleLowerCase('vi-VN');
@@ -80,22 +83,24 @@ export default function OptometryAppointmentsPage() {
   });
   const chooseExam = appointment => {
     setStarting(appointment);
-    setExamRoom(appointment.roomName || rooms[0]);
+    setExamRoom(appointment.roomName || '');
   };
   const startExam = async () => {
     if (!starting || !examRoom || updating) return;
     setUpdating(true);
     try {
       const response = await appointmentApi.updateAppointmentStatus(starting.id, {
-        status: 'IN_EXAM', statusLabel: 'Đang đo', roomName: examRoom,
+        status: 'IN_EXAM', expectedVersion: starting.version, roomName: examRoom.trim(),
         examStep: 'Tiếp nhận đo mắt',
       });
-      const updated = { ...starting, ...response?.data, status: 'IN_EXAM', roomName: examRoom };
+      const updated = response?.data;
+      if (!updated?.id || updated.status !== 'IN_EXAM' || updated.version == null) throw new Error('Chưa nhận được xác nhận bắt đầu đo.');
       setAppointments(previous => previous.map(item => item.id === updated.id ? updated : item));
       setStarting(null);
       openExam(updated);
     } catch (err) {
       message.error(err.message || 'Không thể bắt đầu đo. Vui lòng thử lại.');
+      if (err.status === 409) { setStarting(null); await fetchAppointments(); }
     } finally { setUpdating(false); }
   };
   const receiveCustomer = async values => {
@@ -103,14 +108,13 @@ export default function OptometryAppointmentsPage() {
     if (!customer || creating) return;
     setCreating(true);
     try {
-      await appointmentApi.createAppointment({
-        customerId: customer.id, customerName: customer.fullName,
-        customerPhone: customer.phoneNumber || '', ticketType: 'Tại quầy',
-        ticketCode: `KSK-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
-        status: 'WAITING', statusLabel: 'Đang chờ', priorityLevel: 2,
+      const response = await appointmentApi.createAppointment({
+        customerId: customer.id,
+        customerPhone: customer.phoneNumber || '', ticketType: 'WALK_IN',
         roomName: values.roomName || null, notes: values.notes?.trim() || '',
-        scheduledTime: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+        scheduledTime: new Date().toISOString(),
       });
+      if (!response?.data?.id || !response.data.ticketCode) throw new Error('Chưa nhận được thông tin lịch hẹn đã lưu.');
       setReceptionOpen(false);
       form.resetFields();
       message.success('Đã thêm khách vào hàng đợi.');
@@ -120,13 +124,13 @@ export default function OptometryAppointmentsPage() {
     } finally { setCreating(false); }
   };
 
-  const examAction = item => item.status === 'WAITING'
+  const examAction = item => item.status === 'WAITING' && canExamine
     ? <Button type="primary" loading={updating && starting?.id === item.id} disabled={updating} onClick={() => chooseExam(item)}>Bắt đầu đo</Button>
-    : item.status === 'IN_EXAM'
+    : item.status === 'IN_EXAM' && canExamine && (user.role === 'admin' || item.optometristId === user.id)
       ? <Button onClick={() => openExam(item)}>Tiếp tục đo</Button>
       : <Button type="text" onClick={() => setActiveId(item.id)}>Chi tiết</Button>;
   const columns = [
-    { title: 'Giờ hẹn', dataIndex: 'scheduledTime', width: 110, render: value => value || '—' },
+    { title: 'Giờ hẹn', dataIndex: 'scheduledTime', width: 160, render: value => value?.includes('T') ? date(value) : value || '—' },
     { title: 'Khách hàng', dataIndex: 'customerName', render: (name, item) => <div><span className="workspace-name">{name || 'Chưa có tên'}</span><div className="workspace-muted">{item.customerPhone || '—'}</div></div> },
     { title: 'Mã vé', dataIndex: 'ticketCode', width: 145, render: (value, item) => <button className="workspace-link" onClick={() => setActiveId(item.id)}>{value || `#${item.id}`}</button> },
     { title: 'Phòng đo', dataIndex: 'roomName', width: 160, render: value => value || <span className="workspace-muted">Chưa phân phòng</span> },
@@ -158,7 +162,7 @@ export default function OptometryAppointmentsPage() {
         {activeAppointment && <div className="simple-workspace workspace-detail">
           <div>{statusTag(activeAppointment)}</div>
           <section><h2>Khách hàng</h2><p className="workspace-name">{activeAppointment.customerName}</p><p>{activeAppointment.customerPhone || 'Chưa có số điện thoại'}</p></section>
-          <section><h2>Lịch hẹn</h2><p>Giờ hẹn: {activeAppointment.scheduledTime || '—'}</p><p>Phòng đo: {activeAppointment.roomName || 'Chưa phân phòng'}</p>{activeAppointment.optometristName && <p>Người đo: {activeAppointment.optometristName}</p>}</section>
+          <section><h2>Lịch hẹn</h2><p>Giờ hẹn: {activeAppointment.scheduledTime?.includes('T') ? date(activeAppointment.scheduledTime) : activeAppointment.scheduledTime || '—'}</p><p>Phòng đo: {activeAppointment.roomName || 'Chưa phân phòng'}</p>{activeAppointment.optometristName && <p>Người đo: {activeAppointment.optometristName}</p>}</section>
           {activeAppointment.notes && <section><h2>Ghi chú</h2><p>{activeAppointment.notes}</p></section>}
           <details className="workspace-extra"><summary>Thông tin khác</summary><p>Ngày tiếp nhận: {date(activeAppointment.createdAt)}</p>{activeAppointment.ticketType && <p>Nguồn: {activeAppointment.ticketType}</p>}{activeAppointment.priorityLevel != null && <p>Mức ưu tiên: {activeAppointment.priorityLevel}</p>}</details>
           {['WAITING', 'IN_EXAM'].includes(activeAppointment.status) && examAction(activeAppointment)}
@@ -168,7 +172,7 @@ export default function OptometryAppointmentsPage() {
       <Modal title="Bắt đầu đo mắt" open={!!starting} onCancel={() => !updating && setStarting(null)} onOk={startExam} confirmLoading={updating} cancelButtonProps={{ disabled: updating }} closable={!updating} maskClosable={!updating} okText="Bắt đầu đo" cancelText="Quay lại">
         <p style={{ marginBottom: 16 }} className="workspace-name">{starting?.customerName}</p>
         <label htmlFor="appointment-exam-room" className="workspace-muted">Phòng đo</label>
-        <select id="appointment-exam-room" className="workspace-filter" style={{ width: '100%', marginTop: 6 }} value={examRoom} disabled={updating} onChange={event => setExamRoom(event.target.value)}>{rooms.map(value => <option key={value} value={value}>{value}</option>)}</select>
+        <Input id="appointment-exam-room" style={{ marginTop: 6 }} value={examRoom} maxLength={255} placeholder="Nhập phòng đo" disabled={updating} onChange={event => setExamRoom(event.target.value)} />
       </Modal>
 
       <Modal title="Tiếp nhận khách" open={receptionOpen} onCancel={() => { if (!creating) { setReceptionOpen(false); form.resetFields(); } }} footer={null} closable={!creating} maskClosable={!creating}>
@@ -177,7 +181,7 @@ export default function OptometryAppointmentsPage() {
           <Form.Item name="customerId" label="Khách hàng" rules={[{ required: true, message: 'Vui lòng chọn khách hàng.' }]}>
             <Select aria-label="Chọn khách hàng" showSearch optionFilterProp="label" placeholder="Tìm tên hoặc số điện thoại" loading={customersLoading} disabled={customersLoading || !!customersError || creating} options={customers.map(item => ({ value: item.id, label: `${item.fullName}${item.phoneNumber ? ` · ${item.phoneNumber}` : ''}` }))} notFoundContent={customersLoading ? 'Đang tải…' : 'Không tìm thấy khách hàng'} />
           </Form.Item>
-          <Form.Item name="roomName" label="Phòng đo"><Select allowClear placeholder="Chưa phân phòng" options={rooms.map(value => ({ value, label: value }))} /></Form.Item>
+          <Form.Item name="roomName" label="Phòng đo"><Input maxLength={255} placeholder="Chưa phân phòng" /></Form.Item>
           <Form.Item name="notes" label="Ghi chú"><Input.TextArea rows={2} maxLength={500} placeholder="Nhập ghi chú nếu cần" /></Form.Item>
           <div className="workspace-actions" style={{ justifyContent: 'flex-end' }}><Button disabled={creating} onClick={() => { setReceptionOpen(false); form.resetFields(); }}>Hủy</Button><Button type="primary" htmlType="submit" loading={creating} disabled={customersLoading || !!customersError}>Thêm vào hàng đợi</Button></div>
         </Form>

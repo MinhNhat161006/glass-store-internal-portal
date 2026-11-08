@@ -16,8 +16,13 @@ export function repairPayload(values, actor) {
     result[field] = String(values[field] || '').trim();
     if (!result[field]) throw new Error('Vui lòng nhập đầy đủ thông tin tiếp nhận.');
   }
+  if (!values.orderId || !values.orderItemId) throw new Error('Không xác định được đơn hàng và sản phẩm cần sửa chữa.');
+  if (!values.customerId) throw new Error('Không xác định được khách hàng thuộc đơn hàng này.');
   if (!values.requestedServices?.length || values.requestedServices.some(value => !repairServices[value])) throw new Error('Vui lòng chọn dịch vụ hợp lệ.');
   if (!values.expectedPickupAt || new Date(values.expectedPickupAt).getTime() <= Date.now()) throw new Error('Giờ hẹn trả phải sau thời điểm hiện tại.');
   result.expectedPickupAt = values.expectedPickupAt.length === 16 ? `${values.expectedPickupAt}:00` : values.expectedPickupAt;
+  result.orderId = Number(values.orderId);
+  result.orderItemId = Number(values.orderItemId);
+  result.customerId = Number(values.customerId);
   return result;
 }

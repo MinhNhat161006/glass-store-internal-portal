@@ -21,6 +21,7 @@ import CrmPage from './pages/crm/CrmPage';
 import WarrantyPage from './pages/crm/WarrantyPage';
 import ReportsPage from './pages/admin/ReportsPage';
 import StaffRbacPage from './pages/admin/StaffRbacPage';
+import CatalogManagementPage from './pages/admin/CatalogManagementPage';
 import NotFound404 from './pages/common/NotFound404';
 
 // Component to handle root redirection based on user's auth status and role
@@ -183,6 +184,14 @@ export default function App() {
                 element={
                   <RoleGuard allowedRoles={[ROLES.ADMIN]}>
                     <StaffRbacPage />
+                  </RoleGuard>
+                }
+              />
+              <Route
+                path="/catalog-management"
+                element={
+                  <RoleGuard allowedRoles={[ROLES.ADMIN]}>
+                    <CatalogManagementPage />
                   </RoleGuard>
                 }
               />
