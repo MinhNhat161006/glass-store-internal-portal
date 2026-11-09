@@ -125,6 +125,12 @@ export default function MainLayout() {
           label: 'Nhập / Xuất / Chuyển kho',
           icon: 'move_up',
           allowedRoles: [ROLES.ADMIN, ROLES.LAB]
+        },
+        {
+          key: '/stock-vouchers',
+          label: 'Phiếu kho & hàng lỗi',
+          icon: 'inventory',
+          allowedRoles: [ROLES.ADMIN, ROLES.LAB]
         }
       ]
     },
@@ -415,4 +421,3 @@ export default function MainLayout() {
     </div>
   );
 }
-
