@@ -101,6 +101,8 @@ export default function StockTransferPage() {
         throw new Error('Máy chủ chưa trả về thông tin phiếu điều chuyển.');
       }
       message.success(`Đã tạo phiếu ${response.data.transferCode} ở trạng thái chờ xác nhận nhận hàng.`);
+      window.dispatchEvent(new CustomEvent('inventory-changed'));
+      try { localStorage.setItem('optivision_last_inventory_sync', Date.now().toString()); } catch {}
       setLines([emptyLine()]);
       setReason('');
       setActiveTab('transfers');
@@ -119,6 +121,8 @@ export default function StockTransferPage() {
     try {
       await inventoryApi.receiveTransfer(transfer.id);
       message.success(`Đã xác nhận nhận hàng cho phiếu ${transfer.transferCode}.`);
+      window.dispatchEvent(new CustomEvent('inventory-changed'));
+      try { localStorage.setItem('optivision_last_inventory_sync', Date.now().toString()); } catch {}
       await loadData();
     } catch (actionError) {
       message.error(actionError.message || 'Không thể cập nhật phiếu điều chuyển.');

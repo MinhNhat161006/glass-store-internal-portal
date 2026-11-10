@@ -21,5 +21,10 @@ export const orderApi = {
     method: 'PATCH',
     body: JSON.stringify(statusData)
   }),
-  getOrderHistory: (id) => requestOrder(`/api/orders/${id}/history`)
+  getOrderHistory: (id) => requestOrder(`/api/orders/${id}/history`),
+  initiatePayment: (orderId) => requestOrder(`/api/payments/order/${orderId}/initiate`, { method: 'POST' }),
+  syncPayment: (orderId) => requestOrder(`/api/payments/order/${orderId}/sync`, { method: 'POST' }),
+  getPaymentHistory: (orderId) => requestOrder(`/api/payments/order/${orderId}`),
+  settleCash: (orderId) => requestOrder(`/api/orders/${orderId}/settle-cash`, { method: 'POST' }),
+  getSepayConfig: () => requestOrder('/api/payments/sepay/configuration')
 };

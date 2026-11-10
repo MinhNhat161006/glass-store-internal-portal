@@ -25,8 +25,18 @@ export default function MainLayout() {
       .then((response) => {
         if (!Array.isArray(response?.data)) throw new Error('Dữ liệu địa điểm không hợp lệ.');
         if (!active) return;
-        setLocations(response.data);
-        setSelectedBranch(response.data[0]?.code || '');
+        const locs = response.data;
+        setLocations(locs);
+        setSelectedBranch((current) => {
+          if (current && locs.some((l) => l.code === current)) return current;
+          const userBranch = locs.find(
+            (l) =>
+              l.code === user?.branch ||
+              l.name === user?.branchName ||
+              (user?.branchName && l.name?.toLowerCase().includes(user.branchName.toLowerCase()))
+          )?.code;
+          return userBranch || locs.find((l) => l.code === 'BRANCH_01')?.code || locs[0]?.code || '';
+        });
       })
       .catch((error) => {
         if (active) message.error(error.message || 'Không thể tải danh sách địa điểm.');
@@ -35,7 +45,7 @@ export default function MainLayout() {
         if (active) setLocationsLoading(false);
       });
     return () => { active = false; };
-  }, []);
+  }, [user]);
 
   const handleLogout = () => {
     logout();
@@ -409,7 +419,7 @@ export default function MainLayout() {
 
         {/* Content Outlet */}
         <div className="pt-16 flex-1 flex flex-col">
-          <Outlet context={{ selectedBranch }} />
+          <Outlet context={{ selectedBranch, locations, setSelectedBranch }} />
         </div>
       </div>
     </div>
