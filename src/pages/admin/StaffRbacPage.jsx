@@ -276,27 +276,6 @@ export default function StaffRbacPage() {
     });
   };
 
-  const handleDeleteStaff = (staff) => {
-    Modal.confirm({
-      title: `Xác nhận xóa nhân sự ${staff.name}?`,
-      content: `Bạn có chắc chắn muốn xóa tài khoản nhân sự "${staff.name}" (${staff.id} - ${staff.email})? Hành động này sẽ gỡ bỏ tài khoản khỏi hệ thống.`,
-      okText: 'Xóa nhân sự',
-      okType: 'danger',
-      cancelText: 'Hủy bỏ',
-      onOk: async () => {
-        try {
-          if (staff.dbId) {
-            await staffApi.deleteStaff(staff.dbId);
-          }
-          message.success(`Đã xóa tài khoản nhân sự ${staff.name}`);
-          await loadStaff();
-        } catch (err) {
-          message.error(`Không thể xóa tài khoản nhân sự: ${err.message}`);
-        }
-      }
-    });
-  };
-
   const handleCreateStaff = async () => {
     if (!newStaff.name.trim() || !newStaff.email.trim()) {
       message.error('Vui lòng nhập họ tên và email nhân viên');
@@ -615,20 +594,13 @@ export default function StaffRbacPage() {
                               <button
                                 onClick={() => handleToggleStatus(staff)}
                                 className={`p-1.5 rounded-lg transition-colors ${
-                                  staff.status === 'active' ? 'text-amber-600 hover:bg-amber-50' : 'text-emerald-600 hover:bg-emerald-50'
+                                  staff.status === 'active' ? 'text-rose-600 hover:bg-rose-50' : 'text-emerald-600 hover:bg-emerald-50'
                                 }`}
                                 title={staff.status === 'active' ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
                               >
                                 <span className="material-symbols-outlined text-[17px]">
                                   {staff.status === 'active' ? 'lock' : 'lock_open'}
                                 </span>
-                              </button>
-                              <button
-                                onClick={() => handleDeleteStaff(staff)}
-                                className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors"
-                                title="Xóa tài khoản nhân viên"
-                              >
-                                <span className="material-symbols-outlined text-[17px]">delete</span>
                               </button>
                             </>
                           )}
