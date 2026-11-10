@@ -17,11 +17,13 @@ import LabPage from './pages/lab/LabPage';
 import LabQcPage from './pages/lab/LabQcPage';
 import InventoryPage from './pages/inventory/InventoryPage';
 import StockTransferPage from './pages/inventory/StockTransferPage';
+import StockVouchersPage from './pages/inventory/StockVouchersPage';
 import CrmPage from './pages/crm/CrmPage';
 import WarrantyPage from './pages/crm/WarrantyPage';
 import ReportsPage from './pages/admin/ReportsPage';
 import StaffRbacPage from './pages/admin/StaffRbacPage';
 import CatalogManagementPage from './pages/admin/CatalogManagementPage';
+import VoucherManagementPage from './pages/admin/VoucherManagementPage';
 import NotFound404 from './pages/common/NotFound404';
 
 // Component to handle root redirection based on user's auth status and role
@@ -151,6 +153,14 @@ export default function App() {
                   </RoleGuard>
                 }
               />
+              <Route
+                path="/stock-vouchers"
+                element={
+                  <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.LAB]}>
+                    <StockVouchersPage />
+                  </RoleGuard>
+                }
+              />
 
               {/* 6. KHÁCH HÀNG & BẢO HÀNH */}
               <Route
@@ -192,6 +202,14 @@ export default function App() {
                 element={
                   <RoleGuard allowedRoles={[ROLES.ADMIN]}>
                     <CatalogManagementPage />
+                  </RoleGuard>
+                }
+              />
+              <Route
+                path="/vouchers"
+                element={
+                  <RoleGuard allowedRoles={[ROLES.ADMIN]}>
+                    <VoucherManagementPage />
                   </RoleGuard>
                 }
               />

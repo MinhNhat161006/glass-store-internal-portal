@@ -19,17 +19,54 @@ export default function ReportsPage() {
     }).catch(e => console.warn('Reports customer sync note:', e));
   }, []);
 
-  const totalRevenue = liveOrders.reduce((acc, o) => acc + Number(o.finalAmount || 0), 0);
-  const totalOrderCount = liveOrders.length;
-  const posCount = liveOrders.filter(o => o.channel === 'POS').length;
-  const onlineCount = liveOrders.filter(o => o.channel === 'ONLINE').length;
-  const avgOrderValue = totalOrderCount > 0 ? Math.round(totalRevenue / totalOrderCount) : 0;
-  const completedCount = liveOrders.filter(o => o.status === 'COMPLETED').length;
+  // Filter orders by timeframe and branch
+  const now = new Date();
+  const filteredOrders = liveOrders.filter(order => {
+    // 1. Timeframe filter
+    if (order.createdAt) {
+      const orderDate = new Date(order.createdAt);
+      if (!isNaN(orderDate.getTime())) {
+        if (timeframe === 'today') {
+          const isToday = orderDate.toDateString() === now.toDateString();
+          if (!isToday) return false;
+        } else if (timeframe === '7days') {
+          const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          if (orderDate < sevenDaysAgo) return false;
+        } else if (timeframe === 'month') {
+          const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          if (orderDate < thirtyDaysAgo) return false;
+        } else if (timeframe === 'quarter') {
+          const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+          if (orderDate < ninetyDaysAgo) return false;
+        }
+      }
+    }
+
+    // 2. Branch filter
+    if (branch !== 'all') {
+      const bName = (order.branchName || (order.channel === 'POS' ? 'Flagship Q.1 (TP.HCM)' : 'Hub E-Com Online')).toLowerCase();
+      if (branch === 'q1' && !bName.includes('q.1') && !bName.includes('flagship') && !bName.includes('q1')) return false;
+      if (branch === 'hn' && !bName.includes('tràng tiền') && !bName.includes('hn') && !bName.includes('hà nội')) return false;
+      if (branch === 'q2' && !bName.includes('thảo điền') && !bName.includes('q.2') && !bName.includes('q2')) return false;
+      if (branch === 'ecom' && !bName.includes('e-com') && !bName.includes('online')) return false;
+    }
+
+    return true;
+  });
+
+  const validRevenueStatuses = ['PAID', 'PROCESSING', 'COMPLETED', 'DELIVERED', 'SHIPPING', 'PREPARING', 'READY_FOR_PICKUP'];
+  const paidOrders = filteredOrders.filter(o => validRevenueStatuses.includes(String(o.status || '').toUpperCase()));
+  const totalRevenue = paidOrders.reduce((acc, o) => acc + Number(o.finalAmount || 0), 0);
+  const totalOrderCount = filteredOrders.length;
+  const posCount = filteredOrders.filter(o => o.channel === 'POS').length;
+  const onlineCount = filteredOrders.filter(o => o.channel === 'ONLINE').length;
+  const avgOrderValue = paidOrders.length > 0 ? Math.round(totalRevenue / paidOrders.length) : 0;
+  const completedCount = filteredOrders.filter(o => String(o.status || '').toUpperCase() === 'COMPLETED').length;
   const qcPassRate = totalOrderCount > 0 ? ((completedCount / totalOrderCount) * 100).toFixed(1) : '0.0';
 
-  // Aggregate product sales from real order items
+  // Aggregate product sales from real order items in filtered period
   const productSalesMap = {};
-  liveOrders.forEach(order => {
+  filteredOrders.forEach(order => {
     if (Array.isArray(order.items)) {
       order.items.forEach(item => {
         const name = item.productName || item.skuId || 'Sản phẩm';
@@ -46,9 +83,9 @@ export default function ReportsPage() {
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, 5);
 
-  // Aggregate sales by branch
+  // Aggregate sales by branch in filtered period
   const branchSalesMap = {};
-  liveOrders.forEach(order => {
+  filteredOrders.forEach(order => {
     const bName = order.branchName || (order.channel === 'POS' ? 'Flagship Q.1 (TP.HCM)' : 'Hub E-Com Online');
     if (!branchSalesMap[bName]) {
       branchSalesMap[bName] = { name: bName, count: 0, revenue: 0 };
@@ -60,10 +97,47 @@ export default function ReportsPage() {
   const branchList = Object.values(branchSalesMap).sort((a, b) => b.revenue - a.revenue);
 
   const handleExportExcel = () => {
+    if (filteredOrders.length === 0) {
+      message.warning('Không có dữ liệu đơn hàng trong kỳ lọc hiện tại để xuất file.');
+      return;
+    }
+
     message.loading({ content: 'Đang trích xuất báo cáo doanh thu tài chính từ CSDL...', key: 'rep', duration: 1 });
-    setTimeout(() => {
-      message.success({ content: 'Xuất báo cáo OptiVision_Revenue_Report.xlsx thành công!', key: 'rep' });
-    }, 1000);
+    
+    try {
+      const headers = ['Mã Đơn Hàng', 'Ngày Tạo', 'Kênh Bán', 'Chi Nhánh', 'Khách Hàng', 'Số Điện Thoại', 'Trạng Thái', 'Thanh Toán', 'Tổng Tiền (VNĐ)'];
+      const rows = filteredOrders.map(order => [
+        order.orderCode || `#${order.id}`,
+        order.createdAt ? new Date(order.createdAt).toLocaleString('vi-VN') : '—',
+        order.channel === 'POS' ? 'Tại Quầy (POS)' : 'Trực Tuyến (Online)',
+        order.branchName || (order.channel === 'POS' ? 'Flagship Q.1 (TP.HCM)' : 'Hub E-Com Online'),
+        order.customerName || 'Khách vãng lai',
+        order.customerPhone || '—',
+        order.status || 'Chưa cập nhật',
+        order.paymentMethod || 'Chưa cập nhật',
+        Number(order.finalAmount || 0).toLocaleString('vi-VN')
+      ]);
+
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','))
+      ].join('\r\n');
+
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      const dateStr = new Date().toISOString().slice(0, 10);
+      link.setAttribute('download', `OptiVision_Bao_Cao_Doanh_Thu_${dateStr}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      message.success({ content: `Đã xuất báo cáo ${filteredOrders.length} đơn hàng ra file Excel (CSV) thành công!`, key: 'rep' });
+    } catch (err) {
+      message.error({ content: 'Lỗi khi trích xuất báo cáo: ' + err.message, key: 'rep' });
+    }
   };
 
   const handlePrint = () => {
@@ -234,7 +308,7 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            {liveOrders.length === 0 ? (
+            {filteredOrders.length === 0 ? (
               <div className="h-56 flex flex-col items-center justify-center text-outline bg-slate-50/50 rounded-xl border border-dashed border-[#d8e3fb]">
                 <span className="material-symbols-outlined text-[40px] text-outline/40 mb-1">query_stats</span>
                 <span className="text-xs font-semibold text-[#40484e]">Chưa có dữ liệu giao dịch trong kỳ</span>
@@ -245,7 +319,7 @@ export default function ReportsPage() {
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-outline">Tổng giá trị đơn POS:</span>
                   <span className="font-bold font-mono text-[#004967]">
-                    {liveOrders.filter(o => o.channel === 'POS').reduce((acc, o) => acc + Number(o.finalAmount || 0), 0).toLocaleString('vi-VN')} ₫
+                    {filteredOrders.filter(o => o.channel === 'POS' && validRevenueStatuses.includes(String(o.status || '').toUpperCase())).reduce((acc, o) => acc + Number(o.finalAmount || 0), 0).toLocaleString('vi-VN')} ₫
                   </span>
                 </div>
                 <div className="w-full bg-[#d8e3fb]/50 rounded-full h-2.5 overflow-hidden">
@@ -253,7 +327,7 @@ export default function ReportsPage() {
                     className="bg-[#004967] h-full rounded-full transition-all"
                     style={{
                       width: totalRevenue > 0
-                        ? `${(liveOrders.filter(o => o.channel === 'POS').reduce((acc, o) => acc + Number(o.finalAmount || 0), 0) / totalRevenue * 100).toFixed(1)}%`
+                        ? `${(filteredOrders.filter(o => o.channel === 'POS' && validRevenueStatuses.includes(String(o.status || '').toUpperCase())).reduce((acc, o) => acc + Number(o.finalAmount || 0), 0) / totalRevenue * 100).toFixed(1)}%`
                         : '0%'
                     }}
                   />
@@ -262,7 +336,7 @@ export default function ReportsPage() {
                 <div className="flex justify-between items-center text-xs pt-1">
                   <span className="text-outline">Tổng giá trị đơn Online:</span>
                   <span className="font-bold font-mono text-sky-600">
-                    {liveOrders.filter(o => o.channel === 'ONLINE').reduce((acc, o) => acc + Number(o.finalAmount || 0), 0).toLocaleString('vi-VN')} ₫
+                    {filteredOrders.filter(o => o.channel === 'ONLINE' && validRevenueStatuses.includes(String(o.status || '').toUpperCase())).reduce((acc, o) => acc + Number(o.finalAmount || 0), 0).toLocaleString('vi-VN')} ₫
                   </span>
                 </div>
                 <div className="w-full bg-[#d8e3fb]/50 rounded-full h-2.5 overflow-hidden">
@@ -270,7 +344,7 @@ export default function ReportsPage() {
                     className="bg-sky-500 h-full rounded-full transition-all"
                     style={{
                       width: totalRevenue > 0
-                        ? `${(liveOrders.filter(o => o.channel === 'ONLINE').reduce((acc, o) => acc + Number(o.finalAmount || 0), 0) / totalRevenue * 100).toFixed(1)}%`
+                        ? `${(filteredOrders.filter(o => o.channel === 'ONLINE' && validRevenueStatuses.includes(String(o.status || '').toUpperCase())).reduce((acc, o) => acc + Number(o.finalAmount || 0), 0) / totalRevenue * 100).toFixed(1)}%`
                         : '0%'
                     }}
                   />

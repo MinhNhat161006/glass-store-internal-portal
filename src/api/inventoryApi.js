@@ -11,5 +11,9 @@ export const inventoryApi = {
   }),
   receiveTransfer: (id) => apiFetch(`/api/inventory/transfers/${id}/receive`, {
     method: 'PATCH'
+  }),
+  adjustStock: (data) => apiFetch('/api/variants/adjust', {
+    method: 'POST',
+    body: JSON.stringify(data)
   })
 };

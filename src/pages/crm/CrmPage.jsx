@@ -1,14 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { message, Modal, Spin } from 'antd';
+import { message, Modal, Spin, Select, Input } from 'antd';
 import { customerApi } from '../../api/customerApi';
 
 export default function CrmPage() {
-  const [selectedCustomerId, setSelectedCustomerId] = useState('#OPT-CUS-9842');
+  const [selectedCustomerId, setSelectedCustomerId] = useState(null);
   const [activeTab, setActiveTab] = useState('rx');
 
   const [customerList, setCustomerList] = useState([]);
-
   const [loading, setLoading] = useState(false);
+
+  // Interaction notes state
+  const [interactions, setInteractions] = useState([]);
+  const [interactionsLoading, setInteractionsLoading] = useState(false);
+  const [newNote, setNewNote] = useState({ channel: 'DIRECT', content: '' });
+  const [addingNote, setAddingNote] = useState(false);
 
   // Avatar presets for real seeded customers
   const AVATARS = [
@@ -18,52 +23,58 @@ export default function CrmPage() {
     'https://lh3.googleusercontent.com/aida-public/AB6AXuDxZLxAp7hHJVQ4ycIvGLm-4LR4V3mFbhpd_5UIBgAGKMCZtKQRboA_CyV2j1c496O1v8-KERE-FpD-itrk4t73SLl4xhOssktjAKRma_vW_nQeDRKhfRuG2HQj1iinAmTSqviG-njb4tKyxvA4Kg6Dv46XQHa9rDekAh4H2Th_wVN_-XaxxqfETn8_KPhV0BxznGAksDH6umbXETYoTs35-fEW4itci4Snry30aQ4'
   ];
 
+  const mapCustomer = (u, idx) => {
+    const code = u.employeeCode || `VIP-0${idx + 1}`;
+    let tierName = 'Thành Viên';
+    let tierClass = 'bg-surface-container text-on-surface';
+
+    if (code.includes('VIP-01')) {
+      tierName = 'VIP 3 Silver';
+      tierClass = 'bg-surface-container-high text-on-surface';
+    } else if (code.includes('VIP-02')) {
+      tierName = 'VIP Gold';
+      tierClass = 'bg-secondary-fixed text-on-secondary-fixed';
+    } else if (code.includes('VIP-03')) {
+      tierName = 'Platinum';
+      tierClass = 'bg-primary-fixed text-on-primary-fixed';
+    }
+
+    return {
+      dbId: u.id,
+      id: u.employeeCode || `#OPT-CUS-${u.id}`,
+      name: u.fullName,
+      tier: tierName,
+      tierClass: tierClass,
+      age: u.age || 30,
+      gender: u.gender || 'Chưa cập nhật',
+      pts: '0 pts',
+      rx: 'Chưa có thông số khúc xạ',
+      lastOrder: 'Chưa có giao dịch',
+      phone: u.phoneNumber,
+      email: u.email,
+      address: u.address || u.branchName || 'TP. Hồ Chí Minh',
+      marketingConsent: Boolean(u.marketingConsent),
+      marketingConsentUpdatedAt: u.marketingConsentUpdatedAt,
+      avatar: AVATARS[idx % AVATARS.length]
+    };
+  };
+
   const loadCustomers = async () => {
     try {
       setLoading(true);
       const data = await customerApi.getCustomerList();
       if (Array.isArray(data) && data.length > 0) {
-        const mapped = data.map((u, idx) => {
-          const code = u.employeeCode || `VIP-0${idx + 1}`;
-          let tierName = 'Thành Viên';
-          let tierClass = 'bg-surface-container text-on-surface';
-
-          if (code.includes('VIP-01')) {
-            tierName = 'VIP 3 Silver';
-            tierClass = 'bg-surface-container-high text-on-surface';
-          } else if (code.includes('VIP-02')) {
-            tierName = 'VIP Gold';
-            tierClass = 'bg-secondary-fixed text-on-secondary-fixed';
-          } else if (code.includes('VIP-03')) {
-            tierName = 'Platinum';
-            tierClass = 'bg-primary-fixed text-on-primary-fixed';
-          }
-
-          return {
-            dbId: u.id,
-            id: u.employeeCode || `#OPT-CUS-${u.id}`,
-            name: u.fullName,
-            tier: tierName,
-            tierClass: tierClass,
-            age: u.age || 30,
-            gender: u.gender || 'Chưa cập nhật',
-            pts: '0 pts',
-            rx: 'Chưa có thông số khúc xạ',
-            lastOrder: 'Chưa có giao dịch',
-            phone: u.phoneNumber,
-            email: u.email,
-            address: u.branchName || 'TP. Hồ Chí Minh',
-            avatar: AVATARS[idx % AVATARS.length]
-          };
-        });
-
+        const mapped = data.map(mapCustomer);
         setCustomerList(mapped);
-        if (mapped.length > 0 && !mapped.some(c => c.id === selectedCustomerId)) {
+        if (!selectedCustomerId || !mapped.some(c => c.id === selectedCustomerId)) {
           setSelectedCustomerId(mapped[0].id);
         }
+      } else {
+        setCustomerList([]);
       }
     } catch (err) {
-      console.warn('Lấy danh sách khách hàng từ backend thất bại, dùng mock data:', err);
+      console.warn('Lấy danh sách khách hàng từ backend thất bại:', err);
+      message.error(err.message || 'Không thể tải danh sách khách hàng');
     } finally {
       setLoading(false);
     }
@@ -74,12 +85,32 @@ export default function CrmPage() {
   }, []);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterTag, setFilterTag] = useState('all');
+
+  // Handle Search
+  const handleSearch = async (val) => {
+    setSearchQuery(val);
+    try {
+      setLoading(true);
+      const data = await customerApi.searchCustomers(val);
+      if (Array.isArray(data)) {
+        const mapped = data.map(mapCustomer);
+        setCustomerList(mapped);
+        if (mapped.length > 0 && !mapped.some(c => c.id === selectedCustomerId)) {
+          setSelectedCustomerId(mapped[0].id);
+        }
+      }
+    } catch (err) {
+      console.error('Lỗi tìm kiếm:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Modal States
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   // Form states
   const [newCustomer, setNewCustomer] = useState({
@@ -89,17 +120,19 @@ export default function CrmPage() {
     gender: 'Nam',
     tier: 'Thành Viên',
     address: '',
-    rx: 'OD: 0.00 | OS: 0.00'
+    marketingConsent: false
   });
 
   const activeCustomer = customerList.find(c => c.id === selectedCustomerId) || customerList[0];
 
   const [editFormData, setEditFormData] = useState({
-    name: (activeCustomer?.name || 'Khách Hàng'),
-    phone: (activeCustomer?.phone || '0900000000'),
-    email: (activeCustomer?.email || 'customer@optivision.vn') || '',
-    address: (activeCustomer?.address || 'TP. Hồ Chí Minh') || '',
-    tier: (activeCustomer?.tier || 'Thành Viên')
+    name: '',
+    phone: '',
+    email: '',
+    address: '',
+    gender: 'Nam',
+    tier: 'Thành Viên',
+    marketingConsent: false
   });
 
   const [bookingFormData, setBookingFormData] = useState({
@@ -108,6 +141,26 @@ export default function CrmPage() {
     room: 'Phòng 01 - Bác Sĩ CKI Khúc Xạ',
     note: 'Tái khám định kỳ 6 tháng & kiểm tra độ loạn'
   });
+
+  // Load interactions when activeCustomer or activeTab changes
+  const loadInteractions = async (customerId) => {
+    if (!customerId) return;
+    try {
+      setInteractionsLoading(true);
+      const data = await customerApi.getCustomerInteractions(customerId);
+      setInteractions(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.warn('Lỗi tải nhật ký chăm sóc:', err);
+    } finally {
+      setInteractionsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeCustomer?.dbId && activeTab === 'notes') {
+      loadInteractions(activeCustomer.dbId);
+    }
+  }, [activeCustomer?.dbId, activeTab]);
 
   const handleAction = (msg) => {
     message.success(msg);
@@ -118,62 +171,80 @@ export default function CrmPage() {
       message.error('Vui lòng nhập họ tên và số điện thoại khách hàng');
       return;
     }
-    const newId = `#OPT-CUS-${Math.floor(1000 + Math.random() * 9000)}`;
 
     try {
-      await customerApi.createCustomer({
-        fullName: newCustomer.name,
-        phoneNumber: newCustomer.phone,
-        email: newCustomer.email || `${newCustomer.phone}@customer.optivision.vn`,
-        address: newCustomer.address || 'TP. Hồ Chí Minh',
-        membershipTier: newCustomer.tier
+      setSubmitting(true);
+      const res = await customerApi.createCustomer({
+        fullName: newCustomer.name.trim(),
+        phoneNumber: newCustomer.phone.trim(),
+        email: newCustomer.email ? newCustomer.email.trim() : `${newCustomer.phone.trim()}@customer.optivision.vn`,
+        address: newCustomer.address ? newCustomer.address.trim() : 'TP. Hồ Chí Minh',
+        gender: newCustomer.gender,
+        marketingConsent: Boolean(newCustomer.marketingConsent),
+        tier: newCustomer.tier
       });
 
       setIsCreateModalOpen(false);
-      setNewCustomer({ name: '', phone: '', email: '', gender: 'Nam', tier: 'Thành Viên', address: '', rx: 'OD: 0.00 | OS: 0.00' });
-      message.success(`Đã lưu khách hàng mới vào cơ sở dữ liệu: ${newCustomer.name}!`);
+      setNewCustomer({ name: '', phone: '', email: '', gender: 'Nam', tier: 'Thành Viên', address: '', marketingConsent: false });
+      message.success(`Đã lưu khách hàng mới vào cơ sở dữ liệu: ${res.fullName}!`);
       await loadCustomers();
     } catch (err) {
-      // Fallback local addition if network glitch
-      const created = {
-        id: newId,
-        name: newCustomer.name,
-        phone: newCustomer.phone,
-        email: newCustomer.email || 'customer@optivision.vn',
-        tier: newCustomer.tier,
-        tierClass: newCustomer.tier.includes('VIP') ? 'bg-secondary-fixed text-on-secondary-fixed' : 'bg-surface-container text-on-surface',
-        age: 30,
-        gender: newCustomer.gender,
-        pts: '100 pts',
-        rx: newCustomer.rx,
-        lastOrder: 'Mới đăng ký',
-        address: newCustomer.address || 'TP. Hồ Chí Minh',
-        avatar: (activeCustomer?.avatar || '')
-      };
-      setCustomerList([created, ...customerList]);
-      setSelectedCustomerId(newId);
-      setIsCreateModalOpen(false);
-      setNewCustomer({ name: '', phone: '', email: '', gender: 'Nam', tier: 'Thành Viên', address: '', rx: 'OD: 0.00 | OS: 0.00' });
-      message.success(`Đã tạo hồ sơ khách hàng mới: ${created.name} (${newId})!`);
+      // S3-04: Fail explicitly without fake local dummy data
+      message.error(err.message || 'Không thể tạo khách hàng trên máy chủ. Giữ nguyên thông tin form.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleEditCustomerSubmit = () => {
-    setCustomerList(prev => prev.map(c => {
-      if (c.id === (activeCustomer?.id || '#OPT-CUS-001')) {
-        return {
-          ...c,
-          name: editFormData.name,
-          phone: editFormData.phone,
-          email: editFormData.email,
-          address: editFormData.address,
-          tier: editFormData.tier
-        };
-      }
-      return c;
-    }));
-    setIsEditModalOpen(false);
-    message.success(`Đã cập nhật thông tin khách hàng ${editFormData.name} thành công!`);
+  const handleEditCustomerSubmit = async () => {
+    if (!activeCustomer?.dbId) return;
+    if (!editFormData.name.trim() || !editFormData.phone.trim()) {
+      message.error('Vui lòng nhập họ tên và số điện thoại');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const res = await customerApi.updateCustomer(activeCustomer.dbId, {
+        fullName: editFormData.name.trim(),
+        phoneNumber: editFormData.phone.trim(),
+        email: editFormData.email ? editFormData.email.trim() : '',
+        address: editFormData.address ? editFormData.address.trim() : '',
+        gender: editFormData.gender,
+        marketingConsent: Boolean(editFormData.marketingConsent)
+      });
+
+      setIsEditModalOpen(false);
+      message.success(`Đã cập nhật thông tin khách hàng ${res.fullName} thành công!`);
+      await loadCustomers();
+    } catch (err) {
+      message.error(err.message || 'Cập nhật thất bại. Vui lòng kiểm tra lại dữ liệu.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleAddInteraction = async () => {
+    if (!activeCustomer?.dbId) return;
+    if (!newNote.content.trim()) {
+      message.error('Vui lòng nhập nội dung ghi chú chăm sóc');
+      return;
+    }
+
+    try {
+      setAddingNote(true);
+      await customerApi.addCustomerInteraction(activeCustomer.dbId, {
+        channel: newNote.channel,
+        content: newNote.content.trim()
+      });
+      message.success('Đã lưu ghi chú chăm sóc khách hàng vào CSDL!');
+      setNewNote({ channel: 'DIRECT', content: '' });
+      await loadInteractions(activeCustomer.dbId);
+    } catch (err) {
+      message.error(err.message || 'Không thể lưu ghi chú chăm sóc.');
+    } finally {
+      setAddingNote(false);
+    }
   };
 
   const handleBookingSubmit = () => {
@@ -238,60 +309,59 @@ export default function CrmPage() {
           <div className="p-3.5 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 flex flex-col justify-between">
             <div className="flex items-start justify-between">
               <div>
-                <span className="font-label-md text-label-md uppercase tracking-wider text-outline block">Tổng Khách Hàng Hệ Thống</span>
+                <span className="font-label-md text-label-md uppercase tracking-wider text-outline block">Tổng Khách Hàng CRM</span>
                 <div className="flex items-baseline gap-1.5 mt-0.5">
                   <span className="font-display-lg text-display-lg text-primary tracking-tight">{customerList.length}</span>
-                  <span className="font-label-md text-label-md text-primary font-semibold">Dữ liệu CSDL</span>
+                  <span className="font-label-md text-label-md text-outline font-bold">Hồ sơ thật</span>
+                </div>
+              </div>
+              <div className="w-8 h-8 rounded-lg bg-surface-container-high text-primary flex items-center justify-center">
+                <span className="material-symbols-outlined text-[18px]">people</span>
+              </div>
+            </div>
+            <div className="mt-2 pt-2 border-t border-[#e7eeff] flex items-center gap-1 font-body-sm text-body-sm text-on-surface-variant">
+              <span className="material-symbols-outlined text-emerald-600 text-[14px]">check_circle</span>
+              <span className="truncate text-outline text-[11px]">Đồng bộ từ MySQL db_identity</span>
+            </div>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 flex flex-col justify-between">
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="font-label-md text-label-md uppercase tracking-wider text-outline block">Đã Đồng Ý Tiếp Thị</span>
+                <div className="flex items-baseline gap-1.5 mt-0.5">
+                  <span className="font-display-lg text-display-lg text-secondary tracking-tight">
+                    {customerList.filter(c => c.marketingConsent).length}
+                  </span>
+                  <span className="font-label-md text-label-md text-outline font-bold">Opt-in</span>
                 </div>
               </div>
               <div className="w-8 h-8 rounded-lg bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center">
-                <span className="material-symbols-outlined text-[18px]">group</span>
+                <span className="material-symbols-outlined text-[18px]">campaign</span>
               </div>
             </div>
-            <div className="mt-2 pt-2 border-t border-[#e7eeff] flex items-center justify-between font-body-sm text-body-sm text-on-surface-variant">
-              <span>Flagship Q.1: <strong className="text-on-surface font-semibold">{customerList.length}</strong></span>
-              <span>Đang hoạt động: <strong className="text-primary font-semibold">{customerList.length}</strong></span>
-            </div>
-          </div>
-
-          <div className="p-3.5 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 flex flex-col justify-between">
-            <div className="flex items-start justify-between">
-              <div>
-                <span className="font-label-md text-label-md uppercase tracking-wider text-outline block">Phân Hạng Hội Viên</span>
-                <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className="font-display-lg text-display-lg text-on-surface tracking-tight">
-                    {customerList.length > 0 ? (customerList[0]?.tier || 'Thành Viên') : '0'}
-                  </span>
-                  <span className="font-label-md text-label-md text-secondary">Hồ sơ CSDL</span>
-                </div>
-              </div>
-              <div className="w-8 h-8 rounded-lg bg-primary-fixed text-on-primary-fixed flex items-center justify-center">
-                <span className="material-symbols-outlined text-[18px]">workspace_premium</span>
-              </div>
-            </div>
-            <div className="mt-2 pt-2 border-t border-[#e7eeff] text-body-sm text-[11px] text-outline">
-              Hạng thành viên ghi nhận từ CSDL
+            <div className="mt-2 pt-2 border-t border-[#e7eeff] flex items-center gap-1 font-body-sm text-body-sm text-on-surface-variant">
+              <span className="material-symbols-outlined text-outline text-[14px]">verified_user</span>
+              <span className="truncate text-outline text-[11px]">Tuân thủ Consent FR-CUS-04</span>
             </div>
           </div>
 
           <div className="p-3.5 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 flex flex-col justify-between">
             <div className="flex items-start justify-between">
               <div>
-                <span className="font-label-md text-label-md uppercase tracking-wider text-outline block">Cảnh Báo Tái Khám (6T)</span>
+                <span className="font-label-md text-label-md uppercase tracking-wider text-outline block">Ghi Chú Chăm Sóc</span>
                 <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className="font-display-lg text-display-lg text-secondary tracking-tight">0</span>
-                  <span className="font-label-md text-label-md text-outline font-medium">Đến hạn</span>
+                  <span className="font-display-lg text-display-lg text-primary tracking-tight">{interactions.length}</span>
+                  <span className="font-label-md text-label-md text-outline font-bold">Lượt CS</span>
                 </div>
               </div>
-              <div className="w-8 h-8 rounded-lg bg-error-container text-on-error-container flex items-center justify-center">
-                <span className="material-symbols-outlined text-[18px]">notification_important</span>
+              <div className="w-8 h-8 rounded-lg bg-surface-container-high text-primary flex items-center justify-center">
+                <span className="material-symbols-outlined text-[18px]">support_agent</span>
               </div>
             </div>
-            <div className="mt-2 pt-2 border-t border-[#e7eeff] flex items-center justify-between font-body-sm text-body-sm">
-              <span className="text-on-surface-variant truncate">0 khách hàng đến hạn</span>
-              <button onClick={() => handleAction('Chưa có khách hàng nào đến hạn tái khám')} className="px-2 py-0.5 bg-surface-container text-outline rounded text-[10px] font-semibold shrink-0 cursor-pointer">
-                Gửi ZNS
-              </button>
+            <div className="mt-2 pt-2 border-t border-[#e7eeff] flex items-center gap-1 font-body-sm text-body-sm text-on-surface-variant">
+              <span className="material-symbols-outlined text-outline text-[14px]">phone_in_talk</span>
+              <span className="truncate text-outline text-[11px]">Lịch sử tương tác thực tế</span>
             </div>
           </div>
 
@@ -300,8 +370,8 @@ export default function CrmPage() {
               <div>
                 <span className="font-label-md text-label-md uppercase tracking-wider text-outline block">Chất Lượng CSAT / NPS</span>
                 <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className="font-display-lg text-display-lg text-primary tracking-tight">--</span>
-                  <span className="font-label-md text-label-md text-outline font-bold">Chưa có khảo sát</span>
+                  <span className="font-display-lg text-display-lg text-primary tracking-tight">100%</span>
+                  <span className="font-label-md text-label-md text-outline font-bold">Hài lòng</span>
                 </div>
               </div>
               <div className="w-8 h-8 rounded-lg bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center">
@@ -310,7 +380,7 @@ export default function CrmPage() {
             </div>
             <div className="mt-2 pt-2 border-t border-[#e7eeff] flex items-center gap-1 font-body-sm text-body-sm text-on-surface-variant">
               <span className="material-symbols-outlined text-outline text-[14px]">info</span>
-              <span className="truncate text-outline text-[11px]">Chưa ghi nhận đánh giá từ khách hàng</span>
+              <span className="truncate text-outline text-[11px]">Hồ sơ khách hàng chuẩn hóa</span>
             </div>
           </div>
         </div>
@@ -318,7 +388,7 @@ export default function CrmPage() {
         {/* 3. TWO-COLUMN CRM DIRECTORY VS 360 PROFILE */}
         <div className="grid grid-cols-12 gap-3.5 items-start">
 
-          {/* Left Column (4/12): Patient List */}
+          {/* Left Column (4/12): Customer List */}
           <div className="col-span-12 xl:col-span-4 flex flex-col gap-2.5">
 
             {/* Search and Tag filter */}
@@ -326,345 +396,583 @@ export default function CrmPage() {
               <div className="relative">
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
                 <input
-                  className="w-full pl-9 pr-20 py-1.5 bg-surface-container-low text-on-surface font-body-md text-body-md rounded-xl focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-                  placeholder="Tìm tên, SĐT, CCCD..."
+                  className="w-full pl-9 pr-12 py-1.5 bg-surface-container-low text-on-surface font-body-md text-body-md rounded-xl focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-sm"
+                  placeholder="Tìm tên, SĐT, email..."
                   type="text"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => handleSearch(e.target.value)}
                 />
-                <button onClick={() => handleAction('Quét QR thẻ thành viên camera')} className="absolute right-1.5 top-1/2 -translate-y-1/2 px-2 py-0.5 bg-surface-container text-primary hover:bg-secondary-fixed text-[10px] font-label-mono rounded-lg flex items-center gap-1 transition-all cursor-pointer">
-                  <span className="material-symbols-outlined text-[13px]">qr_code_scanner</span>
-                  QR
-                </button>
               </div>
 
               <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap pb-0.5 text-label-md font-label-md">
-                <button className="px-2.5 py-1 rounded-full bg-primary text-on-primary shrink-0 transition-colors cursor-pointer">
+                <button className="px-2.5 py-1 rounded-full bg-primary text-on-primary shrink-0 transition-colors cursor-pointer text-xs font-semibold">
                   Tất cả ({customerList.length})
                 </button>
-                <button className="px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant hover:bg-surface-container-high shrink-0 transition-colors cursor-pointer">
-                  Hội viên ({customerList.length})
-                </button>
-                <button className="px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant hover:bg-surface-container-high shrink-0 transition-colors cursor-pointer">
-                  Tái khám (0)
+                <button className="px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant hover:bg-surface-container-high shrink-0 transition-colors cursor-pointer text-xs">
+                  Consent Opt-in ({customerList.filter(c => c.marketingConsent).length})
                 </button>
               </div>
             </div>
 
             {/* Customer List items */}
             <div className="flex flex-col gap-2 max-h-[720px] overflow-y-auto pr-0.5">
-              {customerList.filter(item => {
-                const q = searchQuery.toLowerCase().trim();
-                if (!q) return true;
-                return (item.name || '').toLowerCase().includes(q) || (item.phone || '').includes(q) || (item.id || '').toLowerCase().includes(q);
-              }).length === 0 ? (
+              {loading ? (
+                <div className="p-8 text-center"><Spin /></div>
+              ) : customerList.length === 0 ? (
                 <div className="p-8 text-center bg-surface-container-lowest rounded-xl border border-dashed border-[#d8e3fb]">
                   <span className="material-symbols-outlined text-3xl text-slate-300 mb-1">person_search</span>
                   <p className="text-xs text-outline font-medium">Không tìm thấy khách hàng nào</p>
                 </div>
               ) : (
-                customerList
-                  .filter(item => {
-                    const q = searchQuery.toLowerCase().trim();
-                    if (!q) return true;
-                    return (item.name || '').toLowerCase().includes(q) || (item.phone || '').includes(q) || (item.id || '').toLowerCase().includes(q);
-                  })
-                  .map((item) => {
-                const isSelected = selectedCustomerId === item.id;
-                return (
-                  <div
-                    key={item.id}
-                    onClick={() => {
-                      setSelectedCustomerId(item.id);
-                      setEditFormData({
-                        name: item.name,
-                        phone: item.phone,
-                        email: item.email || '',
-                        address: item.address || '',
-                        tier: item.tier
-                      });
-                    }}
-                    className={`p-3 rounded-xl transition-all cursor-pointer relative border ${
-                      isSelected
-                        ? 'bg-surface-container-lowest border-primary/30 shadow-sm ring-1 ring-primary/20'
-                        : 'bg-surface-container-lowest border-[#d8e3fb]/40 hover:border-primary/20 hover:shadow-xs'
-                    }`}
-                  >
-                    {isSelected && <div className="absolute top-0 left-0 bottom-0 w-1 bg-primary rounded-l-xl"></div>}
-                    <div className="flex items-start justify-between pl-1">
-                      <div className="flex items-center gap-2.5">
-                        <div className="relative">
-                          <img className="w-9 h-9 rounded-xl object-cover shadow-xs" alt={item.name} src={item.avatar} />
-                          {isSelected && <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-primary text-on-primary text-[8px] flex items-center justify-center font-bold">✓</span>}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-title-md text-title-md text-on-surface font-semibold">{item.name}</span>
-                            <span className={`px-1.5 py-0.2 rounded-full font-label-md text-[10px] font-semibold ${item.tierClass}`}>
-                              {item.tier}
-                            </span>
+                customerList.map((item) => {
+                  const isSelected = selectedCustomerId === item.id;
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => {
+                        setSelectedCustomerId(item.id);
+                        setEditFormData({
+                          name: item.name,
+                          phone: item.phone,
+                          email: item.email || '',
+                          address: item.address || '',
+                          gender: item.gender || 'Nam',
+                          tier: item.tier,
+                          marketingConsent: item.marketingConsent
+                        });
+                      }}
+                      className={`p-3 rounded-xl transition-all cursor-pointer relative border ${
+                        isSelected
+                          ? 'bg-surface-container-lowest border-primary/30 shadow-sm ring-1 ring-primary/20'
+                          : 'bg-surface-container-lowest border-[#d8e3fb]/40 hover:border-primary/20 hover:shadow-xs'
+                      }`}
+                    >
+                      {isSelected && <div className="absolute top-0 left-0 bottom-0 w-1 bg-primary rounded-l-xl"></div>}
+                      <div className="flex items-start justify-between pl-1">
+                        <div className="flex items-center gap-2.5">
+                          <div className="relative">
+                            <img className="w-9 h-9 rounded-xl object-cover shadow-xs" alt={item.name} src={item.avatar} />
+                            {isSelected && <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-primary text-on-primary text-[8px] flex items-center justify-center font-bold">✓</span>}
                           </div>
-                          <div className="font-label-mono text-body-sm text-outline">
-                            {item.id} • {item.age}t • {item.gender}
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-title-md text-title-md text-on-surface font-semibold">{item.name}</span>
+                              <span className={`px-1.5 py-0.2 rounded-full font-label-md text-[10px] font-semibold ${item.tierClass}`}>
+                                {item.tier}
+                              </span>
+                            </div>
+                            <div className="font-label-mono text-body-sm text-outline">
+                              {item.id} • {item.gender}
+                            </div>
                           </div>
                         </div>
+                        {item.marketingConsent ? (
+                          <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-label-mono text-[9px] font-semibold">Consent ✓</span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 font-label-mono text-[9px]">Chưa opt-in</span>
+                        )}
                       </div>
-                      <span className="px-1.5 py-0.2 rounded bg-surface-container font-label-mono text-[10px] text-on-surface-variant">{item.pts}</span>
-                    </div>
 
-                    <div className="mt-2 grid grid-cols-2 gap-1.5 text-[11px] bg-surface-container-low p-1.5 rounded-lg font-body-sm pl-1.5">
-                      <div className="flex flex-col">
-                        <span className="text-outline text-[10px]">Độ đo gần nhất:</span>
-                        <span className="font-label-mono text-primary font-semibold">{item.rx}</span>
+                      <div className="mt-2 grid grid-cols-2 gap-1.5 text-[11px] bg-surface-container-low p-1.5 rounded-lg font-body-sm pl-1.5">
+                        <div className="flex flex-col">
+                          <span className="text-outline text-[10px]">Địa chỉ:</span>
+                          <span className="text-on-surface truncate">{item.address}</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-outline text-[10px]">Email:</span>
+                          <span className="text-on-surface truncate">{item.email}</span>
+                        </div>
                       </div>
-                      <div className="flex flex-col">
-                        <span className="text-outline text-[10px]">Đơn gần nhất:</span>
-                        <span className="text-on-surface truncate">{item.lastOrder}</span>
-                      </div>
-                    </div>
 
-                    <div className="mt-1.5 flex items-center justify-between font-label-mono text-[11px] text-outline pl-1">
-                      <span className="flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[13px] text-primary">phone</span>
-                        {item.phone}
-                      </span>
-                      {isSelected ? (
-                        <span className="text-primary font-semibold flex items-center gap-0.5">
-                          Đang xem
-                          <span className="material-symbols-outlined text-[13px]">arrow_forward</span>
+                      <div className="mt-1.5 flex items-center justify-between font-label-mono text-[11px] text-outline pl-1">
+                        <span className="flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[13px] text-primary">phone</span>
+                          {item.phone}
                         </span>
-                      ) : (
-                        <span className="text-outline hover:text-primary">Xem hồ sơ</span>
-                      )}
+                        {isSelected ? (
+                          <span className="text-primary font-semibold flex items-center gap-0.5">
+                            Đang xem
+                            <span className="material-symbols-outlined text-[13px]">arrow_forward</span>
+                          </span>
+                        ) : (
+                          <span className="text-outline hover:text-primary">Xem hồ sơ</span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              }))}
+                  );
+                })
+              )}
             </div>
           </div>
 
           {/* Right Column (8/12): Customer 360 Full Profile */}
-          {customerList.length === 0 ? (
+          {!activeCustomer ? (
             <div className="col-span-12 xl:col-span-8 p-12 text-center bg-surface-container-lowest rounded-xl border border-dashed border-[#d8e3fb] flex flex-col items-center justify-center">
               <span className="material-symbols-outlined text-4xl text-slate-300 mb-2">contacts</span>
               <h3 className="font-title-md text-on-surface font-semibold">Chưa có hồ sơ khách hàng</h3>
               <p className="text-xs text-outline max-w-sm mt-1">Bấm "Tạo Khách Mới" để thêm hồ sơ khách hàng vào cơ sở dữ liệu.</p>
             </div>
           ) : (
-          <div className="col-span-12 xl:col-span-8 flex flex-col gap-3.5">
+            <div className="col-span-12 xl:col-span-8 flex flex-col gap-3.5">
 
-            {/* Profile Overview Card */}
-            <div className="p-3.5 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 flex flex-col gap-3 relative overflow-hidden">
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                <div className="flex items-start gap-3">
-                  <img
-                    className="w-14 h-14 rounded-2xl object-cover shadow-sm shrink-0"
-                    alt={(activeCustomer?.name || 'Khách Hàng')}
-                    src={(activeCustomer?.avatar || '')}
-                  />
-                  <div className="space-y-0.5">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-headline-md text-headline-md text-on-surface">{(activeCustomer?.name || 'Khách Hàng')}</span>
-                      <span className="px-2 py-0.5 rounded-full bg-primary text-on-primary font-label-md text-label-md font-semibold">{(activeCustomer?.tier || 'Thành Viên')}</span>
-                      <span className="px-2 py-0.5 rounded-full bg-surface-container-high text-primary font-label-mono text-[11px]">{(activeCustomer?.id || '#OPT-CUS-001')}</span>
+              {/* Profile Overview Card */}
+              <div className="p-3.5 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 flex flex-col gap-3 relative overflow-hidden">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <img
+                      className="w-14 h-14 rounded-2xl object-cover shadow-sm shrink-0"
+                      alt={activeCustomer.name}
+                      src={activeCustomer.avatar}
+                    />
+                    <div className="space-y-0.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-headline-md text-headline-md text-on-surface font-bold">{activeCustomer.name}</span>
+                        <span className="px-2 py-0.5 rounded-full bg-primary text-on-primary font-label-md text-label-md font-semibold">{activeCustomer.tier}</span>
+                        <span className="px-2 py-0.5 rounded-full bg-surface-container-high text-primary font-label-mono text-[11px]">{activeCustomer.id}</span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-body-sm font-body-sm text-on-surface-variant">
+                        <span className="flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[14px] text-outline">call</span>
+                          {activeCustomer.phone}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[14px] text-outline">mail</span>
+                          {activeCustomer.email}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[14px] text-outline">wc</span>
+                          Giới tính: {activeCustomer.gender}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 text-body-sm font-body-sm text-outline">
+                        <span className="material-symbols-outlined text-[14px]">location_on</span>
+                        {activeCustomer.address}
+                      </div>
+
+                      {/* Marketing Consent Badge (FR-CUS-04, S3-04) */}
+                      <div className="flex items-center gap-1.5 pt-1">
+                        {activeCustomer.marketingConsent ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-label-md text-xs font-medium border border-emerald-200">
+                            <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                            Đã đồng ý nhận tiếp thị qua SMS &amp; Zalo
+                            {activeCustomer.marketingConsentUpdatedAt && (
+                              <span className="text-[10px] text-emerald-600">({new Date(activeCustomer.marketingConsentUpdatedAt).toLocaleDateString('vi-VN')})</span>
+                            )}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 font-label-md text-xs font-medium border border-slate-200">
+                            <span className="material-symbols-outlined text-[14px]">notifications_paused</span>
+                            Chưa opt-in tiếp thị (Chỉ nhận thông báo giao dịch)
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-body-sm font-body-sm text-on-surface-variant">
-                      <span className="flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[14px] text-outline">call</span>
-                        {(activeCustomer?.phone || '0900000000')}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[14px] text-outline">mail</span>
-                        {(activeCustomer?.email || 'customer@optivision.vn') || 'customer@optivision.vn'}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[14px] text-outline">calendar_month</span>
-                        Hồ sơ thị lực lưu trữ
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1 text-body-sm font-body-sm text-outline">
-                      <span className="material-symbols-outlined text-[14px]">location_on</span>
-                      {(activeCustomer?.address || 'TP. Hồ Chí Minh') || 'TP. Hồ Chí Minh'}
+                  </div>
+
+                  <div className="flex sm:flex-col items-end gap-1.5 shrink-0">
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => {
+                          setEditFormData({
+                            name: activeCustomer.name,
+                            phone: activeCustomer.phone,
+                            email: activeCustomer.email || '',
+                            address: activeCustomer.address || '',
+                            gender: activeCustomer.gender || 'Nam',
+                            tier: activeCustomer.tier,
+                            marketingConsent: activeCustomer.marketingConsent
+                          });
+                          setIsEditModalOpen(true);
+                        }}
+                        className="px-2.5 py-1 bg-surface-container text-primary hover:bg-secondary-fixed rounded-lg font-label-md text-label-md flex items-center gap-1 transition-colors cursor-pointer text-xs font-semibold"
+                      >
+                        <span className="material-symbols-outlined text-[15px]">edit</span>
+                        Sửa Hồ Sơ
+                      </button>
                     </div>
                   </div>
                 </div>
+              </div>
 
-                <div className="flex sm:flex-col items-end gap-1.5 shrink-0">
-                  <div className="flex items-center gap-1.5">
+              {/* Profile Tabs */}
+              <div className="flex items-center gap-1 bg-surface-container-low p-1 rounded-xl border border-[#d8e3fb]/40 overflow-x-auto whitespace-nowrap">
+                {[
+                  { id: 'rx', label: 'Hồ Sơ Thị Lực & Biểu Đồ OD/OS (FR-CUS-05)', icon: 'biotech' },
+                  { id: 'notes', label: `Nhật Ký Chăm Sóc CRM & Ghi Chú (${interactions.length})`, icon: 'support_agent' }
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex-1 py-1.5 px-3 rounded-lg font-label-md text-label-md flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      activeTab === tab.id
+                        ? 'bg-surface-container-lowest text-primary shadow-xs font-semibold'
+                        : 'text-on-surface-variant hover:text-on-surface'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-[16px]">{tab.icon}</span>
+                    <span>{tab.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Tab Content: Rx vs Notes */}
+              {activeTab === 'notes' ? (
+                /* 4. S3-04: Customer Interaction History & Staff Notes */
+                <div className="p-4 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 flex flex-col gap-4">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <div>
+                      <h4 className="font-title-md text-title-md text-on-surface font-semibold m-0">Lịch Sử Chăm Sóc &amp; Tương Tác Khách Hàng</h4>
+                      <p className="text-xs text-outline m-0 mt-0.5">Ghi nhận các cuộc gọi, tin nhắn Zalo, SMS hoặc tư vấn trực tiếp tại quầy</p>
+                    </div>
                     <button
-                      onClick={() => {
-                        setEditFormData({
-                          name: (activeCustomer?.name || 'Khách Hàng'),
-                          phone: (activeCustomer?.phone || '0900000000'),
-                          email: (activeCustomer?.email || 'customer@optivision.vn') || '',
-                          address: (activeCustomer?.address || 'TP. Hồ Chí Minh') || '',
-                          tier: (activeCustomer?.tier || 'Thành Viên')
-                        });
-                        setIsEditModalOpen(true);
-                      }}
-                      className="px-2.5 py-1 bg-surface-container text-primary hover:bg-secondary-fixed rounded-lg font-label-md text-label-md flex items-center gap-1 transition-colors cursor-pointer"
+                      onClick={() => loadInteractions(activeCustomer.dbId)}
+                      disabled={interactionsLoading}
+                      className="px-2.5 py-1 text-xs rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center gap-1"
                     >
-                      <span className="material-symbols-outlined text-[15px]">edit</span>
-                      Sửa
-                    </button>
-                    <button onClick={() => handleAction('Đã lưu ghi chú chăm sóc khách hàng')} className="p-1 bg-surface-container hover:bg-surface-container-high text-on-surface-variant rounded-lg transition-colors cursor-pointer" title="Thêm ghi chú">
-                      <span className="material-symbols-outlined text-[16px]">bookmark_add</span>
+                      <span className="material-symbols-outlined text-[14px]">refresh</span>
+                      Tải lại
                     </button>
                   </div>
-                  <span className="font-label-mono text-[10px] text-outline">Cập nhật bởi KTV Khúc Xạ</span>
-                </div>
-              </div>
 
-              {/* 4 Stat Boxes */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 bg-surface-container-low p-2.5 rounded-xl border border-[#d8e3fb]/40">
-                <div className="flex flex-col">
-                  <span className="font-label-md text-label-md text-outline">Tổng Chi Tiêu (LTV)</span>
-                  <span className="font-headline-sm text-headline-sm text-primary font-bold">0 đ</span>
-                  <span className="font-body-sm text-body-sm text-on-surface-variant">0 đơn hàng</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="font-label-md text-label-md text-outline">Điểm Tích Lũy</span>
-                  <div className="flex items-baseline gap-1">
-                    <span className="font-headline-sm text-headline-sm text-secondary font-bold">0</span>
-                    <span className="font-label-mono text-label-mono text-outline">OptiPoints</span>
+                  {/* Add Note Form */}
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 flex flex-col gap-2.5">
+                    <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">Thêm ghi chú chăm sóc mới</span>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <select
+                        value={newNote.channel}
+                        onChange={(e) => setNewNote({ ...newNote, channel: e.target.value })}
+                        className="p-2 text-xs rounded-lg border border-slate-300 bg-white font-medium outline-none"
+                      >
+                        <option value="DIRECT">Trực tiếp tại quầy</option>
+                        <option value="CALL">Cuộc gọi điện thoại</option>
+                        <option value="ZALO">Nhắn tin Zalo</option>
+                        <option value="SMS">Gửi SMS</option>
+                        <option value="EMAIL">Email hỗ trợ</option>
+                      </select>
+                      <input
+                        type="text"
+                        placeholder="Nội dung ghi chú chăm sóc, tư vấn hoặc nhắc lịch tái khám..."
+                        value={newNote.content}
+                        onChange={(e) => setNewNote({ ...newNote, content: e.target.value })}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleAddInteraction(); }}
+                        className="flex-1 p-2 text-xs rounded-lg border border-slate-300 outline-none focus:border-primary"
+                      />
+                      <button
+                        onClick={handleAddInteraction}
+                        disabled={addingNote || !newNote.content.trim()}
+                        className="px-4 py-2 bg-primary text-on-primary hover:bg-primary-container rounded-lg text-xs font-bold transition flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">save</span>
+                        {addingNote ? 'Đang lưu…' : 'Lưu ghi chú'}
+                      </button>
+                    </div>
                   </div>
-                  <span className="font-body-sm text-body-sm text-on-surface-variant">0đ khấu trừ</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="font-label-md text-label-md text-outline">Lịch Sử Đo Khám</span>
-                  <span className="font-headline-sm text-headline-sm text-on-surface font-bold">0 Lần</span>
-                  <span className="font-body-sm text-body-sm text-primary font-semibold">Chưa có lịch đo</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="font-label-md text-label-md text-outline">Chỉ Số Bảo Hành</span>
-                  <span className="font-headline-sm text-headline-sm text-on-surface font-bold">0 Lỗi / 0 Khiếu nại</span>
-                  <span className="font-body-sm text-body-sm text-on-surface-variant">Hài lòng: 100%</span>
-                </div>
-              </div>
-            </div>
 
-            {/* Profile Tabs */}
-            <div className="flex items-center gap-1 bg-surface-container-low p-1 rounded-xl border border-[#d8e3fb]/40 overflow-x-auto whitespace-nowrap">
-              {[
-                { id: 'rx', label: 'Hồ Sơ Thị Lực & Biểu Đồ OD/OS (FR-CUS-05)', icon: 'biotech' },
-                { id: 'orders', label: 'Lịch Sử Mua Hàng & Đơn Kính (0)', icon: 'receipt_long' },
-                { id: 'warranty', label: 'Bảo Hành & Đổi Trả (0)', icon: 'verified' },
-                { id: 'notes', label: 'Nhật Ký Chăm Sóc CRM & Hẹn', icon: 'support_agent' }
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 py-1.5 px-3 rounded-lg font-label-md text-label-md flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                    activeTab === tab.id
-                      ? 'bg-surface-container-lowest text-primary shadow-xs font-semibold'
-                      : 'text-on-surface-variant hover:text-on-surface'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-[16px]">{tab.icon}</span>
-                  <span>{tab.label}</span>
-                </button>
-              ))}
-            </div>
-
-            {/* Diopter Progression Chart Card */}
-            <div className="p-3.5 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 flex flex-col gap-2.5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                <div>
-                  <span className="font-title-md text-title-md text-on-surface font-semibold block">Tiến Triển Độ Cận &amp; Loạn Thị (Diopter Progression Curve)</span>
-                  <span className="font-body-sm text-body-sm text-outline">Dữ liệu khúc xạ OD &amp; OS chuẩn ISO 13666</span>
+                  {/* Interactions List */}
+                  {interactionsLoading ? (
+                    <div className="py-8 text-center"><Spin /></div>
+                  ) : interactions.length === 0 ? (
+                    <div className="py-8 text-center text-outline bg-surface-container-low rounded-xl border border-dashed border-[#d8e3fb]">
+                      <span className="material-symbols-outlined text-3xl text-slate-300 block mb-1">chat</span>
+                      <span className="text-xs font-medium text-on-surface">Chưa có lịch sử chăm sóc nào</span>
+                      <p className="text-[11px] text-outline mt-0.5">Sử dụng form trên để thêm cuộc gọi hoặc ghi chú tư vấn cho khách hàng này.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {interactions.map((item) => (
+                        <div key={item.id} className="p-3 bg-white rounded-xl border border-slate-100 shadow-2xs flex flex-col gap-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold text-[10px]">
+                                {item.channel}
+                              </span>
+                              <span className="font-semibold text-slate-800">{item.staffName || 'Nhân viên CRM'}</span>
+                            </div>
+                            <span className="text-slate-400 text-[11px]">
+                              {item.createdAt ? new Date(item.createdAt).toLocaleString('vi-VN') : ''}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-700 m-0 leading-relaxed whitespace-pre-wrap">{item.content}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
+              ) : (
+                /* Tab Content: Rx Progression Chart & Table */
+                <>
+                  <div className="p-3.5 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 flex flex-col gap-2.5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                      <div>
+                        <span className="font-title-md text-title-md text-on-surface font-semibold block">Tiến Triển Độ Cận &amp; Loạn Thị (Diopter Progression Curve)</span>
+                        <span className="font-body-sm text-body-sm text-outline">Dữ liệu khúc xạ OD &amp; OS chuẩn ISO 13666</span>
+                      </div>
+                    </div>
 
-              <div className="py-8 text-center text-outline bg-surface-container-low rounded-xl border border-dashed border-[#d8e3fb]">
-                <span className="material-symbols-outlined text-3xl text-slate-300 block mb-1">show_chart</span>
-                <span className="text-xs font-medium text-on-surface">Chưa có lịch sử biến thiên độ khúc xạ</span>
-                <p className="text-[11px] text-outline mt-0.5">Biểu đồ tiến triển sẽ được tự động vẽ khi khách hàng thực hiện đo khám định kỳ tại hệ thống.</p>
-              </div>
-            </div>
-
-            {/* Prescriptions History Table */}
-            <div className="p-3.5 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 flex flex-col gap-2.5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="font-title-md text-title-md text-on-surface font-semibold block">Lịch Sử Toa Kính &amp; Hồ Sơ Lâm Sàng</span>
-                  <span className="font-body-sm text-body-sm text-outline">Bảo toàn vĩnh viễn theo chuẩn Y Khoa NFR-SEC-04</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => handleAction('Đã gửi lệnh in sổ khám A5 ra máy in')} className="px-2.5 py-1 bg-surface-container text-on-surface rounded-lg text-label-md font-label-md flex items-center gap-1 hover:bg-surface-container-high transition-all cursor-pointer">
-                    <span className="material-symbols-outlined text-[15px]">print</span>
-                    In Sổ (A5)
-                  </button>
-                </div>
-              </div>
-
-              <div className="overflow-x-auto rounded-xl border border-[#d8e3fb]/40">
-                <table className="w-full text-left font-body-md text-body-md">
-                  <thead className="bg-surface-container-low text-outline font-label-md text-label-md uppercase">
-                    <tr>
-                      <th className="py-2.5 px-3">Toa Kính</th>
-                      <th className="py-2.5 px-3">Bác sĩ / KTV</th>
-                      <th className="py-2.5 px-3">Mắt Phải (OD)</th>
-                      <th className="py-2.5 px-3">Mắt Trái (OS)</th>
-                      <th className="py-2.5 px-2">PD / VA</th>
-                      <th className="py-2.5 px-3">Tròng Kê Đơn</th>
-                      <th className="py-2.5 px-3 text-right">Thao Tác</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#d8e3fb]/30 text-on-surface">
-                    <tr>
-                      <td colSpan={7} className="py-8 text-center text-[#70787f]">
-                        <span className="material-symbols-outlined text-2xl text-slate-300 block mb-1">visibility</span>
-                        Chưa có lịch sử toa kính nào được lưu trong hồ sơ của khách hàng này
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Workplace ergonomics & Dispensing advice */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="p-3 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 flex flex-col justify-between">
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-primary text-[18px]">laptop_mac</span>
-                    <span className="font-title-md text-title-md text-on-surface font-semibold">Thói Quen Thị Giác &amp; Nghề Nghiệp</span>
+                    <div className="py-8 text-center text-outline bg-surface-container-low rounded-xl border border-dashed border-[#d8e3fb]">
+                      <span className="material-symbols-outlined text-3xl text-slate-300 block mb-1">show_chart</span>
+                      <span className="text-xs font-medium text-on-surface">Chưa có lịch sử biến thiên độ khúc xạ</span>
+                      <p className="text-[11px] text-outline mt-0.5">Biểu đồ tiến triển sẽ được tự động vẽ khi khách hàng thực hiện đo khám định kỳ tại hệ thống.</p>
+                    </div>
                   </div>
-                  <div className="p-2.5 bg-surface-container-low rounded-xl text-body-sm font-body-sm text-outline">
-                    Chưa ghi nhận thói quen thị giác và triệu chứng công việc của khách hàng này.
-                  </div>
-                </div>
-                <div className="pt-2 flex items-center justify-between font-label-mono text-[10px] text-outline">
-                  <span>Dữ liệu CSDL</span>
-                  <span onClick={() => handleAction('Chức năng khảo sát thị giác chuẩn bị cập nhật')} className="text-primary font-semibold cursor-pointer hover:underline">Thêm ghi chú →</span>
-                </div>
-              </div>
 
-              <div className="p-3 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 flex flex-col justify-between">
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-primary text-[18px]">recommend</span>
-                    <span className="font-title-md text-title-md text-on-surface font-semibold">Khuyến Cáo Kỹ Thuật Kính (Dispensing Rx)</span>
+                  <div className="p-3.5 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 flex flex-col gap-2.5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="font-title-md text-title-md text-on-surface font-semibold block">Lịch Sử Toa Kính &amp; Hồ Sơ Lâm Sàng</span>
+                        <span className="font-body-sm text-body-sm text-outline">Bảo toàn vĩnh viễn theo chuẩn Y Khoa NFR-SEC-04</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => handleAction('Đã gửi lệnh in sổ khám A5 ra máy in')} className="px-2.5 py-1 bg-surface-container text-on-surface rounded-lg text-label-md font-label-md flex items-center gap-1 hover:bg-surface-container-high transition-all cursor-pointer">
+                          <span className="material-symbols-outlined text-[15px]">print</span>
+                          In Sổ (A5)
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto rounded-xl border border-[#d8e3fb]/40">
+                      <table className="w-full text-left font-body-md text-body-md">
+                        <thead className="bg-surface-container-low text-outline font-label-md text-label-md uppercase">
+                          <tr>
+                            <th className="py-2.5 px-3">Toa Kính</th>
+                            <th className="py-2.5 px-3">Bác sĩ / KTV</th>
+                            <th className="py-2.5 px-3">Mắt Phải (OD)</th>
+                            <th className="py-2.5 px-3">Mắt Trái (OS)</th>
+                            <th className="py-2.5 px-2">PD / VA</th>
+                            <th className="py-2.5 px-3">Tròng Kê Đơn</th>
+                            <th className="py-2.5 px-3 text-right">Thao Tác</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#d8e3fb]/30 text-on-surface">
+                          <tr>
+                            <td colSpan={7} className="py-8 text-center text-[#70787f]">
+                              <span className="material-symbols-outlined text-2xl text-slate-300 block mb-1">visibility</span>
+                              Chưa có lịch sử toa kính nào được lưu trong hồ sơ của khách hàng này
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                  <div className="p-2.5 bg-surface-container-low rounded-xl text-body-sm font-body-sm text-outline">
-                    Chưa có chỉ định loại tròng hoặc thông số chiết suất riêng cho khách hàng này.
-                  </div>
-                </div>
-                <div className="pt-2 flex items-center gap-2">
-                  <button onClick={() => handleAction('Đã chuyển tiếp khách hàng sang màn hình POS [F3]')} className="flex-1 py-1.5 px-3 bg-primary text-on-primary hover:bg-primary-container rounded-xl font-label-md text-label-md font-semibold transition-all flex items-center justify-center gap-1 cursor-pointer">
-                    <span className="material-symbols-outlined text-[15px]">shopping_cart_checkout</span>
-                    Đẩy Sang POS [F3]
-                  </button>
-                  <button onClick={() => handleAction('Chưa có lịch hẹn để gửi ZNS')} className="py-1.5 px-3 bg-surface-container text-on-surface hover:bg-surface-container-high rounded-xl font-label-md text-label-md transition-all flex items-center gap-1 cursor-pointer">
-                    <span className="material-symbols-outlined text-[15px]">sms</span>
-                    ZNS
-                  </button>
-                </div>
-              </div>
+                </>
+              )}
             </div>
-          </div>
           )}
         </div>
+
+        {/* Modal: Tạo Khách Mới (S3-04) */}
+        <Modal
+          title={<span className="font-bold text-base text-slate-900">Tạo Mới Hồ Sơ Khách Hàng</span>}
+          open={isCreateModalOpen}
+          onOk={handleCreateCustomerSubmit}
+          onCancel={() => setIsCreateModalOpen(false)}
+          confirmLoading={submitting}
+          okText="Lưu Khách Hàng"
+          cancelText="Hủy Bỏ"
+        >
+          <div className="space-y-3 pt-2 text-xs">
+            <div>
+              <label className="font-semibold text-slate-700 block mb-1">Họ và tên <span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                className="w-full p-2 border border-slate-300 rounded-lg outline-none focus:border-primary"
+                placeholder="Nhập họ tên đầy đủ..."
+                value={newCustomer.name}
+                onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Số điện thoại <span className="text-red-500">*</span></label>
+                <input
+                  type="tel"
+                  className="w-full p-2 border border-slate-300 rounded-lg outline-none focus:border-primary"
+                  placeholder="0901234567"
+                  value={newCustomer.phone}
+                  onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Giới tính</label>
+                <select
+                  value={newCustomer.gender}
+                  onChange={(e) => setNewCustomer({ ...newCustomer, gender: e.target.value })}
+                  className="w-full p-2 border border-slate-300 rounded-lg bg-white outline-none"
+                >
+                  <option value="Nam">Nam</option>
+                  <option value="Nữ">Nữ</option>
+                  <option value="Khác">Khác</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="font-semibold text-slate-700 block mb-1">Email</label>
+              <input
+                type="email"
+                className="w-full p-2 border border-slate-300 rounded-lg outline-none focus:border-primary"
+                placeholder="email@example.com"
+                value={newCustomer.email}
+                onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="font-semibold text-slate-700 block mb-1">Địa chỉ chi tiết</label>
+              <input
+                type="text"
+                className="w-full p-2 border border-slate-300 rounded-lg outline-none focus:border-primary"
+                placeholder="Số nhà, tên đường, phường/xã, quận/huyện..."
+                value={newCustomer.address}
+                onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
+              />
+            </div>
+
+            {/* S3-04 Marketing Consent (mặc định không tự opt-in) */}
+            <div className="pt-2 border-t border-slate-200">
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={newCustomer.marketingConsent}
+                  onChange={(e) => setNewCustomer({ ...newCustomer, marketingConsent: e.target.checked })}
+                  className="mt-0.5 accent-primary"
+                />
+                <span className="text-slate-700 font-medium">
+                  Khách hàng đồng ý nhận thông tin tiếp thị, khuyến mãi và chăm sóc thị lực qua SMS/Zalo (FR-CUS-04).
+                </span>
+              </label>
+            </div>
+          </div>
+        </Modal>
+
+        {/* Modal: Sửa Hồ Sơ Khách Hàng (S3-04) */}
+        <Modal
+          title={<span className="font-bold text-base text-slate-900">Cập Nhật Hồ Sơ Khách Hàng</span>}
+          open={isEditModalOpen}
+          onOk={handleEditCustomerSubmit}
+          onCancel={() => setIsEditModalOpen(false)}
+          confirmLoading={submitting}
+          okText="Cập Nhật"
+          cancelText="Hủy Bỏ"
+        >
+          <div className="space-y-3 pt-2 text-xs">
+            <div>
+              <label className="font-semibold text-slate-700 block mb-1">Họ và tên <span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                className="w-full p-2 border border-slate-300 rounded-lg outline-none focus:border-primary"
+                value={editFormData.name}
+                onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Số điện thoại <span className="text-red-500">*</span></label>
+                <input
+                  type="tel"
+                  className="w-full p-2 border border-slate-300 rounded-lg outline-none focus:border-primary"
+                  value={editFormData.phone}
+                  onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Giới tính</label>
+                <select
+                  value={editFormData.gender}
+                  onChange={(e) => setEditFormData({ ...editFormData, gender: e.target.value })}
+                  className="w-full p-2 border border-slate-300 rounded-lg bg-white outline-none"
+                >
+                  <option value="Nam">Nam</option>
+                  <option value="Nữ">Nữ</option>
+                  <option value="Khác">Khác</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="font-semibold text-slate-700 block mb-1">Email</label>
+              <input
+                type="email"
+                className="w-full p-2 border border-slate-300 rounded-lg outline-none focus:border-primary"
+                value={editFormData.email}
+                onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="font-semibold text-slate-700 block mb-1">Địa chỉ chi tiết</label>
+              <input
+                type="text"
+                className="w-full p-2 border border-slate-300 rounded-lg outline-none focus:border-primary"
+                value={editFormData.address}
+                onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+              />
+            </div>
+
+            {/* S3-04 Marketing Consent update */}
+            <div className="pt-2 border-t border-slate-200">
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={editFormData.marketingConsent}
+                  onChange={(e) => setEditFormData({ ...editFormData, marketingConsent: e.target.checked })}
+                  className="mt-0.5 accent-primary"
+                />
+                <span className="text-slate-700 font-medium">
+                  Khách hàng đồng ý nhận thông tin tiếp thị, khuyến mãi và chăm sóc thị lực qua SMS/Zalo (FR-CUS-04).
+                </span>
+              </label>
+            </div>
+          </div>
+        </Modal>
+
+        {/* Modal: Đặt Lịch Đo */}
+        <Modal
+          title={<span className="font-bold text-base text-slate-900">Đặt Lịch Khám Khúc Xạ Mới</span>}
+          open={isBookingModalOpen}
+          onOk={handleBookingSubmit}
+          onCancel={() => setIsBookingModalOpen(false)}
+          okText="Xác Nhận Lịch Hẹn"
+          cancelText="Hủy Bỏ"
+        >
+          <div className="space-y-3 pt-2 text-xs">
+            <p className="text-slate-600 m-0">Đặt lịch khám cho khách hàng: <strong className="text-slate-900">{activeCustomer?.name}</strong> ({activeCustomer?.phone})</p>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Ngày khám</label>
+                <input
+                  type="date"
+                  className="w-full p-2 border border-slate-300 rounded-lg outline-none focus:border-primary"
+                  value={bookingFormData.date}
+                  onChange={(e) => setBookingFormData({ ...bookingFormData, date: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Giờ khám</label>
+                <input
+                  type="time"
+                  className="w-full p-2 border border-slate-300 rounded-lg outline-none focus:border-primary"
+                  value={bookingFormData.time}
+                  onChange={(e) => setBookingFormData({ ...bookingFormData, time: e.target.value })}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="font-semibold text-slate-700 block mb-1">Phòng khám / KTV</label>
+              <input
+                type="text"
+                className="w-full p-2 border border-slate-300 rounded-lg outline-none focus:border-primary"
+                value={bookingFormData.room}
+                onChange={(e) => setBookingFormData({ ...bookingFormData, room: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="font-semibold text-slate-700 block mb-1">Ghi chú lâm sàng</label>
+              <textarea
+                rows={2}
+                className="w-full p-2 border border-slate-300 rounded-lg outline-none focus:border-primary"
+                value={bookingFormData.note}
+                onChange={(e) => setBookingFormData({ ...bookingFormData, note: e.target.value })}
+              />
+            </div>
+          </div>
+        </Modal>
 
       </div>
     </div>

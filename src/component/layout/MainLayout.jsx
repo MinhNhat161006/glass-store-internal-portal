@@ -135,6 +135,12 @@ export default function MainLayout() {
           label: 'Nhập / Xuất / Chuyển kho',
           icon: 'move_up',
           allowedRoles: [ROLES.ADMIN, ROLES.LAB]
+        },
+        {
+          key: '/stock-vouchers',
+          label: 'Phiếu kho & hàng lỗi',
+          icon: 'inventory',
+          allowedRoles: [ROLES.ADMIN, ROLES.LAB]
         }
       ]
     },
@@ -176,6 +182,12 @@ export default function MainLayout() {
           key: '/catalog-management',
           label: 'Danh mục, thương hiệu & địa điểm',
           icon: 'category',
+          allowedRoles: [ROLES.ADMIN]
+        },
+        {
+          key: '/vouchers',
+          label: 'Quản lý Voucher & Khuyến mãi',
+          icon: 'local_activity',
           allowedRoles: [ROLES.ADMIN]
         }
       ]
@@ -425,4 +437,3 @@ export default function MainLayout() {
     </div>
   );
 }
-
