@@ -69,10 +69,6 @@ export default function PosSepayModal({
   const [simulating, setSimulating] = useState(false);
   const [qrMode, setQrMode] = useState('vietqr'); // 'vietqr' | 'mobile_quick'
 
-  // Sandbox auto-complete countdown (defaults to 5 seconds for zero-click testing)
-  const [countdown, setCountdown] = useState(5);
-  const [autoActive, setAutoActive] = useState(true);
-
   const pollIntervalRef = useRef(null);
   const isCompletedRef = useRef(false);
 
@@ -82,8 +78,6 @@ export default function PosSepayModal({
       setInitiation(null);
       setStatus('PENDING_PAYMENT');
       isCompletedRef.current = false;
-      setCountdown(5);
-      setAutoActive(true);
       return;
     }
 
@@ -151,24 +145,8 @@ export default function PosSepayModal({
     };
   }, [open, order?.id, status, onSuccess]);
 
-  // 3. Sandbox Auto-Success Countdown (tự động hoàn tất giao dịch để không cần bấm nút giả lập)
-  useEffect(() => {
-    if (!open || !order?.orderCode || status === 'PAID' || !autoActive) return;
-
-    if (countdown <= 0) {
-      handleSimulatePayment(true);
-      return;
-    }
-
-    const timer = setInterval(() => {
-      setCountdown(prev => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [open, order?.orderCode, status, countdown, autoActive]);
-
   // Helper trigger simulate payment (sends authenticated JWT via orderApi)
-  const handleSimulatePayment = async (isAuto = false) => {
+  const handleSimulatePayment = async () => {
     if (!order?.orderCode || simulating || isCompletedRef.current) return;
     setSimulating(true);
     try {
@@ -197,9 +175,7 @@ export default function PosSepayModal({
           }, 1000);
         }
       } catch (fallbackErr) {
-        if (!isAuto) {
-          message.error(`Không thể giả lập: ${e.message || 'Lỗi kết nối'}`);
-        }
+        message.error(`Không thể giả lập: ${e.message || 'Lỗi kết nối'}`);
       }
     } finally {
       setSimulating(false);
@@ -356,11 +332,11 @@ export default function PosSepayModal({
 
             <Button
               type="primary"
-              onClick={() => handleSimulatePayment(false)}
+              onClick={handleSimulatePayment}
               loading={simulating}
               disabled={status === 'PAID'}
             >
-              Xác nhận ngay (Sandbox)
+              Giả lập thanh toán SePay
             </Button>
 
             <Button onClick={handleOpenSepayGateway} loading={loading} disabled={status === 'PAID'}>
@@ -370,50 +346,6 @@ export default function PosSepayModal({
         </div>
       }
     >
-      {/* Sandbox Auto-complete status bar */}
-      {status !== 'PAID' && (
-        <div style={{
-          marginBottom: '14px',
-          padding: '8px 14px',
-          borderRadius: '8px',
-          backgroundColor: autoActive ? '#f0fdf4' : '#fffbeb',
-          border: `1px solid ${autoActive ? '#bbf7d0' : '#fde68a'}`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          fontSize: '12.5px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: autoActive ? '#15803d' : '#b45309' }}>
-            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
-              {autoActive ? 'timer' : 'pause_circle'}
-            </span>
-            <span>
-              {autoActive
-                ? `Môi trường Sandbox: Tự động hoàn tất thanh toán thành công sau ${countdown} giây...`
-                : 'Đã tạm dừng đếm ngược Sandbox. Bạn có thể quét mã thử nghiệm hoặc bấm nút xác nhận.'}
-            </span>
-          </div>
-          <div style={{ display: 'flex', gap: '6px' }}>
-            <Button
-              size="small"
-              icon={autoActive ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
-              onClick={() => setAutoActive(prev => !prev)}
-            >
-              {autoActive ? 'Tạm dừng' : 'Tự động tiếp'}
-            </Button>
-            <Button
-              size="small"
-              type="primary"
-              ghost
-              loading={simulating}
-              onClick={() => handleSimulatePayment(false)}
-            >
-              Hoàn tất ngay
-            </Button>
-          </div>
-        </div>
-      )}
-
       {status === 'PAID' ? (
         <div style={{ textAlign: 'center', padding: '36px 16px' }}>
           <div style={{
@@ -518,6 +450,17 @@ export default function PosSepayModal({
                   ? 'Quét qua MBBank hoặc App Ngân hàng bất kỳ (Chuẩn Napas 247)'
                   : 'Quét bằng Camera điện thoại hoặc Zalo để xác nhận ngay'}
               </div>
+              <Button
+                type="primary"
+                ghost
+                block
+                size="small"
+                loading={simulating}
+                style={{ fontSize: '12px' }}
+                onClick={handleSimulatePayment}
+              >
+                Giả lập thanh toán SePay
+              </Button>
             </div>
           </div>
 
