@@ -276,6 +276,27 @@ export default function StaffRbacPage() {
     });
   };
 
+  const handleDeleteStaff = (staff) => {
+    Modal.confirm({
+      title: `Xác nhận xóa nhân sự ${staff.name}?`,
+      content: `Bạn có chắc chắn muốn xóa tài khoản nhân sự "${staff.name}" (${staff.id} - ${staff.email})? Hành động này sẽ gỡ bỏ tài khoản khỏi hệ thống.`,
+      okText: 'Xóa nhân sự',
+      okType: 'danger',
+      cancelText: 'Hủy bỏ',
+      onOk: async () => {
+        try {
+          if (staff.dbId) {
+            await staffApi.deleteStaff(staff.dbId);
+          }
+          message.success(`Đã xóa tài khoản nhân sự ${staff.name}`);
+          await loadStaff();
+        } catch (err) {
+          message.error(`Không thể xóa tài khoản nhân sự: ${err.message}`);
+        }
+      }
+    });
+  };
+
   const handleCreateStaff = async () => {
     if (!newStaff.name.trim() || !newStaff.email.trim()) {
       message.error('Vui lòng nhập họ tên và email nhân viên');
@@ -467,7 +488,7 @@ export default function StaffRbacPage() {
               }`}
             >
               <span className="material-symbols-outlined text-[16px]">notifications_active</span>
-              <span>Cấu Hình Kênh Thông Báo (FR-ADM-10)</span>
+              <span>Cấu Hình Kênh Thông Báo</span>
             </button>
           </div>
         </div>
@@ -594,13 +615,20 @@ export default function StaffRbacPage() {
                               <button
                                 onClick={() => handleToggleStatus(staff)}
                                 className={`p-1.5 rounded-lg transition-colors ${
-                                  staff.status === 'active' ? 'text-rose-600 hover:bg-rose-50' : 'text-emerald-600 hover:bg-emerald-50'
+                                  staff.status === 'active' ? 'text-amber-600 hover:bg-amber-50' : 'text-emerald-600 hover:bg-emerald-50'
                                 }`}
                                 title={staff.status === 'active' ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
                               >
                                 <span className="material-symbols-outlined text-[17px]">
                                   {staff.status === 'active' ? 'lock' : 'lock_open'}
                                 </span>
+                              </button>
+                              <button
+                                onClick={() => handleDeleteStaff(staff)}
+                                className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors"
+                                title="Xóa tài khoản nhân viên"
+                              >
+                                <span className="material-symbols-outlined text-[17px]">delete</span>
                               </button>
                             </>
                           )}
@@ -621,7 +649,7 @@ export default function StaffRbacPage() {
               <div>
                 <h3 className="text-sm font-bold text-[#004967] flex items-center gap-1.5">
                   <span className="material-symbols-outlined text-[18px]">how_to_reg</span>
-                  <span>Hồ Sơ Đăng Ký Chờ Phê Duyệt Cấp Quyền (FR-ADM-01)</span>
+                  <span>Hồ Sơ Đăng Ký Chờ Phê Duyệt Cấp Quyền</span>
                 </h3>
                 <p className="text-xs text-[#70787f] mt-0.5">
                   Các yêu cầu tạo tài khoản gửi từ form Đăng Ký Mới của Cổng Nội Bộ. Admin duyệt để kích hoạt hoặc từ chối hồ sơ.
@@ -725,7 +753,7 @@ export default function StaffRbacPage() {
           <div className="bg-white rounded-xl border border-[#d8e3fb]/40 shadow-sm overflow-hidden flex flex-col">
             <div className="p-4 bg-[#f0f3ff]/50 border-b border-[#e7eeff] flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-bold text-[#004967]">Ma Trận Phân Quyền Chi Tiết Theo Phân Hệ (FR-ADM-02)</h3>
+                <h3 className="text-sm font-bold text-[#004967]">Ma Trận Phân Quyền Chi Tiết Theo Phân Hệ</h3>
                 <p className="text-xs text-[#70787f]">Quy định quyền truy cập &amp; tác nghiệp của từng nhóm chức danh nhân sự trong chuỗi</p>
               </div>
               <span className="text-xs font-mono text-[#004967] bg-[#dee8ff] px-2 py-1 rounded">5 Phân Hệ Tác Nghiệp</span>
@@ -788,7 +816,7 @@ export default function StaffRbacPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#e7eeff]">
               <div>
                 <h3 className="text-sm font-bold text-[#004967]">
-                  Cấu Hình Kênh Thông Báo Giao Dịch &amp; Chu Kỳ Polling (FR-ADM-10 / GLAS-25)
+                  Cấu Hình Kênh Thông Báo Giao Dịch &amp; Chu Kỳ Polling
                 </h3>
                 <p className="text-xs text-[#70787f] mt-0.5">
                   In-App + Polling là kênh cam kết chính thức. SMS/Email chỉ đánh dấu Đã gửi (SENT) khi cổng ngoài phản hồi HTTP 2xx — không tính In-App là đã gửi SMS.

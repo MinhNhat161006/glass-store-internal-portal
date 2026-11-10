@@ -257,131 +257,28 @@ export default function CrmPage() {
       <div className="max-w-[1600px] mx-auto p-3.5 sm:p-5 flex flex-col gap-3.5">
 
         {/* 1. TOP HEADER & CRM ACTIONS */}
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 bg-surface-container-lowest p-3.5 rounded-xl shadow-xs border border-[#d8e3fb]/40">
-          <div className="flex flex-col gap-1">
-            <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 font-label-md text-body-sm text-outline">
-              <span>KHÁCH HÀNG CRM</span>
-              <span className="material-symbols-outlined text-[12px]">chevron_right</span>
-              <span>HỒ SƠ KHÁCH HÀNG 360°</span>
-              <span className="material-symbols-outlined text-[12px]">chevron_right</span>
-              <span className="text-primary font-semibold">Chi Tiết Hồ Sơ &amp; Lịch Sử Thị Lực</span>
-            </nav>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-md text-label-md">
-                <span className="material-symbols-outlined text-[13px] text-primary">security</span>
-                Dữ Liệu Y Khoa Bảo Mật
-              </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-surface-container-high text-on-surface font-label-mono text-label-mono">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
-                Đồng Bộ Trực Tiếp POS
-              </span>
-            </div>
+        {/* Clean Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl shadow-xs border border-[#d8e3fb]/40">
+          <div>
+            <h1 className="text-lg font-bold text-[#004967] m-0">Quản Lý Khách Hàng (CRM)</h1>
+            <p className="text-xs text-[#70787f] mt-0.5 mb-0">Tra cứu hồ sơ khách hàng, lịch sử khám thị lực và ghi chú chăm sóc</p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <button onClick={() => setIsCreateModalOpen(true)} className="px-3 py-1.5 rounded-xl bg-primary text-on-primary font-label-lg text-label-lg flex items-center gap-1.5 shadow-xs hover:bg-primary-container transition-all cursor-pointer">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={loadCustomers}
+              className="px-3 py-1.5 rounded-lg bg-white border border-[#d8e3fb] hover:bg-[#f0f3ff] text-xs font-semibold text-[#004967] flex items-center gap-1.5 cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[16px]">refresh</span>
+              <span>Làm mới</span>
+            </button>
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="px-3.5 py-1.5 rounded-lg bg-[#004967] hover:bg-[#086288] text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+            >
               <span className="material-symbols-outlined text-[16px]">person_add</span>
-              <span>Tạo Khách Mới</span>
-              <span className="px-1.5 py-0.2 rounded bg-on-primary/20 text-on-primary font-label-mono text-[10px]">F1</span>
+              <span>Thêm Khách Hàng</span>
             </button>
-            <button onClick={() => setIsBookingModalOpen(true)} className="px-3 py-1.5 rounded-xl bg-surface-container text-on-surface hover:bg-surface-container-high font-label-lg text-label-lg flex items-center gap-1.5 transition-all cursor-pointer">
-              <span className="material-symbols-outlined text-[16px] text-primary">event</span>
-              <span>Đặt Lịch Đo</span>
-              <span className="px-1.5 py-0.2 rounded bg-surface-container-highest font-label-mono text-[10px]">F2</span>
-            </button>
-            <button onClick={() => handleAction('Chuyển sang màn hình POS [F3]')} className="px-3 py-1.5 rounded-xl bg-surface-container text-on-surface hover:bg-surface-container-high font-label-lg text-label-lg flex items-center gap-1.5 transition-all cursor-pointer">
-              <span className="material-symbols-outlined text-[16px] text-primary">point_of_sale</span>
-              <span>Tạo Đơn Bán</span>
-              <span className="px-1.5 py-0.2 rounded bg-surface-container-highest font-label-mono text-[10px]">F3</span>
-            </button>
-            <button onClick={() => handleAction('Mở cổng nhắn Zalo ZNS / SMS chăm sóc')} className="px-3 py-1.5 rounded-xl bg-surface-container-low text-primary hover:bg-secondary-fixed transition-all font-label-lg text-label-lg flex items-center gap-1.5 cursor-pointer">
-              <span className="material-symbols-outlined text-[16px]">mark_chat_read</span>
-              <span>Zalo ZNS / SMS</span>
-            </button>
-            <button onClick={() => handleAction('Đang xuất hồ sơ y tế A5 PDF...')} className="p-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-all cursor-pointer" title="Xuất PDF/A5 Y Tế">
-              <span className="material-symbols-outlined text-[18px]">picture_as_pdf</span>
-            </button>
-          </div>
-        </div>
-
-        {/* 2. 4 COMPACT CRM KPI METRICS */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="p-3.5 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 flex flex-col justify-between">
-            <div className="flex items-start justify-between">
-              <div>
-                <span className="font-label-md text-label-md uppercase tracking-wider text-outline block">Tổng Khách Hàng CRM</span>
-                <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className="font-display-lg text-display-lg text-primary tracking-tight">{customerList.length}</span>
-                  <span className="font-label-md text-label-md text-outline font-bold">Hồ sơ thật</span>
-                </div>
-              </div>
-              <div className="w-8 h-8 rounded-lg bg-surface-container-high text-primary flex items-center justify-center">
-                <span className="material-symbols-outlined text-[18px]">people</span>
-              </div>
-            </div>
-            <div className="mt-2 pt-2 border-t border-[#e7eeff] flex items-center gap-1 font-body-sm text-body-sm text-on-surface-variant">
-              <span className="material-symbols-outlined text-emerald-600 text-[14px]">check_circle</span>
-              <span className="truncate text-outline text-[11px]">Đồng bộ từ MySQL db_identity</span>
-            </div>
-          </div>
-
-          <div className="p-3.5 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 flex flex-col justify-between">
-            <div className="flex items-start justify-between">
-              <div>
-                <span className="font-label-md text-label-md uppercase tracking-wider text-outline block">Đã Đồng Ý Tiếp Thị</span>
-                <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className="font-display-lg text-display-lg text-secondary tracking-tight">
-                    {customerList.filter(c => c.marketingConsent).length}
-                  </span>
-                  <span className="font-label-md text-label-md text-outline font-bold">Opt-in</span>
-                </div>
-              </div>
-              <div className="w-8 h-8 rounded-lg bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center">
-                <span className="material-symbols-outlined text-[18px]">campaign</span>
-              </div>
-            </div>
-            <div className="mt-2 pt-2 border-t border-[#e7eeff] flex items-center gap-1 font-body-sm text-body-sm text-on-surface-variant">
-              <span className="material-symbols-outlined text-outline text-[14px]">verified_user</span>
-              <span className="truncate text-outline text-[11px]">Tuân thủ Consent FR-CUS-04</span>
-            </div>
-          </div>
-
-          <div className="p-3.5 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 flex flex-col justify-between">
-            <div className="flex items-start justify-between">
-              <div>
-                <span className="font-label-md text-label-md uppercase tracking-wider text-outline block">Ghi Chú Chăm Sóc</span>
-                <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className="font-display-lg text-display-lg text-primary tracking-tight">{interactions.length}</span>
-                  <span className="font-label-md text-label-md text-outline font-bold">Lượt CS</span>
-                </div>
-              </div>
-              <div className="w-8 h-8 rounded-lg bg-surface-container-high text-primary flex items-center justify-center">
-                <span className="material-symbols-outlined text-[18px]">support_agent</span>
-              </div>
-            </div>
-            <div className="mt-2 pt-2 border-t border-[#e7eeff] flex items-center gap-1 font-body-sm text-body-sm text-on-surface-variant">
-              <span className="material-symbols-outlined text-outline text-[14px]">phone_in_talk</span>
-              <span className="truncate text-outline text-[11px]">Lịch sử tương tác thực tế</span>
-            </div>
-          </div>
-
-          <div className="p-3.5 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 flex flex-col justify-between">
-            <div className="flex items-start justify-between">
-              <div>
-                <span className="font-label-md text-label-md uppercase tracking-wider text-outline block">Chất Lượng CSAT / NPS</span>
-                <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className="font-display-lg text-display-lg text-primary tracking-tight">100%</span>
-                  <span className="font-label-md text-label-md text-outline font-bold">Hài lòng</span>
-                </div>
-              </div>
-              <div className="w-8 h-8 rounded-lg bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center">
-                <span className="material-symbols-outlined text-[18px]">sentiment_very_satisfied</span>
-              </div>
-            </div>
-            <div className="mt-2 pt-2 border-t border-[#e7eeff] flex items-center gap-1 font-body-sm text-body-sm text-on-surface-variant">
-              <span className="material-symbols-outlined text-outline text-[14px]">info</span>
-              <span className="truncate text-outline text-[11px]">Hồ sơ khách hàng chuẩn hóa</span>
-            </div>
           </div>
         </div>
 
@@ -409,7 +306,7 @@ export default function CrmPage() {
                   Tất cả ({customerList.length})
                 </button>
                 <button className="px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant hover:bg-surface-container-high shrink-0 transition-colors cursor-pointer text-xs">
-                  Consent Opt-in ({customerList.filter(c => c.marketingConsent).length})
+                  Nhận tin tiếp thị ({customerList.filter(c => c.marketingConsent).length})
                 </button>
               </div>
             </div>
@@ -467,7 +364,7 @@ export default function CrmPage() {
                           </div>
                         </div>
                         {item.marketingConsent ? (
-                          <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-label-mono text-[9px] font-semibold">Consent ✓</span>
+                          <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-label-mono text-[9px] font-semibold">SMS ✓</span>
                         ) : (
                           <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 font-label-mono text-[9px]">Chưa opt-in</span>
                         )}
@@ -589,6 +486,32 @@ export default function CrmPage() {
                         <span className="material-symbols-outlined text-[15px]">edit</span>
                         Sửa Hồ Sơ
                       </button>
+                      <button
+                        onClick={() => {
+                          Modal.confirm({
+                            title: `Xóa khách hàng ${activeCustomer.name}?`,
+                            content: 'Thao tác này sẽ xóa hồ sơ khách hàng khỏi hệ thống nếu chưa có dữ liệu ràng buộc hóa đơn, hoặc vô hiệu hóa tài khoản.',
+                            okText: 'Xác nhận xóa',
+                            okType: 'danger',
+                            cancelText: 'Hủy',
+                            onOk: async () => {
+                              try {
+                                await customerApi.deleteCustomer(activeCustomer.id);
+                                message.success(`Đã xóa khách hàng: ${activeCustomer.name}`);
+                                const updated = customerList.filter(c => c.id !== activeCustomer.id);
+                                setCustomerList(updated);
+                                if (updated.length > 0) setActiveCustomer(updated[0]);
+                              } catch (err) {
+                                message.error(`Không thể xóa: ${err.message || 'Lỗi hệ thống'}`);
+                              }
+                            }
+                          });
+                        }}
+                        className="px-2.5 py-1 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-lg font-label-md text-label-md flex items-center gap-1 transition-colors cursor-pointer text-xs font-semibold"
+                      >
+                        <span className="material-symbols-outlined text-[15px]">delete</span>
+                        Xóa
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -597,8 +520,8 @@ export default function CrmPage() {
               {/* Profile Tabs */}
               <div className="flex items-center gap-1 bg-surface-container-low p-1 rounded-xl border border-[#d8e3fb]/40 overflow-x-auto whitespace-nowrap">
                 {[
-                  { id: 'rx', label: 'Hồ Sơ Thị Lực & Biểu Đồ OD/OS (FR-CUS-05)', icon: 'biotech' },
-                  { id: 'notes', label: `Nhật Ký Chăm Sóc CRM & Ghi Chú (${interactions.length})`, icon: 'support_agent' }
+                  { id: 'rx', label: 'Hồ Sơ Thị Lực & Biểu Đồ OD/OS', icon: 'biotech' },
+                  { id: 'notes', label: `Nhật Ký Chăm Sóc CRM (${interactions.length})`, icon: 'support_agent' }
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -699,38 +622,16 @@ export default function CrmPage() {
                   )}
                 </div>
               ) : (
-                /* Tab Content: Rx Progression Chart & Table */
-                <>
-                  <div className="p-3.5 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 flex flex-col gap-2.5">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                      <div>
-                        <span className="font-title-md text-title-md text-on-surface font-semibold block">Tiến Triển Độ Cận &amp; Loạn Thị (Diopter Progression Curve)</span>
-                        <span className="font-body-sm text-body-sm text-outline">Dữ liệu khúc xạ OD &amp; OS chuẩn ISO 13666</span>
-                      </div>
-                    </div>
-
-                    <div className="py-8 text-center text-outline bg-surface-container-low rounded-xl border border-dashed border-[#d8e3fb]">
-                      <span className="material-symbols-outlined text-3xl text-slate-300 block mb-1">show_chart</span>
-                      <span className="text-xs font-medium text-on-surface">Chưa có lịch sử biến thiên độ khúc xạ</span>
-                      <p className="text-[11px] text-outline mt-0.5">Biểu đồ tiến triển sẽ được tự động vẽ khi khách hàng thực hiện đo khám định kỳ tại hệ thống.</p>
+                /* Tab Content: Rx Table */
+                <div className="p-4 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 flex flex-col gap-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-[#e7eeff]">
+                    <div>
+                      <h4 className="font-title-md text-title-md text-on-surface font-semibold m-0">Lịch Sử Khám Thị Lực &amp; Toa Kính</h4>
+                      <p className="text-xs text-outline m-0 mt-0.5">Danh sách các lần đo khúc xạ và kê toa của khách hàng</p>
                     </div>
                   </div>
 
-                  <div className="p-3.5 rounded-xl bg-surface-container-lowest shadow-xs border border-[#d8e3fb]/40 flex flex-col gap-2.5">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="font-title-md text-title-md text-on-surface font-semibold block">Lịch Sử Toa Kính &amp; Hồ Sơ Lâm Sàng</span>
-                        <span className="font-body-sm text-body-sm text-outline">Bảo toàn vĩnh viễn theo chuẩn Y Khoa NFR-SEC-04</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => handleAction('Đã gửi lệnh in sổ khám A5 ra máy in')} className="px-2.5 py-1 bg-surface-container text-on-surface rounded-lg text-label-md font-label-md flex items-center gap-1 hover:bg-surface-container-high transition-all cursor-pointer">
-                          <span className="material-symbols-outlined text-[15px]">print</span>
-                          In Sổ (A5)
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="overflow-x-auto rounded-xl border border-[#d8e3fb]/40">
+                  <div className="overflow-x-auto rounded-xl border border-[#d8e3fb]/40">
                       <table className="w-full text-left font-body-md text-body-md">
                         <thead className="bg-surface-container-low text-outline font-label-md text-label-md uppercase">
                           <tr>
@@ -754,7 +655,7 @@ export default function CrmPage() {
                       </table>
                     </div>
                   </div>
-                </>
+                </div>
               )}
             </div>
           )}
@@ -836,7 +737,7 @@ export default function CrmPage() {
                   className="mt-0.5 accent-primary"
                 />
                 <span className="text-slate-700 font-medium">
-                  Khách hàng đồng ý nhận thông tin tiếp thị, khuyến mãi và chăm sóc thị lực qua SMS/Zalo (FR-CUS-04).
+                  Khách hàng đồng ý nhận thông tin tiếp thị, khuyến mãi và chăm sóc thị lực qua SMS/Zalo.
                 </span>
               </label>
             </div>
@@ -915,7 +816,7 @@ export default function CrmPage() {
                   className="mt-0.5 accent-primary"
                 />
                 <span className="text-slate-700 font-medium">
-                  Khách hàng đồng ý nhận thông tin tiếp thị, khuyến mãi và chăm sóc thị lực qua SMS/Zalo (FR-CUS-04).
+                  Khách hàng đồng ý nhận thông tin tiếp thị, khuyến mãi và chăm sóc thị lực qua SMS/Zalo.
                 </span>
               </label>
             </div>
