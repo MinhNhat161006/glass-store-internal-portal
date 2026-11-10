@@ -305,20 +305,11 @@ export default function PosSepayModal({
                 Quét mã qua App Ngân hàng bất kỳ
               </div>
               <Button
-                type="dashed"
-                block
-                size="small"
-                onClick={handleOpenSepayGateway}
-                style={{ fontSize: '12px', color: '#086288', borderColor: '#93c5fd' }}
-              >
-                Mở cổng thanh toán SePay ↗
-              </Button>
-              <Button
                 type="primary"
                 ghost
                 block
                 size="small"
-                style={{ marginTop: '8px', fontSize: '12px' }}
+                style={{ fontSize: '12px' }}
                 onClick={async () => {
                   try {
                     await fetch(`/api/payments/sepay/simulate-ipn?orderCode=${encodeURIComponent(order.orderCode)}`, { method: 'POST' });
