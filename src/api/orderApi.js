@@ -24,7 +24,7 @@ export const orderApi = {
     body: JSON.stringify(statusData)
   }),
   getOrderHistory: (id) => requestOrder(`/api/orders/${id}/history`),
-  initiatePayment: (orderId) => requestOrder(`/api/payments/order/${orderId}/initiate`, { method: 'POST' }),
+  initiatePayment: (orderId, provider) => requestOrder(`/api/payments/order/${orderId}/initiate${provider ? `?provider=${encodeURIComponent(provider)}` : ''}`, { method: 'POST' }),
   syncPayment: (orderId) => requestOrder(`/api/payments/order/${orderId}/sync`, { method: 'POST' }),
   getPaymentHistory: (orderId) => requestOrder(`/api/payments/order/${orderId}`),
   settleCash: (orderId) => requestOrder(`/api/orders/${orderId}/settle-cash`, { method: 'POST' }),

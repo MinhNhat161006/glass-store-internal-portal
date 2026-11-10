@@ -34,7 +34,7 @@ export default function PosSepayModal({
     let active = true;
     setLoading(true);
 
-    orderApi.initiatePayment(order.id)
+    orderApi.initiatePayment(order.id, 'SEPAY')
       .then(res => {
         if (!active) return;
         setInitiation(res);
