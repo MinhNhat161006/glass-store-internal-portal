@@ -272,10 +272,11 @@ export default function PosSepayModal({
     });
   }, [order]);
 
-  // Mobile quick confirmation link (when scanned by smartphone camera or Zalo)
+  // Mobile quick confirmation link (when scanned by smartphone camera or Zalo on same Wi-Fi)
   const mobileQuickPayUrl = useMemo(() => {
     if (!order) return '';
-    const host = window.location.hostname || 'localhost';
+    const isLocal = !window.location.hostname || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const host = isLocal ? '10.222.6.99' : window.location.hostname;
     return `http://${host}:8083/api/payments/sandbox/quick-pay?orderCode=${encodeURIComponent(order.orderCode)}`;
   }, [order]);
 
