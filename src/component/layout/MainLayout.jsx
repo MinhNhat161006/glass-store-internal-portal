@@ -1,9 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { ROLES } from '../../routes/rolesConfig';
-import { message } from 'antd';
+import { Drawer, Empty, Spin, Tag, message } from 'antd';
 import { catalogManagementApi } from '../../api/catalogManagementApi';
+import { notificationApi } from '../../api/notificationApi';
+import {
+  applySingleMarkRead,
+  categoryMeta,
+  channelStatusBadge,
+  formatNotificationTime,
+  normalizePollIntervalMs,
+  resolvePortalActionRoute,
+} from '../../pages/common/notificationUtils';
 
 
 export default function MainLayout() {
@@ -19,14 +28,142 @@ export default function MainLayout() {
   const [locationsLoading, setLocationsLoading] = useState(true);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
+  // Real persisted transactional notification state (GLAS-25)
+  const [notificationDrawerOpen, setNotificationDrawerOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [pollIntervalMs, setPollIntervalMs] = useState(15000);
+  const [notifications, setNotifications] = useState([]);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const [notifError, setNotifError] = useState('');
+  const [filterUnreadOnly, setFilterUnreadOnly] = useState(false);
+  const [markingAllRead, setMarkingAllRead] = useState(false);
+  const activeUserIdRef = useRef(user?.id || null);
+  activeUserIdRef.current = user?.id || null;
+
+  const refreshUnreadSummary = useCallback(async () => {
+    const uid = activeUserIdRef.current;
+    if (!uid) return;
+    try {
+      const summary = await notificationApi.getUnreadSummary();
+      if (activeUserIdRef.current !== uid) return;
+      setUnreadCount(Number(summary.unreadCount) || 0);
+      if (summary.pollIntervalSeconds) {
+        setPollIntervalMs(normalizePollIntervalMs(summary.pollIntervalSeconds));
+      }
+    } catch {
+      // Summary polling failures must stay silent unless user explicitly opens drawer
+    }
+  }, []);
+
+  const loadInbox = useCallback(async (unreadOnlyFlag = filterUnreadOnly) => {
+    const uid = activeUserIdRef.current;
+    if (!uid) return;
+    setNotifLoading(true);
+    setNotifError('');
+    try {
+      const inbox = await notificationApi.getInbox({ unreadOnly: unreadOnlyFlag });
+      if (activeUserIdRef.current !== uid) return;
+      setNotifications(inbox.items || []);
+      setUnreadCount(Number(inbox.unreadCount) || 0);
+      if (inbox.pollIntervalSeconds) {
+        setPollIntervalMs(normalizePollIntervalMs(inbox.pollIntervalSeconds));
+      }
+    } catch (error) {
+      if (activeUserIdRef.current === uid) {
+        setNotifError(error.message || 'Không thể tải thông báo từ máy chủ.');
+      }
+    } finally {
+      if (activeUserIdRef.current === uid) {
+        setNotifLoading(false);
+      }
+    }
+  }, [filterUnreadOnly]);
+
+  useEffect(() => {
+    setNotifications([]);
+    setUnreadCount(0);
+    setNotifError('');
+    if (!user?.id) return undefined;
+    refreshUnreadSummary();
+    const timer = setInterval(() => {
+      if (document.visibilityState !== 'hidden') {
+        refreshUnreadSummary();
+        if (notificationDrawerOpen) {
+          loadInbox(filterUnreadOnly);
+        }
+      }
+    }, pollIntervalMs);
+    const onFocus = () => refreshUnreadSummary();
+    window.addEventListener('focus', onFocus);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [user?.id, pollIntervalMs, notificationDrawerOpen, filterUnreadOnly, refreshUnreadSummary, loadInbox]);
+
+  const handleOpenNotifications = () => {
+    setNotificationDrawerOpen(true);
+    loadInbox(filterUnreadOnly);
+  };
+
+  const handleMarkAsRead = async (item) => {
+    try {
+      const updated = await notificationApi.markAsRead(item.id);
+      const next = applySingleMarkRead(notifications, unreadCount, updated);
+      setNotifications(filterUnreadOnly ? next.items.filter((row) => !row.read) : next.items);
+      setUnreadCount(next.unreadCount);
+      refreshUnreadSummary();
+    } catch (error) {
+      message.error(error.message || 'Không thể đánh dấu đã đọc.');
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    setMarkingAllRead(true);
+    try {
+      const res = await notificationApi.markAllAsRead();
+      const nowIso = new Date().toISOString();
+      setNotifications((prev) => (filterUnreadOnly ? [] : prev.map((row) => ({ ...row, read: true, readAt: row.readAt || nowIso }))));
+      setUnreadCount(Number(res.unreadCount ?? 0));
+      message.success('Đã đánh dấu tất cả thông báo là đã đọc.');
+    } catch (error) {
+      message.error(error.message || 'Không thể đánh dấu tất cả đã đọc.');
+    } finally {
+      setMarkingAllRead(false);
+    }
+  };
+
+  const handleOpenNotificationTarget = async (item) => {
+    if (!item.read) {
+      await handleMarkAsRead(item);
+    }
+    const route = resolvePortalActionRoute(item.actionRoute, currentRole);
+    if (route) {
+      setNotificationDrawerOpen(false);
+      navigate(route);
+    } else {
+      message.info('Vai trò hiện tại không có quyền mở trực tiếp màn hình đích này.');
+    }
+  };
+
   useEffect(() => {
     let active = true;
     catalogManagementApi.getPublicLocations()
       .then((response) => {
         if (!Array.isArray(response?.data)) throw new Error('Dữ liệu địa điểm không hợp lệ.');
         if (!active) return;
-        setLocations(response.data);
-        setSelectedBranch(response.data[0]?.code || '');
+        const locs = response.data;
+        setLocations(locs);
+        setSelectedBranch((current) => {
+          if (current && locs.some((l) => l.code === current)) return current;
+          const userBranch = locs.find(
+            (l) =>
+              l.code === user?.branch ||
+              l.name === user?.branchName ||
+              (user?.branchName && l.name?.toLowerCase().includes(user.branchName.toLowerCase()))
+          )?.code;
+          return userBranch || locs.find((l) => l.code === 'BRANCH_01')?.code || locs[0]?.code || '';
+        });
       })
       .catch((error) => {
         if (active) message.error(error.message || 'Không thể tải danh sách địa điểm.');
@@ -35,7 +172,7 @@ export default function MainLayout() {
         if (active) setLocationsLoading(false);
       });
     return () => { active = false; };
-  }, []);
+  }, [user]);
 
   const handleLogout = () => {
     logout();
@@ -346,22 +483,20 @@ export default function MainLayout() {
             {/* Notification Bell */}
             <button
               type="button"
-              onClick={() =>
-                Modal.info({
-                  title: 'Thông Báo Ca Trực Mới Nhất',
-                  content: (
-                    <div className="space-y-2 pt-2 text-xs text-slate-600">
-                      <p>• Đơn mài kính #LAB-1091 đã được kiểm tra QC đạt chuẩn.</p>
-                      <p>• Khách hàng Hoàng Đình Trọng (14:30) đã check-in tại quầy tiếp tân.</p>
-                      <p>• Máy đo khúc xạ ARK-1s đã hoàn thành cân chỉnh ca sáng.</p>
-                    </div>
-                  )
-                })
-              }
+              data-testid="portal-notification-bell"
+              aria-label="Thông báo giao dịch"
+              onClick={handleOpenNotifications}
               className="relative p-2 rounded-xl text-[#40484e] hover:bg-[#e7eeff] hover:text-[#111c2d] transition-colors cursor-pointer"
             >
               <span className="material-symbols-outlined text-[22px]">notifications</span>
-              
+              {unreadCount > 0 && (
+                <span
+                  data-testid="portal-notification-badge"
+                  className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center shadow-sm ring-2 ring-white"
+                >
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
             </button>
 
             <div className="h-6 w-px bg-[#dee8ff]" />
@@ -421,9 +556,175 @@ export default function MainLayout() {
 
         {/* Content Outlet */}
         <div className="pt-16 flex-1 flex flex-col">
-          <Outlet context={{ selectedBranch }} />
+          <Outlet context={{ selectedBranch, locations, setSelectedBranch }} />
         </div>
       </div>
+
+      {/* Real Persisted Notification Drawer (GLAS-25) */}
+      <Drawer
+        title={
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <div className="text-sm font-bold text-[#004967]">Hộp Thư Thông Báo Giao Dịch</div>
+              <div className="text-[11px] text-[#70787f] font-normal">
+                Chủ sở hữu: {user?.staffName} · Polling {Math.round(pollIntervalMs / 1000)}s · Chưa đọc: {unreadCount}
+              </div>
+            </div>
+          </div>
+        }
+        placement="right"
+        width={440}
+        open={notificationDrawerOpen}
+        onClose={() => setNotificationDrawerOpen(false)}
+      >
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100">
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterUnreadOnly(false);
+                  loadInbox(false);
+                }}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer ${
+                  !filterUnreadOnly ? 'bg-[#086288] text-white' : 'bg-slate-100 text-slate-600'
+                }`}
+              >
+                Tất cả
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterUnreadOnly(true);
+                  loadInbox(true);
+                }}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer ${
+                  filterUnreadOnly ? 'bg-[#086288] text-white' : 'bg-slate-100 text-slate-600'
+                }`}
+              >
+                Chưa đọc ({unreadCount})
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => loadInbox(filterUnreadOnly)}
+                className="px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+              >
+                Làm mới
+              </button>
+              <button
+                type="button"
+                disabled={markingAllRead || unreadCount === 0}
+                onClick={handleMarkAllAsRead}
+                className="px-2.5 py-1 rounded-lg bg-[#e7eeff] text-[#004967] text-xs font-bold hover:bg-[#dee8ff] disabled:opacity-50 cursor-pointer"
+              >
+                Đánh dấu tất cả đã đọc
+              </button>
+            </div>
+          </div>
+
+          {currentRole === ROLES.ADMIN && (
+            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-[#f0f3ff] border border-[#d8e3fb] text-[11px]">
+              <span className="text-[#40484e]">Quản trị kênh &amp; cổng SMS/Email:</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setNotificationDrawerOpen(false);
+                  navigate('/settings?tab=notifications');
+                }}
+                className="font-bold text-[#004967] hover:underline cursor-pointer"
+              >
+                Mở cấu hình FR-ADM-10 →
+              </button>
+            </div>
+          )}
+
+          {notifError && (
+            <div role="alert" className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs">
+              {notifError}
+            </div>
+          )}
+
+          {notifLoading && notifications.length === 0 ? (
+            <div className="py-12 flex justify-center">
+              <Spin tip="Đang tải thông báo…" />
+            </div>
+          ) : notifications.length === 0 ? (
+            <Empty
+              description={filterUnreadOnly ? 'Không có thông báo chưa đọc' : 'Chưa có thông báo giao dịch nào'}
+              className="py-8"
+            />
+          ) : (
+            <div className="space-y-2.5">
+              {notifications.map((item) => {
+                const cat = categoryMeta(item.category);
+                const inApp = channelStatusBadge('In-App', item.inAppStatus, 'Lưu DB');
+                const actionTarget = resolvePortalActionRoute(item.actionRoute, currentRole);
+                return (
+                  <div
+                    key={item.id}
+                    data-testid={`portal-notif-item-${item.id}`}
+                    className={`p-3 rounded-xl border transition-all ${
+                      item.read
+                        ? 'bg-white border-slate-200'
+                        : 'bg-[#f0f7ff] border-[#086288] shadow-xs'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <Tag color={cat.color} className="!text-[10px] !m-0">{cat.label}</Tag>
+                        {item.referenceCode && (
+                          <span className="text-[10px] font-mono font-bold text-[#004967] bg-[#e7eeff] px-1.5 py-0.5 rounded">
+                            {item.referenceCode}
+                          </span>
+                        )}
+                        {!item.read ? (
+                          <Tag color="red" className="!text-[10px] !m-0">Chưa đọc</Tag>
+                        ) : (
+                          <Tag className="!text-[10px] !m-0">Đã đọc</Tag>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="text-xs font-bold text-[#111c2d] mt-1.5">{item.title}</div>
+                    <p className="text-xs text-[#40484e] mt-1 mb-2 leading-relaxed">{item.message}</p>
+
+                    <div className="flex items-center justify-between gap-2 flex-wrap text-[10px] text-[#70787f]">
+                      <div className="flex items-center gap-1.5">
+                        <Tag color={inApp.color} className="!text-[10px] !m-0">{inApp.text}</Tag>
+                        <span>{formatNotificationTime(item.createdAt)}</span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        {!item.read && (
+                          <button
+                            type="button"
+                            onClick={() => handleMarkAsRead(item)}
+                            className="px-2 py-1 rounded-md bg-white border border-[#086288] text-[#086288] hover:bg-[#e7eeff] text-[11px] font-semibold cursor-pointer"
+                          >
+                            Đánh dấu đã đọc
+                          </button>
+                        )}
+                        {actionTarget && (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenNotificationTarget(item)}
+                            className="px-2 py-1 rounded-md bg-[#086288] text-white hover:bg-[#004967] text-[11px] font-semibold cursor-pointer"
+                          >
+                            Mở màn hình
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </Drawer>
     </div>
   );
 }

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { inventoryApi } from '../../api/inventoryApi';
 import { isLowStock } from './inventoryUtils';
 
-const LOCATIONS = [
+const DEFAULT_LOCATIONS = [
   { code: 'BRANCH_01', label: 'Chi nhánh 01' },
   { code: 'BRANCH_02', label: 'Chi nhánh 02' },
   { code: 'LAB', label: 'Tổng kho Lab' }
@@ -19,6 +19,7 @@ const quantityAt = (item, locationCode) => Number(item.quantities?.[locationCode
 
 export default function InventoryPage() {
   const [inventory, setInventory] = useState([]);
+  const [locations, setLocations] = useState(DEFAULT_LOCATIONS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
@@ -27,11 +28,20 @@ export default function InventoryPage() {
   const loadInventory = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true);
     try {
-      const response = await inventoryApi.getInventory();
-      if (!Array.isArray(response?.data)) {
+      const [inventoryRes, locationsRes] = await Promise.all([
+        inventoryApi.getInventory(),
+        inventoryApi.getLocations().catch(() => null)
+      ]);
+      if (!Array.isArray(inventoryRes?.data)) {
         throw new Error('Dữ liệu tồn kho từ máy chủ không hợp lệ.');
       }
-      setInventory(response.data);
+      setInventory(inventoryRes.data);
+      if (Array.isArray(locationsRes?.data) && locationsRes.data.length > 0) {
+        setLocations(locationsRes.data.map(loc => ({
+          code: loc.code,
+          label: loc.name || loc.code
+        })));
+      }
       setError('');
     } catch (loadError) {
       setError(loadError.message || 'Không thể tải dữ liệu tồn kho.');
@@ -42,9 +52,22 @@ export default function InventoryPage() {
 
   useEffect(() => {
     loadInventory(true);
-    const refreshTimer = window.setInterval(() => loadInventory(), 30000);
-    return () => window.clearInterval(refreshTimer);
+    const refreshTimer = window.setInterval(() => loadInventory(), 15000);
+    const handleSync = () => loadInventory();
+    window.addEventListener('inventory-changed', handleSync);
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'optivision_last_inventory_sync') handleSync();
+    });
+    window.addEventListener('focus', handleSync);
+    return () => {
+      window.clearInterval(refreshTimer);
+      window.removeEventListener('inventory-changed', handleSync);
+      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('focus', handleSync);
+    };
   }, [loadInventory]);
+
+  const activeLocations = locations.length > 0 ? locations : DEFAULT_LOCATIONS;
 
   const filteredInventory = useMemo(() => {
     const searchTerm = query.trim().toLowerCase();
@@ -54,12 +77,12 @@ export default function InventoryPage() {
         || item.productName?.toLowerCase().includes(searchTerm);
       const matchesCategory = category === 'ALL' || category === 'LOW_STOCK' || item.productType === category;
       const matchesLowStock = category !== 'LOW_STOCK'
-        || LOCATIONS.some(({ code }) => isLowStock(quantityAt(item, code)));
+        || activeLocations.some(({ code }) => isLowStock(quantityAt(item, code)));
       return matchesQuery && matchesCategory && matchesLowStock;
     });
-  }, [inventory, query, category]);
+  }, [inventory, query, category, activeLocations]);
 
-  const lowStockLocations = LOCATIONS.reduce((total, { code }) =>
+  const lowStockLocations = activeLocations.reduce((total, { code }) =>
     total + inventory.filter((item) => isLowStock(quantityAt(item, code))).length, 0);
 
   return (
@@ -67,7 +90,13 @@ export default function InventoryPage() {
       <div className="mx-auto flex max-w-[1600px] flex-col gap-4 p-4 sm:p-6">
         <header className="flex flex-col justify-between gap-4 rounded-xl border border-[#d8e3fb]/50 bg-white p-5 shadow-sm sm:flex-row sm:items-center">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-[#086288]">Kho vận / Tồn kho</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-[#086288]">Kho vận / Tồn kho</p>
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                Đồng bộ trực tiếp với quầy POS
+              </span>
+            </div>
             <h1 className="mt-1 text-2xl font-bold text-slate-900">Tồn kho đa chi nhánh</h1>
             <p className="mt-1 text-sm text-slate-600">Số lượng theo SKU tại từng địa điểm. Cảnh báo áp dụng riêng từng kho khi tồn dưới 5.</p>
           </div>
@@ -149,7 +178,7 @@ export default function InventoryPage() {
                     <th scope="col" className="px-3 py-3">SKU</th>
                     <th scope="col" className="px-3 py-3">Sản phẩm</th>
                     <th scope="col" className="px-3 py-3">Loại</th>
-                    {LOCATIONS.map((location) => (
+                    {activeLocations.map((location) => (
                       <th scope="col" key={location.code} className="px-3 py-3 text-center">{location.label}</th>
                     ))}
                   </tr>
@@ -162,7 +191,7 @@ export default function InventoryPage() {
                       </th>
                       <td className="px-3 py-3 font-medium text-slate-900">{item.productName}</td>
                       <td className="px-3 py-3 text-slate-600">{CATEGORY_LABELS[item.productType] || item.productType}</td>
-                      {LOCATIONS.map((location) => {
+                      {activeLocations.map((location) => {
                         const quantity = quantityAt(item, location.code);
                         const lowStock = isLowStock(quantity);
                         return (

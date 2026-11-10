@@ -45,12 +45,15 @@ export default function ProductCatalog({ products, count, cart, loading, error, 
     <div className="pos-product-grid" data-pos-product-grid>{products.map(product => {
       const quantity = cart.find(item => item.sku === product.sku)?.quantity || 0;
       const soldOut = product.stockQuantity <= 0;
+      const isLow = !soldOut && product.stockQuantity < 5;
       return <article className={`pos-product-card${quantity ? ' is-selected' : ''}${soldOut ? ' is-sold-out' : ''}`} key={product.sku}>
         <button type="button" className="pos-product-select" data-pos-sku={product.sku}
           disabled={soldOut} aria-label={`Thêm ${product.name} vào giỏ hàng`} onClick={() => onAdd(product)}>
           <div className="pos-product-visual"><ProductImage product={product} />
             {quantity > 0 && <span className="pos-quantity-badge" aria-label={`Đã chọn ${quantity}`}>{quantity}</span>}
-            <span className={`pos-stock${soldOut ? ' is-empty' : ''}`}>{soldOut ? 'Hết hàng' : `Tồn: ${product.stockQuantity}`}</span>
+            <span className={`pos-stock${soldOut ? ' is-empty' : isLow ? ' is-low' : ''}`}>
+              {soldOut ? 'Hết hàng' : isLow ? `Tồn ít: ${product.stockQuantity}` : `Tồn: ${product.stockQuantity}`}
+            </span>
           </div>
           <div className="pos-product-info"><span className="pos-brand">{product.brand}</span>
             <h2 title={product.name}>{shortName(product)}</h2><span className="pos-sku">{product.sku}</span></div>
