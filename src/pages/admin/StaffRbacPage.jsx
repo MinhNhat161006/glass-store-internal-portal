@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { message, Modal, Spin } from 'antd';
+import { useSearchParams } from 'react-router-dom';
+import { message, Modal, Spin, Switch, Tag } from 'antd';
 import { staffApi } from '../../api/staffApi';
+import { notificationApi } from '../../api/notificationApi';
 
 // Roles definition
 const ROLES_LIST = [
@@ -62,7 +64,22 @@ const RBAC_MODULES = [
 ];
 
 export default function StaffRbacPage() {
-  const [activeTab, setActiveTab] = useState('staff'); // 'staff' | 'requests' | 'matrix'
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') === 'notifications' ? 'notifications' : 'staff';
+  const [activeTab, setActiveTabState] = useState(initialTab); // 'staff' | 'requests' | 'matrix' | 'notifications'
+  const setActiveTab = (tab) => {
+    setActiveTabState(tab);
+    if (tab === 'notifications') {
+      setSearchParams({ tab: 'notifications' }, { replace: true });
+    } else if (searchParams.has('tab')) {
+      setSearchParams({}, { replace: true });
+    }
+  };
+  const [channelConfig, setChannelConfig] = useState(null);
+  const [channelDraft, setChannelDraft] = useState({ smsEnabled: true, emailEnabled: false, pollIntervalSeconds: 15 });
+  const [channelLoading, setChannelLoading] = useState(false);
+  const [channelSaving, setChannelSaving] = useState(false);
+  const [channelError, setChannelError] = useState('');
   const [staffList, setStaffList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -151,6 +168,54 @@ export default function StaffRbacPage() {
   useEffect(() => {
     loadStaff();
   }, []);
+
+  const loadChannelConfig = async () => {
+    setChannelLoading(true);
+    setChannelError('');
+    try {
+      const cfg = await notificationApi.getChannelConfig();
+      setChannelConfig(cfg);
+      setChannelDraft({
+        smsEnabled: Boolean(cfg.smsEnabled),
+        emailEnabled: Boolean(cfg.emailEnabled),
+        pollIntervalSeconds: Number(cfg.pollIntervalSeconds || 15),
+      });
+    } catch (err) {
+      setChannelError(err.message || 'Không tải được cấu hình kênh thông báo.');
+    } finally {
+      setChannelLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'notifications') {
+      loadChannelConfig();
+    }
+  }, [activeTab]);
+
+  const handleSaveChannelConfig = async () => {
+    setChannelSaving(true);
+    setChannelError('');
+    try {
+      const updated = await notificationApi.updateChannelConfig({
+        smsEnabled: channelDraft.smsEnabled,
+        emailEnabled: channelDraft.emailEnabled,
+        pollIntervalSeconds: Math.max(5, Math.min(120, Number(channelDraft.pollIntervalSeconds) || 15)),
+      });
+      setChannelConfig(updated);
+      setChannelDraft({
+        smsEnabled: Boolean(updated.smsEnabled),
+        emailEnabled: Boolean(updated.emailEnabled),
+        pollIntervalSeconds: Number(updated.pollIntervalSeconds || 15),
+      });
+      message.success('Đã lưu cấu hình kênh thông báo & chu kỳ polling!');
+    } catch (err) {
+      setChannelError(err.message || 'Không thể lưu cấu hình kênh thông báo.');
+      message.error(err.message || 'Không thể lưu cấu hình kênh thông báo.');
+    } finally {
+      setChannelSaving(false);
+    }
+  };
 
   const activeStaff = staffList.filter(s => s.status === 'active');
   const pendingStaff = staffList.filter(s => s.status === 'pending');
@@ -390,6 +455,19 @@ export default function StaffRbacPage() {
             >
               <span className="material-symbols-outlined text-[16px]">grid_view</span>
               <span>Ma Trận Phân Quyền (RBAC Matrix)</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('notifications')}
+              data-testid="tab-notification-channels"
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                activeTab === 'notifications'
+                  ? 'bg-[#004967] text-white shadow-sm'
+                  : 'bg-white text-[#70787f] hover:bg-[#f0f3ff] border border-[#d8e3fb]/60'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[16px]">notifications_active</span>
+              <span>Cấu Hình Kênh Thông Báo (FR-ADM-10)</span>
             </button>
           </div>
         </div>
@@ -701,6 +779,116 @@ export default function StaffRbacPage() {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {/* ================= TAB 4: CẤU HÌNH KÊNH THÔNG BÁO (FR-ADM-10) ================= */}
+        {activeTab === 'notifications' && (
+          <div className="bg-white rounded-xl border border-[#d8e3fb]/40 shadow-sm p-5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#e7eeff]">
+              <div>
+                <h3 className="text-sm font-bold text-[#004967]">
+                  Cấu Hình Kênh Thông Báo Giao Dịch &amp; Chu Kỳ Polling (FR-ADM-10 / GLAS-25)
+                </h3>
+                <p className="text-xs text-[#70787f] mt-0.5">
+                  In-App + Polling là kênh cam kết chính thức. SMS/Email chỉ đánh dấu Đã gửi (SENT) khi cổng ngoài phản hồi HTTP 2xx — không tính In-App là đã gửi SMS.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleSaveChannelConfig}
+                disabled={channelSaving || channelLoading}
+                data-testid="save-notification-channel-config"
+                className="px-4 py-2 rounded-xl bg-[#004967] hover:bg-[#086288] text-white text-xs font-bold shadow-sm disabled:opacity-50 cursor-pointer shrink-0"
+              >
+                {channelSaving ? 'Đang lưu...' : 'Lưu Cấu Hình Kênh'}
+              </button>
+            </div>
+
+            {channelError && (
+              <div role="alert" className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs">
+                {channelError}
+              </div>
+            )}
+
+            {channelLoading && !channelConfig ? (
+              <div className="py-10 flex justify-center">
+                <Spin tip="Đang tải cấu hình kênh thông báo..." />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 rounded-xl border border-[#d8e3fb] bg-[#f0f7ff] space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-[#004967]">1. Kênh In-App &amp; Polling Thống Nhất</span>
+                    <Tag color="green">ACTIVE</Tag>
+                  </div>
+                  <p className="text-[11px] text-[#40484e]">
+                    Đồng bộ hộp thư Portal nội bộ &amp; Customer Web từ CSDL theo chủ sở hữu.
+                  </p>
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#111c2d] mb-1">
+                      Chu kỳ Polling (giây, từ 5s đến 120s)
+                    </label>
+                    <input
+                      type="number"
+                      min={5}
+                      max={120}
+                      data-testid="poll-interval-input"
+                      value={channelDraft.pollIntervalSeconds}
+                      onChange={(e) => setChannelDraft((prev) => ({ ...prev, pollIntervalSeconds: Number(e.target.value) }))}
+                      className="w-full px-3 py-1.5 rounded-lg border border-[#d8e3fb] bg-white text-xs font-bold text-[#111c2d]"
+                    />
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-[#d8e3fb] bg-white space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-[#111c2d]">2. Cổng SMS Giao Dịch</span>
+                    <Switch
+                      checked={channelDraft.smsEnabled}
+                      onChange={(checked) => setChannelDraft((prev) => ({ ...prev, smsEnabled: checked }))}
+                    />
+                  </div>
+                  <div>
+                    <Tag color={channelConfig?.smsProviderConfigured ? 'green' : 'gold'}>
+                      {channelConfig?.smsProviderStatus || 'BLOCKED_PROVIDER_UNCONFIGURED'}
+                    </Tag>
+                  </div>
+                  <p className="text-[11px] text-[#70787f]">
+                    {channelConfig?.smsProviderConfigured
+                      ? 'Đã kết nối cổng SMS HTTP ngoài. Hệ thống sẽ ghi SENT khi HTTP 2xx hoặc FAILED nếu lỗi.'
+                      : 'Blocked: Chưa cấu hình cổng SMS ngoài (notification.sms.provider-url). Khi phát sự kiện, hệ thống lưu In-App bình thường và ghi nhận smsStatus = BLOCKED_PROVIDER_UNCONFIGURED.'}
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-xl border border-[#d8e3fb] bg-white space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-[#111c2d]">3. Cổng Email Giao Dịch</span>
+                    <Switch
+                      checked={channelDraft.emailEnabled}
+                      onChange={(checked) => setChannelDraft((prev) => ({ ...prev, emailEnabled: checked }))}
+                    />
+                  </div>
+                  <div>
+                    <Tag color={channelConfig?.emailProviderConfigured ? 'green' : 'gold'}>
+                      {channelConfig?.emailProviderStatus || 'BLOCKED_PROVIDER_UNCONFIGURED'}
+                    </Tag>
+                  </div>
+                  <p className="text-[11px] text-[#70787f]">
+                    {channelConfig?.emailProviderConfigured
+                      ? 'Đã kết nối cổng Email HTTP ngoài.'
+                      : 'Blocked: Chưa cấu hình cổng Email ngoài (notification.email.provider-url). Trạng thái phản ánh đúng thực tế provider.'}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {channelConfig?.updatedBy && (
+              <div className="text-[11px] text-[#70787f] pt-2 border-t border-slate-100">
+                Cập nhật gần nhất bởi <span className="font-semibold text-[#111c2d]">{channelConfig.updatedBy}</span> lúc{' '}
+                {channelConfig.updatedAt ? new Date(channelConfig.updatedAt).toLocaleString('vi-VN') : '-'}
+              </div>
+            )}
           </div>
         )}
 
