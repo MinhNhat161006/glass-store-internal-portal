@@ -313,6 +313,23 @@ export default function PosSepayModal({
               >
                 Mở cổng thanh toán SePay ↗
               </Button>
+              <Button
+                type="primary"
+                ghost
+                block
+                size="small"
+                style={{ marginTop: '8px', fontSize: '12px' }}
+                onClick={async () => {
+                  try {
+                    await fetch(`/api/payments/sepay/simulate-ipn?orderCode=${encodeURIComponent(order.orderCode)}`, { method: 'POST' });
+                    message.success('Đã gửi tín hiệu giả lập thanh toán SePay!');
+                  } catch (e) {
+                    message.error(e.message);
+                  }
+                }}
+              >
+                ⚡ Giả lập thanh toán SePay
+              </Button>
             </div>
           </div>
 
