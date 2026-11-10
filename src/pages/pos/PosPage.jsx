@@ -17,6 +17,8 @@ import useHeldCarts from './useHeldCarts';
 import HeldCartsPanel from './HeldCartsPanel';
 import CancelOrderPanel from './CancelOrderPanel';
 import usePosPayment from './usePosPayment';
+import CustomerReceptionModal from './CustomerReceptionModal';
+import PosHistoryModal from './PosHistoryModal';
 import PosSepayModal from './PosSepayModal';
 
 export default function PosPage() {
@@ -43,6 +45,8 @@ export default function PosPage() {
   const [catalogVersion, setCatalogVersion] = useState(0);
   const [lastOrder, setLastOrder] = useState(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
+  const [selectedReceiptOrder, setSelectedReceiptOrder] = useState(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [catalogError, setCatalogError] = useState('');
   // Category filter
@@ -92,6 +96,33 @@ export default function PosPage() {
       if (Array.isArray(res)) setDbCustomers(res);
     }).catch(e => console.warn('Sync customer list for POS:', e));
   }, []);
+
+  const handleSelectCustomer = (c) => {
+    if (linkedRx?.customerId && linkedRx.customerId !== c.id) setLinkedRx(null);
+    setCustomer({
+      id: c.id,
+      name: c.fullName,
+      phone: c.phoneNumber || '',
+      tier: c.membershipTier || 'Thành Viên',
+      points: c.loyaltyPoints || 0,
+      pointValue: 0
+    });
+    message.success(`Đã tiếp nhận khách hàng: ${c.fullName}`);
+  };
+
+  const handleCustomerCreated = (newC) => {
+    setDbCustomers(prev => [newC, ...prev]);
+    if (linkedRx?.customerId && linkedRx.customerId !== newC.id) setLinkedRx(null);
+    setCustomer({
+      id: newC.id,
+      name: newC.fullName,
+      phone: newC.phoneNumber || '',
+      tier: 'Thành viên mới',
+      points: 0,
+      pointValue: 0
+    });
+    message.success(`Đã tạo và tiếp nhận khách hàng: ${newC.fullName} (Mã KH: #${newC.id})`);
+  };
   const [usePoints, setUsePoints] = useState(false);
   const [pointsToUse, setPointsToUse] = useState(0);
   const [loyalty, setLoyalty] = useState(null);
@@ -251,7 +282,7 @@ export default function PosPage() {
   function restoreCart(draft) {
     if (draft.branchCode !== branchCode) { message.error('Đơn tạm thuộc chi nhánh khác.'); return false; }
     if (isPaymentLocked() || uncertainPayment || catalogLoading) { message.warning('Chờ kiểm tra thanh toán / tải tồn kho xong.'); return false; }
-    const restoredRx = availablePrescriptions.find(rx => draft.prescriptionId ? rx.id === draft.prescriptionId : rx.code === draft.prescriptionCode);
+    const restoredRx = availablePrescriptions.find(rx => draft.prescriptionId ? rx.id === draft.prescriptionId : rx.code === draft.prescriptionCode) || draft.linkedRx;
     if ((draft.prescriptionId || draft.prescriptionCode) && !restoredRx) {
       message.warning('Chưa tìm thấy toa kính của đơn tạm. Đơn vẫn được giữ; hãy tải lại danh sách toa trước khi khôi phục.');
       return false;
@@ -533,6 +564,7 @@ export default function PosPage() {
         action={<button type="button" className="pos-outline" disabled={paying || !canRetryPayment} onClick={retryPayment}>Kiểm tra / thử lại yêu cầu cũ</button>} />}
       <div className="pos-today-tools"><HeldCartsPanel drafts={held.drafts} onHold={holdCart} onRestore={restoreCart} onDelete={id => { try { held.remove(id); } catch(error) { message.error(error.message); } }} disabled={paying || uncertainPayment || catalogLoading} />
         <CancelOrderPanel lastOrder={lastOrder} onChanged={saved => { if (saved.id === lastOrder?.id) setLastOrder(saved); setCatalogVersion(value => value + 1); }} />
+        <button type="button" className="pos-outline" onClick={() => setHistoryOpen(true)}>Tra cứu lịch sử POS</button>
         <button type="button" className="pos-outline" disabled={paying || uncertainPayment || catalogLoading} onClick={() => Modal.confirm({
           title: 'Cập nhật giá và tồn kho?', content: 'Giỏ hàng được giữ nguyên số lượng. Giá sẽ lấy lại từ catalog; hãy kiểm tra tổng tiền mới trước khi thanh toán.',
           okText: 'Cập nhật', cancelText: 'Giữ giá hiện tại', onOk: () => { setOffer(null); setCashGiven(0); setCatalogVersion(value => value + 1); }
@@ -565,8 +597,8 @@ export default function PosPage() {
         />
       )}
 
-      <InventorySyncPanel branchCode={branchCode} selectedBranch={branchName} lastOrder={lastOrder} onSynced={() => setCatalogVersion(value => value + 1)} />
-      <ReceiptPreview order={lastOrder} open={receiptOpen} onClose={() => setReceiptOpen(false)} />
+      <InventorySyncPanel branchCode={branchCode} selectedBranch={branchName || selectedBranch} lastOrder={lastOrder} onSynced={() => setCatalogVersion(value => value + 1)} />
+      <ReceiptPreview order={selectedReceiptOrder || lastOrder} open={receiptOpen} onClose={() => { setReceiptOpen(false); setSelectedReceiptOrder(null); }} />
       {!catalogLoading && !catalogError && branchCode && catalogProducts.length > 0
         && !catalogProducts.some(product => product.stockQuantity > 0) && <Alert showIcon type="info"
           message="Chi nhánh này chưa có hàng để bán. Cần tạo phiếu điều chuyển và xác nhận nhận hàng từ kho nguồn."
@@ -664,96 +696,31 @@ export default function PosPage() {
         </div>
       )}
 
-      {/* ================= MODAL: Chọn Khách Hàng Tiếp Nhận (Từ DB) ================= */}
-      {isCustomerModalOpen && (
-        <div className="fixed inset-0 bg-[#263143]/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl flex flex-col gap-4 border border-slate-100">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#004967] text-[24px]">
-                  person_search
-                </span>
-                <h3 className="text-base text-[#111c2d] font-bold">
-                  Tiếp Nhận Khách Hàng 
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsCustomerModalOpen(false)}
-                className="text-[#70787f] hover:text-[#111c2d] transition-colors cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-[24px]">close</span>
-              </button>
-            </div>
+      {/* ================= MODAL: Tiếp Nhận & Tạo Nhanh Khách Hàng (S3-23) ================= */}
+      <CustomerReceptionModal
+        open={isCustomerModalOpen}
+        onClose={() => setIsCustomerModalOpen(false)}
+        customers={dbCustomers}
+        onSelectCustomer={handleSelectCustomer}
+        onCustomerCreated={handleCustomerCreated}
+      />
 
-            {/* Search Input */}
-            <div className="relative">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#70787f] text-[18px]">
-                search
-              </span>
-              <input
-                type="text"
-                placeholder="Tìm theo tên hoặc SĐT..."
-                value={customerSearchQuery}
-                onChange={(e) => setCustomerSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#f0f3ff] border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#004967]/30"
-              />
-            </div>
-
-            {/* Customer List from DB */}
-            <div className="space-y-2 max-h-80 overflow-y-auto">
-              {dbCustomers
-                .filter(c => {
-                  const q = customerSearchQuery.toLowerCase().trim();
-                  if (!q) return true;
-                  return (c.fullName || '').toLowerCase().includes(q) || (c.phoneNumber || '').includes(q);
-                })
-                .map(c => (
-                  <div
-                    key={c.id}
-                    onClick={() => {
-                      if (linkedRx?.customerId !== c.id) setLinkedRx(null);
-                      setCustomer({
-                        id: c.id,
-                        name: c.fullName,
-                        tier: 'Thành Viên',
-                        phone: c.phoneNumber || '',
-                        points: 0,
-                        pointValue: 0
-                      });
-                      setIsCustomerModalOpen(false);
-                      message.success(`Đã tiếp nhận khách hàng: ${c.fullName}`);
-                    }}
-                    className="p-3 rounded-xl bg-[#f0f3ff] hover:bg-[#e7eeff] border border-[#dee8ff]/50 transition-colors cursor-pointer flex items-center justify-between"
-                  >
-                    <div>
-                      <span className="font-bold text-xs text-[#111c2d] block">{c.fullName}</span>
-                      <span className="text-[11px] text-[#70787f]">{c.phoneNumber || 'Chưa có SĐT'} • {c.email || ''}</span>
-                    </div>
-                    <span className="px-2 py-0.5 rounded-full bg-[#004967] text-white text-[10px] font-bold">
-                      Chọn
-                    </span>
-                  </div>
-                ))}
-              {dbCustomers.length === 0 && (
-                <div className="py-8 text-center text-[#70787f] text-xs">
-                  Không tìm thấy khách hàng nào trong cơ sở dữ liệu.
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-between items-center pt-2 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setIsCustomerModalOpen(false)}
-                className="px-4 py-1.5 rounded-xl bg-[#f0f3ff] text-[#40484e] text-xs font-bold hover:bg-[#dee8ff] transition-colors cursor-pointer"
-              >
-                Đóng
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ================= MODAL: Tra Cứu Lịch Sử Giao Dịch POS (S3-23) ================= */}
+      <PosHistoryModal
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        branchCode={branchCode}
+        selectedBranch={branchName || selectedBranch}
+        currentUser={user}
+        onSelectReceipt={(order) => {
+          setSelectedReceiptOrder(order);
+          setReceiptOpen(true);
+        }}
+        onOrderChanged={(saved) => {
+          if (saved.id === lastOrder?.id) setLastOrder(saved);
+          setCatalogVersion(v => v + 1);
+        }}
+      />
 
       {/* ================= MODAL: Cổng thanh toán SePay VietQR Sandbox ================= */}
       <PosSepayModal
