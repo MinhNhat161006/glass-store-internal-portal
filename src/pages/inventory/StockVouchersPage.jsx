@@ -61,6 +61,10 @@ export default function StockVouchersPage() {
   const [voucherModalOpen, setVoucherModalOpen] = useState(false);
   const [supplierModal, setSupplierModal] = useState({ open: false, record: null });
   const [rejectVoucher, setRejectVoucher] = useState(null);
+  const [auditLocation, setAuditLocation] = useState('BRANCH_01');
+  const [auditCounts, setAuditCounts] = useState({});
+  const [auditReasons, setAuditReasons] = useState({});
+  const [adjustingSku, setAdjustingSku] = useState(null);
   const voucherType = Form.useWatch('type', voucherForm);
   const voucherLocation = Form.useWatch('locationCode', voucherForm);
 
@@ -201,6 +205,68 @@ export default function StockVouchersPage() {
     }
   };
 
+  const handleApproveVariance = async (sku, delta, reason) => {
+    try {
+      setAdjustingSku(sku);
+      const auditReason = (reason || '').trim() || 'Biên bản kiểm kê kho định kỳ (S3-20)';
+      await inventoryApi.adjustStock({
+        sku,
+        delta,
+        reason: auditReason,
+        actor: user?.fullName || 'Quản lý kho'
+      });
+      message.success(`Đã duyệt điều chỉnh chênh lệch SKU ${sku} (${delta > 0 ? '+' : ''}${delta}) thành công!`);
+      setAuditCounts(prev => {
+        const next = { ...prev };
+        delete next[sku];
+        return next;
+      });
+      await loadData();
+    } catch (err) {
+      message.error(err.message || 'Lỗi khi duyệt điều chỉnh tồn kho');
+    } finally {
+      setAdjustingSku(null);
+    }
+  };
+
+  const exportAuditReport = () => {
+    try {
+      const headers = ['Mã SKU', 'Tên Sản Phẩm', 'Kho Kiểm Kê', 'Tồn Hệ Thống', 'Thực Tế', 'Chênh Lệch', 'Lý Do'];
+      const rows = inventory.map(item => {
+        const sysQty = Number(item.quantities?.[auditLocation] ?? 0);
+        const counted = auditCounts[item.sku] != null ? auditCounts[item.sku] : sysQty;
+        const diff = counted - sysQty;
+        return [
+          item.sku,
+          item.productName,
+          auditLocation,
+          sysQty,
+          counted,
+          diff,
+          auditReasons[item.sku] || (diff === 0 ? 'Khớp kiểm đếm' : 'Chưa ghi chú')
+        ];
+      });
+
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','))
+      ].join('\r\n');
+
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `Bien_Ban_Kiem_Ke_Kho_${auditLocation}_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      message.success('Đã xuất biên bản kiểm kê kho thành công!');
+    } catch (err) {
+      message.error('Lỗi khi xuất file: ' + err.message);
+    }
+  };
+
   const voucherColumns = [
     { title: 'Mã phiếu', dataIndex: 'voucherCode', key: 'voucherCode' },
     {
@@ -304,10 +370,110 @@ export default function StockVouchersPage() {
     }
   ];
 
+  const auditColumns = [
+    {
+      title: 'Mã SKU',
+      dataIndex: 'sku',
+      key: 'sku',
+      render: (sku) => <span className="font-mono font-bold text-[#086288]">{sku}</span>
+    },
+    {
+      title: 'Tên Sản Phẩm',
+      dataIndex: 'productName',
+      key: 'productName',
+      render: (name) => <span className="font-medium text-slate-900">{name}</span>
+    },
+    {
+      title: 'Tồn Hệ Thống',
+      key: 'systemStock',
+      render: (_, item) => {
+        const qty = Number(item.quantities?.[auditLocation] ?? 0);
+        return <span className="font-bold text-slate-800">{qty}</span>;
+      }
+    },
+    {
+      title: 'Thực Tế (Kiểm Đếm)',
+      key: 'countedStock',
+      render: (_, item) => {
+        const sysQty = Number(item.quantities?.[auditLocation] ?? 0);
+        const val = auditCounts[item.sku] != null ? auditCounts[item.sku] : sysQty;
+        return (
+          <InputNumber
+            min={0}
+            value={val}
+            onChange={(newVal) => setAuditCounts(prev => ({ ...prev, [item.sku]: newVal }))}
+            style={{ width: 90 }}
+          />
+        );
+      }
+    },
+    {
+      title: 'Chênh Lệch',
+      key: 'variance',
+      render: (_, item) => {
+        const sysQty = Number(item.quantities?.[auditLocation] ?? 0);
+        const counted = auditCounts[item.sku] != null ? auditCounts[item.sku] : sysQty;
+        const diff = counted - sysQty;
+        if (diff > 0) return <Tag color="blue">+{diff} (Thừa)</Tag>;
+        if (diff < 0) return <Tag color="red">{diff} (Thiếu)</Tag>;
+        return <Tag color="green">0 (Khớp)</Tag>;
+      }
+    },
+    {
+      title: 'Lý Do Chênh Lệch',
+      key: 'reason',
+      render: (_, item) => {
+        const sysQty = Number(item.quantities?.[auditLocation] ?? 0);
+        const counted = auditCounts[item.sku] != null ? auditCounts[item.sku] : sysQty;
+        const diff = counted - sysQty;
+        if (diff === 0) return <span className="text-slate-400 text-xs">Không chênh lệch</span>;
+        return (
+          <Input
+            placeholder="Lý do chênh lệch..."
+            value={auditReasons[item.sku] || ''}
+            onChange={(e) => setAuditReasons(prev => ({ ...prev, [item.sku]: e.target.value }))}
+            style={{ minWidth: 160 }}
+          />
+        );
+      }
+    },
+    {
+      title: 'Thao Tác Duyệt',
+      key: 'action',
+      render: (_, item) => {
+        const sysQty = Number(item.quantities?.[auditLocation] ?? 0);
+        const counted = auditCounts[item.sku] != null ? auditCounts[item.sku] : sysQty;
+        const diff = counted - sysQty;
+        if (diff === 0) {
+          return <span className="text-emerald-600 text-xs font-semibold">Đạt chuẩn</span>;
+        }
+        return (
+          <Popconfirm
+            title={`Duyệt điều chỉnh SKU ${item.sku} (${diff > 0 ? '+' : ''}${diff})?`}
+            description="Tồn kho hệ thống sẽ được tự động điều chỉnh theo số lượng thực tế kiểm kê."
+            okText="Duyệt chênh lệch"
+            cancelText="Hủy"
+            onConfirm={() => handleApproveVariance(item.sku, diff, auditReasons[item.sku])}
+          >
+            <Button
+              type="primary"
+              size="small"
+              loading={adjustingSku === item.sku}
+              className="bg-[#086288]"
+            >
+              Duyệt Chênh Lệch
+            </Button>
+          </Popconfirm>
+        );
+      }
+    }
+  ];
+
   const tabs = [
     { key: 'vouchers', label: `Phiếu kho (${vouchers.length})` },
     { key: 'suppliers', label: `Nhà cung cấp (${suppliers.length})` },
-    { key: 'defects', label: `Hàng cách ly (${defects.length})` }
+    { key: 'defects', label: `Hàng cách ly (${defects.length})` },
+    { key: 'audit', label: `Kiểm kê & Duyệt chênh lệch (S3-20)` }
   ];
 
   return (
@@ -330,6 +496,9 @@ export default function StockVouchersPage() {
               }}>
                 Tạo phiếu
               </Button>
+            )}
+            {activeTab === 'audit' && (
+              <Button onClick={exportAuditReport}>Xuất biên bản kiểm kê</Button>
             )}
             <Button icon={<ReloadOutlined />} onClick={() => loadData(true)} loading={loading}>Làm mới</Button>
           </Space>
@@ -379,6 +548,37 @@ export default function StockVouchersPage() {
                   pagination={{ pageSize: 10, showSizeChanger: false }}
                   locale={{ emptyText: loadError ? 'Không có dữ liệu hàng cách ly.' : 'Không có hàng đang cách ly.' }}
                 />
+              )}
+              {activeTab === 'audit' && (
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-700">Chọn kho kiểm kê:</span>
+                      <Select
+                        value={auditLocation}
+                        onChange={setAuditLocation}
+                        style={{ width: 240 }}
+                        options={[
+                          { value: 'BRANCH_01', label: 'Chi nhánh 01 (Flagship Q.1)' },
+                          { value: 'BRANCH_02', label: 'Chi nhánh 02 (Tràng Tiền)' },
+                          { value: 'LAB', label: 'Tổng kho Lab' }
+                        ]}
+                      />
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      Gợi ý: Nhập số lượng thực tế kiểm đếm. Nếu có chênh lệch, nhập lý do và bấm <strong>Duyệt Chênh Lệch</strong> để hệ thống tự động ghi nhận cân đối kho.
+                    </div>
+                  </div>
+
+                  <Table
+                    rowKey="sku"
+                    columns={auditColumns}
+                    dataSource={inventory}
+                    loading={loading}
+                    pagination={{ pageSize: 10, showSizeChanger: true }}
+                    locale={{ emptyText: 'Chưa có sản phẩm trong kho.' }}
+                  />
+                </div>
               )}
             </>
           )}
