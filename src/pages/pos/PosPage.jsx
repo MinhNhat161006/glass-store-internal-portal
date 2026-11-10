@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Alert, message, Modal } from 'antd';
 import { orderApi } from '../../api/orderApi';
 import { productApi } from '../../api/productApi';
@@ -17,13 +17,31 @@ import useHeldCarts from './useHeldCarts';
 import HeldCartsPanel from './HeldCartsPanel';
 import CancelOrderPanel from './CancelOrderPanel';
 import usePosPayment from './usePosPayment';
+import PosSepayModal from './PosSepayModal';
 import CustomerReceptionModal from './CustomerReceptionModal';
 import PosHistoryModal from './PosHistoryModal';
 
 export default function PosPage() {
   const { user } = useAuth();
-  const { selectedBranch } = useOutletContext() || {};
-  const branchCode = selectedBranch?.startsWith('Chi nhánh 01') ? 'BRANCH_01' : selectedBranch?.startsWith('Chi nhánh 02') ? 'BRANCH_02' : null;
+  const { selectedBranch, locations } = useOutletContext() || {};
+
+  const branchCode = useMemo(() => {
+    if (!selectedBranch) return 'BRANCH_01';
+    const s = String(selectedBranch).trim().toUpperCase();
+    if (s === 'BRANCH_01' || s.includes('BRANCH_01') || s.includes('CHI NHÁNH 01') || s.includes('01')) return 'BRANCH_01';
+    if (s === 'BRANCH_02' || s.includes('BRANCH_02') || s.includes('CHI NHÁNH 02') || s.includes('02')) return 'BRANCH_02';
+    if (s === 'LAB' || s.includes('LAB')) return 'LAB';
+    return s;
+  }, [selectedBranch]);
+
+  const selectedLocation = useMemo(() => {
+    return locations?.find(l => l.code === branchCode) || {
+      code: branchCode,
+      name: branchCode === 'BRANCH_01' ? 'Chi nhánh 01 - Lê Thánh Tôn' : branchCode === 'BRANCH_02' ? 'Chi nhánh 02 - Tràng Tiền (HN)' : (branchCode === 'LAB' ? 'Tổng kho Lab' : (selectedBranch || 'Chi nhánh 01'))
+    };
+  }, [locations, branchCode, selectedBranch]);
+
+  const branchName = selectedLocation.name;
   const [catalogVersion, setCatalogVersion] = useState(0);
   const [lastOrder, setLastOrder] = useState(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
@@ -116,6 +134,9 @@ export default function PosPage() {
 
   // Payment tab: 'vietqr' | 'cash' | 'card'
   const [payTab, setPayTab] = useState('cash');
+  const [vietqrMode, setVietqrMode] = useState('sepay'); // 'sepay' | 'manual'
+  const [sepayPendingOrder, setSepayPendingOrder] = useState(null);
+  const [isSepayModalOpen, setIsSepayModalOpen] = useState(false);
   const [cashGiven, setCashGiven] = useState(0);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const { paying, uncertainPayment, canRetryPayment, isPaymentLocked, submitPayment, retryPayment } = usePosPayment({
@@ -153,13 +174,14 @@ export default function PosPage() {
       try {
         const [res, stockResponse] = await Promise.all([productApi.getAllProducts(), inventoryApi.getInventory()]);
         if (!active) return;
-        const inventoryRows = stockResponse.data || stockResponse;
-        const products = res?.data || res;
-        if (Array.isArray(products) && products.length > 0) {
+        const inventoryRows = Array.isArray(stockResponse?.data) ? stockResponse.data : (Array.isArray(stockResponse) ? stockResponse : []);
+        const products = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        if (products.length > 0) {
           const list = [];
           products.forEach(p => {
             if (p.variants && p.variants.length > 0) {
               p.variants.forEach(v => {
+                const stockQty = inventoryRows.find(row => row.sku === v.sku)?.quantities?.[branchCode] ?? 0;
                 list.push({
                   sku: v.sku || ('SKU-' + v.id),
                   barcode: v.barcode || '',
@@ -168,8 +190,8 @@ export default function PosPage() {
                   brand: p.brandName || 'OptiVision',
                   category: p.productType,
                   price: Number(v.price ?? 0),
-                  stockQuantity: inventoryRows.find(row => row.sku === v.sku)?.quantities?.[branchCode] ?? 0,
-                  stock: (inventoryRows.find(row => row.sku === v.sku)?.quantities?.[branchCode] ?? 0) + ' cái',
+                  stockQuantity: stockQty,
+                  stock: `${stockQty} cái`,
                   image: v.imageUrl || 'https://images.unsplash.com/photo-1591076482161-42ce6da69f67?auto=format&fit=crop&w=500&q=80'
                 });
               });
@@ -188,6 +210,17 @@ export default function PosPage() {
     fetchLiveCatalog();
     return () => { active = false; };
   }, [catalogVersion, branchCode]);
+
+  useEffect(() => {
+    const handleSync = () => setCatalogVersion(v => v + 1);
+    window.addEventListener('inventory-changed', handleSync);
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'optivision_last_inventory_sync') handleSync();
+    });
+    return () => {
+      window.removeEventListener('inventory-changed', handleSync);
+    };
+  }, []);
 
   const [availablePrescriptions, setAvailablePrescriptions] = useState([]);
   useEffect(() => {
@@ -414,15 +447,32 @@ export default function PosPage() {
     message.success(`Đã liên kết ${rx.code} cho khách ${rx.customer}!`);
   };
 
-  function acceptPayment(saved, payload) {
-    setLastOrder({ ...saved, cashGiven: payload.cashReceived });
+  function completeOrderSuccess(saved, cashReceived) {
+    setLastOrder({ ...saved, cashGiven: cashReceived });
     setCatalogVersion(value => value + 1);
     clearCurrentCart();
+    // Dispatch custom event to notify InventoryPage and any other tabs
+    window.dispatchEvent(new CustomEvent('inventory-changed', { detail: { branchCode, orderCode: saved.orderCode } }));
+    try {
+      localStorage.setItem('optivision_last_inventory_sync', Date.now().toString());
+    } catch {}
     if (saved.inventorySyncStatus === 'RECONCILIATION_REQUIRED' || saved.inventorySyncStatus === 'FAILED') {
       message.warning(`Đơn ${saved.orderCode} đã ghi nhận tiền; kho cần đối soát. Không thanh toán lại.`);
     } else if (saved.inventorySyncStatus === 'PENDING') {
       message.warning(`Đơn ${saved.orderCode} đã thanh toán; kho đang chờ đồng bộ và sẽ thử lại.`);
-    } else message.success('Đã lưu đơn ' + saved.orderCode + '. Bạn có thể in hóa đơn.');
+    } else {
+      message.success('Đã lưu đơn ' + saved.orderCode + '. Bạn có thể in hóa đơn.');
+    }
+    setReceiptOpen(true);
+  }
+
+  function acceptPayment(saved, payload) {
+    if (saved.status === 'PENDING_PAYMENT' && saved.paymentMethod === 'VIETQR' && payload.gatewayRequested) {
+      setSepayPendingOrder(saved);
+      setIsSepayModalOpen(true);
+      return;
+    }
+    completeOrderSuccess(saved, payload.cashReceived);
   }
 
   // Only clear the cart after the API has persisted the sale.
@@ -433,11 +483,15 @@ export default function PosPage() {
     if (!cart.length) { message.warning('Giỏ hàng đang trống!'); return; }
     if (linkedRx && !Number.isSafeInteger(linkedRx.id)) { message.warning('Toa kính thiếu ID hợp lệ. Vui lòng chọn lại toa trước khi thanh toán.'); return; }
     if (!offerReady) { message.warning(offerError || 'Chờ backend kiểm tra giá và ưu đãi.'); return; }
-    if (!branchCode) { message.warning('Vui lòng chọn chi nhánh bán hàng 01 hoặc 02 trên thanh trên.'); return; }
+    if (!branchCode || branchCode === 'LAB') {
+      message.warning('Vui lòng chọn Chi nhánh 01 hoặc Chi nhánh 02 trên thanh điều hướng (Kho Lab không phục vụ bán lẻ POS).');
+      return;
+    }
     if (catalogLoading || cart.some(item => item.quantity > (catalogProducts.find(product => product.sku === item.sku)?.stockQuantity ?? 0))) {
       message.warning('Sản phẩm không đủ tồn tại chi nhánh đang chọn. Kiểm tra giỏ hàng trước khi thanh toán.'); return;
     }
-    if (payTab !== 'cash' && !paymentConfirmed) {
+    const isSepay = payTab === 'vietqr' && vietqrMode === 'sepay';
+    if (!isSepay && payTab !== 'cash' && !paymentConfirmed) {
       message.warning('Vui lòng xác nhận đã nhận tiền chuyển khoản / giao dịch thẻ thành công.'); return;
     }
     if (payTab === 'cash' && (!Number.isFinite(Number(cashGiven)) || Number(cashGiven) < grandTotal)) {
@@ -451,10 +505,11 @@ export default function PosPage() {
       voucherCode: appliedVoucher || null,
       pointsToUse,
       cashReceived: payTab === 'cash' ? Number(cashGiven) : null,
-      manualPaymentConfirmed: payTab !== 'cash' && paymentConfirmed,
+      manualPaymentConfirmed: payTab !== 'cash' && !isSepay && paymentConfirmed,
+      gatewayRequested: isSepay,
       paymentMethod: payTab === 'vietqr' ? 'VIETQR' : payTab === 'cash' ? 'CASH' : 'CARD',
       staffName: user?.staffName || user?.fullName || user?.staffId || 'Thu ngân',
-      branchName: selectedBranch,
+      branchName: branchName || selectedBranch,
       branchCode,
       items: cart.map(item => ({
         skuId: item.sku, productName: item.name,
@@ -514,7 +569,35 @@ export default function PosPage() {
           title: 'Cập nhật giá và tồn kho?', content: 'Giỏ hàng được giữ nguyên số lượng. Giá sẽ lấy lại từ catalog; hãy kiểm tra tổng tiền mới trước khi thanh toán.',
           okText: 'Cập nhật', cancelText: 'Giữ giá hiện tại', onOk: () => { setOffer(null); setCashGiven(0); setCatalogVersion(value => value + 1); }
         })}>Cập nhật giá / tồn kho</button></div>
-      <InventorySyncPanel branchCode={branchCode} selectedBranch={selectedBranch} lastOrder={lastOrder} onSynced={() => setCatalogVersion(value => value + 1)} />
+      {/* Branch & Live Inventory Sync Status Bar */}
+      <div className="pos-branch-bar">
+        <div className="pos-branch-bar-left">
+          <span className="material-symbols-outlined">storefront</span>
+          <div>
+            <span className="pos-branch-bar-title">Chi nhánh bán hàng POS</span>
+            <div className="pos-branch-bar-name">
+              <span>{branchName}</span>
+              <span className="pos-branch-code-badge">{branchCode}</span>
+            </div>
+          </div>
+        </div>
+        <div className="pos-branch-bar-right">
+          <span className="pos-live-dot"></span>
+          <span>Tồn kho đồng bộ theo chi nhánh</span>
+        </div>
+      </div>
+
+      {branchCode === 'LAB' && (
+        <Alert
+          type="error"
+          showIcon
+          message="Kho Lab Lens & Tổng kho không phục vụ bán lẻ trực tiếp"
+          description="Kho Lab chỉ dùng cho lưu kho & gia công tròng kính, không hỗ trợ tạo đơn POS bán lẻ. Vui lòng chọn Chi nhánh 01 hoặc Chi nhánh 02 trên thanh điều hướng góc trên."
+          style={{ margin: '12px 20px 0' }}
+        />
+      )}
+
+      <InventorySyncPanel branchCode={branchCode} selectedBranch={branchName} lastOrder={lastOrder} onSynced={() => setCatalogVersion(value => value + 1)} />
       <ReceiptPreview order={selectedReceiptOrder || lastOrder} open={receiptOpen} onClose={() => { setReceiptOpen(false); setSelectedReceiptOrder(null); }} />
       {!catalogLoading && !catalogError && branchCode && catalogProducts.length > 0
         && !catalogProducts.some(product => product.stockQuantity > 0) && <Alert showIcon type="info"
@@ -534,6 +617,7 @@ export default function PosPage() {
           usePoints={usePoints} setUsePoints={setUsePoints} pointsToUse={pointsToUse} setPointsToUse={setPointsToUse}
           loyalty={loyalty} offer={offerReady ? offer : null} offerError={offerError} offerPending={cart.length > 0 && !offerReady}
           method={payTab} setMethod={setPayTab} cash={cashGiven} setCash={setCashGiven}
+          vietqrMode={vietqrMode} setVietqrMode={setVietqrMode}
           confirmed={paymentConfirmed} setConfirmed={setPaymentConfirmed} paymentRef={paymentRef} cashRef={cashInputRef}
           paying={paying || uncertainPayment} onPay={handleExecutePayment} lastOrder={lastOrder} onPrint={() => setReceiptOpen(true)} />
       </div>
@@ -626,7 +710,7 @@ export default function PosPage() {
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
         branchCode={branchCode}
-        selectedBranch={selectedBranch}
+        selectedBranch={branchName}
         currentUser={user}
         onSelectReceipt={(order) => {
           setSelectedReceiptOrder(order);
@@ -635,6 +719,25 @@ export default function PosPage() {
         onOrderChanged={(saved) => {
           if (saved.id === lastOrder?.id) setLastOrder(saved);
           setCatalogVersion(v => v + 1);
+        }}
+      />
+
+      {/* ================= MODAL: Cổng thanh toán SePay VietQR Sandbox ================= */}
+      <PosSepayModal
+        open={isSepayModalOpen}
+        order={sepayPendingOrder}
+        onSuccess={(updatedOrder) => {
+          setIsSepayModalOpen(false);
+          completeOrderSuccess(updatedOrder, null);
+        }}
+        onManualSettled={(settledOrder) => {
+          setIsSepayModalOpen(false);
+          completeOrderSuccess(settledOrder, null);
+        }}
+        onClose={() => {
+          setIsSepayModalOpen(false);
+        }}
+      />
         }}
       />
     </main>
