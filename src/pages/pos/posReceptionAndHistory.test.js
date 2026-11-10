@@ -203,3 +203,4 @@ test('S3-23 Subtask 2 & 3: formatReceiptPaymentMethod maps payment providers inc
   assert.equal(formatReceiptPaymentMethod('CARD'), 'Thẻ POS');
   assert.equal(formatReceiptPaymentMethod('OTHER'), 'OTHER');
 });
+
