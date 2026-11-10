@@ -17,9 +17,9 @@ import useHeldCarts from './useHeldCarts';
 import HeldCartsPanel from './HeldCartsPanel';
 import CancelOrderPanel from './CancelOrderPanel';
 import usePosPayment from './usePosPayment';
-import PosSepayModal from './PosSepayModal';
 import CustomerReceptionModal from './CustomerReceptionModal';
 import PosHistoryModal from './PosHistoryModal';
+import PosSepayModal from './PosSepayModal';
 
 export default function PosPage() {
   const { user } = useAuth();
@@ -597,7 +597,7 @@ export default function PosPage() {
         />
       )}
 
-      <InventorySyncPanel branchCode={branchCode} selectedBranch={branchName} lastOrder={lastOrder} onSynced={() => setCatalogVersion(value => value + 1)} />
+      <InventorySyncPanel branchCode={branchCode} selectedBranch={branchName || selectedBranch} lastOrder={lastOrder} onSynced={() => setCatalogVersion(value => value + 1)} />
       <ReceiptPreview order={selectedReceiptOrder || lastOrder} open={receiptOpen} onClose={() => { setReceiptOpen(false); setSelectedReceiptOrder(null); }} />
       {!catalogLoading && !catalogError && branchCode && catalogProducts.length > 0
         && !catalogProducts.some(product => product.stockQuantity > 0) && <Alert showIcon type="info"
@@ -710,7 +710,7 @@ export default function PosPage() {
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
         branchCode={branchCode}
-        selectedBranch={branchName}
+        selectedBranch={branchName || selectedBranch}
         currentUser={user}
         onSelectReceipt={(order) => {
           setSelectedReceiptOrder(order);
@@ -736,8 +736,6 @@ export default function PosPage() {
         }}
         onClose={() => {
           setIsSepayModalOpen(false);
-        }}
-      />
         }}
       />
     </main>
