@@ -173,6 +173,12 @@ export default function MainLayout() {
           label: 'Danh mục, thương hiệu & địa điểm',
           icon: 'category',
           allowedRoles: [ROLES.ADMIN]
+        },
+        {
+          key: '/vouchers',
+          label: 'Quản lý Voucher & Khuyến mãi',
+          icon: 'local_activity',
+          allowedRoles: [ROLES.ADMIN]
         }
       ]
     }
