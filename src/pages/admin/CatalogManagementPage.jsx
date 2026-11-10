@@ -171,7 +171,11 @@ export default function CatalogManagementPage() {
 
   // Open Edit Modal
   const openEdit = (record) => {
-    form.setFieldsValue(record);
+    const firstVariant = record.variants?.[0];
+    form.setFieldsValue({
+      ...record,
+      initialImageUrl: firstVariant?.imageUrl || '',
+    });
     setModal({ open: true, record });
   };
 
@@ -197,6 +201,24 @@ export default function CatalogManagementPage() {
             description: values.description,
             status: values.status
           });
+
+          // Đồng bộ cập nhật ảnh cho biến thể chính của sản phẩm nếu có thay đổi
+          const primaryVariant = record.variants?.[0];
+          if (primaryVariant && values.initialImageUrl !== undefined && values.initialImageUrl !== primaryVariant.imageUrl) {
+            await catalogManagementApi.updateVariant(primaryVariant.id, {
+              sku: primaryVariant.sku,
+              barcode: primaryVariant.barcode,
+              name: primaryVariant.name,
+              color: primaryVariant.color,
+              frameShape: primaryVariant.frameShape,
+              material: primaryVariant.material,
+              lensIndex: primaryVariant.lensIndex,
+              price: primaryVariant.price,
+              costPrice: primaryVariant.costPrice,
+              imageUrl: values.initialImageUrl,
+              status: primaryVariant.status || 'ACTIVE'
+            });
+          }
         } else {
           const payload = {
             name: values.name,
@@ -908,6 +930,73 @@ export default function CatalogManagementPage() {
                 <Input.TextArea rows={3} placeholder="Mô tả chất liệu, tính năng nổi bật..." />
               </Form.Item>
 
+              <Row gutter={16}>
+                <Col span={16}>
+                  <Form.Item
+                    name="initialImageUrl"
+                    label="Hình ảnh sản phẩm (URL hoặc tải từ máy)"
+                    tooltip="Nhập URL ảnh từ internet hoặc bấm nút tải ảnh từ máy tính"
+                  >
+                    <Input
+                      placeholder="https://images.unsplash.com/... hoặc chọn tệp"
+                      suffix={
+                        <label className="cursor-pointer text-[#086288] hover:text-[#004967] text-xs font-semibold flex items-center gap-1 m-0">
+                          <UploadOutlined /> Tải ảnh
+                          <input
+                            type="file"
+                            accept="image/*"
+                            style={{ display: 'none' }}
+                            onChange={(e) => handleImageFileSelect(e, form, 'initialImageUrl')}
+                          />
+                        </label>
+                      }
+                    />
+                  </Form.Item>
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    <span className="text-[11px] text-slate-400 mr-1 self-center">Gợi ý ảnh mẫu:</span>
+                    {SAMPLE_IMAGE_PRESETS.slice(0, 4).map((p) => (
+                      <Tag
+                        key={p.label}
+                        className="cursor-pointer hover:border-[#086288] hover:text-[#086288]"
+                        onClick={() => form.setFieldsValue({ initialImageUrl: p.url })}
+                      >
+                        {p.label}
+                      </Tag>
+                    ))}
+                  </div>
+                </Col>
+                <Col span={8}>
+                  <div className="flex flex-col items-center justify-center p-2 border border-dashed border-slate-300 rounded-lg bg-slate-50 min-h-[95px]">
+                    {watchedProductImage ? (
+                      <div className="relative group text-center">
+                        <Image
+                          src={watchedProductImage}
+                          alt="Xem trước ảnh"
+                          width={75}
+                          height={75}
+                          className="rounded object-cover"
+                          fallback="https://placehold.co/100x100?text=Loi+Anh"
+                        />
+                        <Button
+                          size="small"
+                          danger
+                          type="text"
+                          className="text-[10px] p-0 block mx-auto mt-1"
+                          onClick={() => form.setFieldsValue({ initialImageUrl: '' })}
+                        >
+                          Gỡ ảnh
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="text-center text-slate-400 text-xs py-2">
+                        <PictureOutlined style={{ fontSize: 24 }} />
+                        <div className="text-[11px] mt-1">Xem trước ảnh</div>
+                      </div>
+                    )}
+                  </div>
+                </Col>
+              </Row>
+
               {!modal.record && (
                 <>
                   <Divider plain className="text-xs text-slate-500 font-semibold">
@@ -947,73 +1036,6 @@ export default function CatalogManagementPage() {
                           placeholder="0"
                         />
                       </Form.Item>
-                    </Col>
-                  </Row>
-
-                  <Row gutter={16}>
-                    <Col span={16}>
-                      <Form.Item
-                        name="initialImageUrl"
-                        label="Hình ảnh sản phẩm (URL hoặc tải từ máy)"
-                        tooltip="Nhập URL ảnh từ internet hoặc bấm nút tải ảnh từ máy tính"
-                      >
-                        <Input
-                          placeholder="https://images.unsplash.com/... hoặc chọn tệp"
-                          suffix={
-                            <label className="cursor-pointer text-[#086288] hover:text-[#004967] text-xs font-semibold flex items-center gap-1 m-0">
-                              <UploadOutlined /> Tải ảnh
-                              <input
-                                type="file"
-                                accept="image/*"
-                                style={{ display: 'none' }}
-                                onChange={(e) => handleImageFileSelect(e, form, 'initialImageUrl')}
-                              />
-                            </label>
-                          }
-                        />
-                      </Form.Item>
-                      <div className="flex flex-wrap gap-1 mb-2">
-                        <span className="text-[11px] text-slate-400 mr-1 self-center">Gợi ý ảnh mẫu:</span>
-                        {SAMPLE_IMAGE_PRESETS.slice(0, 4).map((p) => (
-                          <Tag
-                            key={p.label}
-                            className="cursor-pointer hover:border-[#086288] hover:text-[#086288]"
-                            onClick={() => form.setFieldsValue({ initialImageUrl: p.url })}
-                          >
-                            {p.label}
-                          </Tag>
-                        ))}
-                      </div>
-                    </Col>
-                    <Col span={8}>
-                      <div className="flex flex-col items-center justify-center p-2 border border-dashed border-slate-300 rounded-lg bg-slate-50 min-h-[95px]">
-                        {watchedProductImage ? (
-                          <div className="relative group text-center">
-                            <Image
-                              src={watchedProductImage}
-                              alt="Xem trước ảnh"
-                              width={75}
-                              height={75}
-                              className="rounded object-cover"
-                              fallback="https://placehold.co/100x100?text=Loi+Anh"
-                            />
-                            <Button
-                              size="small"
-                              danger
-                              type="text"
-                              className="text-[10px] p-0 block mx-auto mt-1"
-                              onClick={() => form.setFieldsValue({ initialImageUrl: '' })}
-                            >
-                              Gỡ ảnh
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="text-center text-slate-400 text-xs py-2">
-                            <PictureOutlined style={{ fontSize: 24 }} />
-                            <div className="text-[11px] mt-1">Xem trước ảnh</div>
-                          </div>
-                        )}
-                      </div>
                     </Col>
                   </Row>
 

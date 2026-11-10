@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Button, Alert, message, Spin, Popconfirm, Tag, Tooltip } from 'antd';
 import { QRCode } from 'antd';
+import { CheckOutlined, CopyOutlined, CheckCircleFilled } from '@ant-design/icons';
 import { orderApi } from '../../api/orderApi';
 import { money } from './ProductCatalog';
 
@@ -233,7 +234,7 @@ export default function PosSepayModal({
             </Popconfirm>
 
             <Button type="primary" onClick={handleOpenSepayGateway} loading={loading} disabled={status === 'PAID'}>
-              Mở cổng SePay Sandbox ↗
+              Mở cổng SePay Sandbox
             </Button>
           </div>
         </div>
@@ -251,9 +252,8 @@ export default function PosSepayModal({
             alignItems: 'center',
             justifyContent: 'center',
             margin: '0 auto 16px',
-            fontSize: '36px'
           }}>
-            ✓
+            <CheckCircleFilled style={{ fontSize: 36, color: '#059669' }} />
           </div>
           <h3 style={{ fontSize: '20px', fontWeight: 700, color: '#065f46', margin: '0 0 8px' }}>
             Thanh toán thành công!
@@ -319,7 +319,7 @@ export default function PosSepayModal({
                   }
                 }}
               >
-                ⚡ Giả lập thanh toán SePay
+                Giả lập thanh toán SePay
               </Button>
             </div>
           </div>
@@ -349,7 +349,7 @@ export default function PosSepayModal({
                     size="small"
                     onClick={() => handleCopy(order.finalAmount, 'amount')}
                   >
-                    {copiedKey === 'amount' ? '✓ Đã chép' : 'Sao chép'}
+                    {copiedKey === 'amount' ? 'Đã sao chép' : 'Sao chép'}
                   </Button>
                 </Tooltip>
               </div>
@@ -358,8 +358,8 @@ export default function PosSepayModal({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #e2e8f0', paddingBottom: '6px' }}>
                   <span style={{ color: '#64748b' }}>Nội dung chuyển khoản (Bắt buộc):</span>
-                  <span style={{ fontWeight: 700, color: '#b91c1c', cursor: 'pointer' }} onClick={() => handleCopy(order.orderCode, 'code')}>
-                    {order.orderCode} {copiedKey === 'code' ? '✓' : '📋'}
+                  <span style={{ fontWeight: 700, color: '#b91c1c', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => handleCopy(order.orderCode, 'code')}>
+                    {order.orderCode} {copiedKey === 'code' ? <CheckOutlined className="text-emerald-600" /> : <CopyOutlined className="text-slate-400" />}
                   </span>
                 </div>
 
@@ -370,8 +370,8 @@ export default function PosSepayModal({
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #e2e8f0', paddingBottom: '6px' }}>
                   <span style={{ color: '#64748b' }}>Số tài khoản:</span>
-                  <span style={{ fontWeight: 700, color: '#0f172a', cursor: 'pointer' }} onClick={() => handleCopy('19039999999', 'acc')}>
-                    19039999999 {copiedKey === 'acc' ? '✓' : '📋'}
+                  <span style={{ fontWeight: 700, color: '#0f172a', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => handleCopy('19039999999', 'acc')}>
+                    19039999999 {copiedKey === 'acc' ? <CheckOutlined className="text-emerald-600" /> : <CopyOutlined className="text-slate-400" />}
                   </span>
                 </div>
 

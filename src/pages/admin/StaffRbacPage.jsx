@@ -401,7 +401,7 @@ export default function StaffRbacPage() {
                 <span className="text-xs text-[#70787f]">chờ duyệt</span>
               </div>
               <span className={`text-[11px] font-semibold ${pendingStaff.length > 0 ? 'text-amber-700 animate-pulse' : 'text-emerald-600'}`}>
-                {pendingStaff.length > 0 ? '⚠️ Cần Admin phê duyệt' : '✓ Đã xử lý tất cả'}
+                {pendingStaff.length > 0 ? 'Cần Admin phê duyệt' : 'Đã xử lý tất cả'}
               </span>
             </div>
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${

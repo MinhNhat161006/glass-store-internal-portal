@@ -20,7 +20,7 @@ export default function CheckoutPanel({ cart, customer, onCustomer, onGuest, onQ
           <div className="pos-cart-description"><strong>{item.name.split(' - ')[0]}</strong><span className="pos-sku">{item.sku}</span>
             {item.quantity > (products.find(p => p.sku === item.sku)?.stockQuantity ?? 0) && (
               <span style={{ color: '#b91c1c', fontSize: '11px', fontWeight: 600, display: 'block' }}>
-                ⚠️ Vượt tồn kho ({products.find(p => p.sku === item.sku)?.stockQuantity ?? 0})
+                Vượt tồn kho ({products.find(p => p.sku === item.sku)?.stockQuantity ?? 0})
               </span>
             )}
             <div className="pos-cart-item-bottom"><div className="pos-stepper"><button type="button" aria-label={`Giảm ${item.name}`} onClick={() => onQuantity(item.sku, -1)}>−</button><span>{item.quantity}</span><button type="button" aria-label={`Tăng ${item.name}`} onClick={() => onQuantity(item.sku, 1)}>+</button></div><strong>{money(item.price * item.quantity)}</strong></div>
@@ -66,7 +66,7 @@ export default function CheckoutPanel({ cart, customer, onCustomer, onGuest, onQ
                   cursor: 'pointer'
                 }}
               >
-                ⚡ SePay Sandbox (Tự động)
+                SePay Sandbox (Tự động)
               </button>
               <button
                 type="button"
@@ -84,7 +84,7 @@ export default function CheckoutPanel({ cart, customer, onCustomer, onGuest, onQ
                   cursor: 'pointer'
                 }}
               >
-                🏦 Chuyển khoản thủ công
+                Chuyển khoản thủ công
               </button>
             </div>
 
@@ -98,7 +98,7 @@ export default function CheckoutPanel({ cart, customer, onCustomer, onGuest, onQ
                 color: '#0369a1',
                 lineHeight: 1.4
               }}>
-                <strong>⚡ Cổng SePay VietQR Sandbox</strong>
+                <strong>Cổng SePay VietQR Sandbox</strong>
                 <p style={{ margin: '3px 0 0', color: '#0c4a6e', fontSize: '11px' }}>
                   Hệ thống tự động hiển thị mã VietQR và đối soát real-time ngay khi khách chuyển tiền.
                 </p>
