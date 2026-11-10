@@ -17,11 +17,12 @@ import useHeldCarts from './useHeldCarts';
 import HeldCartsPanel from './HeldCartsPanel';
 import CancelOrderPanel from './CancelOrderPanel';
 import usePosPayment from './usePosPayment';
+import { getPosSellableQuantity, resolvePosBranchCode } from './posInventoryUtils';
 
 export default function PosPage() {
   const { user } = useAuth();
   const { selectedBranch } = useOutletContext() || {};
-  const branchCode = selectedBranch?.startsWith('Chi nhánh 01') ? 'BRANCH_01' : selectedBranch?.startsWith('Chi nhánh 02') ? 'BRANCH_02' : null;
+  const branchCode = resolvePosBranchCode(selectedBranch);
   const [catalogVersion, setCatalogVersion] = useState(0);
   const [lastOrder, setLastOrder] = useState(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
@@ -119,10 +120,19 @@ export default function PosPage() {
     let active = true;
     const fetchLiveCatalog = async () => {
       setCatalogLoading(true); setCatalogError('');
+      if (!branchCode) {
+        setCatalogProducts([]);
+        setCatalogError('POS chỉ hỗ trợ bán hàng tại Chi nhánh 01 hoặc Chi nhánh 02. Hãy chọn đúng chi nhánh trên thanh điều hướng.');
+        setCatalogLoading(false);
+        return;
+      }
       try {
         const [res, stockResponse] = await Promise.all([productApi.getAllProducts(), inventoryApi.getInventory()]);
         if (!active) return;
         const inventoryRows = stockResponse.data || stockResponse;
+        const inventoryBySku = new Map(
+          (Array.isArray(inventoryRows) ? inventoryRows : []).map(row => [row.sku, row])
+        );
         const products = res?.data || res;
         if (Array.isArray(products) && products.length > 0) {
           const list = [];
@@ -137,8 +147,8 @@ export default function PosPage() {
                   brand: p.brandName || 'OptiVision',
                   category: p.productType,
                   price: Number(v.price ?? 0),
-                  stockQuantity: inventoryRows.find(row => row.sku === v.sku)?.quantities?.[branchCode] ?? 0,
-                  stock: (inventoryRows.find(row => row.sku === v.sku)?.quantities?.[branchCode] ?? 0) + ' cái',
+                  stockQuantity: getPosSellableQuantity(inventoryBySku.get(v.sku), branchCode),
+                  stock: getPosSellableQuantity(inventoryBySku.get(v.sku), branchCode) + ' cái',
                   image: v.imageUrl || 'https://images.unsplash.com/photo-1591076482161-42ce6da69f67?auto=format&fit=crop&w=500&q=80'
                 });
               });
