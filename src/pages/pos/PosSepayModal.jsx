@@ -196,7 +196,7 @@ export default function PosSepayModal({
               qr_code_2
             </span>
             <span style={{ fontSize: '17px', fontWeight: 700, color: '#0f172a' }}>
-              Thanh toán Chuyển khoản VietQR · SePay Sandbox
+              Thanh toán Chuyển khoản Tự Động · SePay Sandbox
             </span>
           </div>
           <Tag color="cyan" style={{ fontWeight: 600, fontSize: '12px' }}>
@@ -288,7 +288,7 @@ export default function PosSepayModal({
             }}>
               {loading ? (
                 <div style={{ width: '200px', height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Spin tip="Đang tạo mã VietQR..." />
+                  <Spin tip="Đang tạo mã thanh toán SePay..." />
                 </div>
               ) : (
                 <QRCode
