@@ -26,13 +26,13 @@ export default function ReceiptPreview({ order, open, onClose }) {
     <div className="pos-receipt-scroll"><div ref={receiptRef} className="pos-receipt">
       <header><h2>OPTIVISION</h2><p>{order.branchName}</p><h3>HÓA ĐƠN BÁN HÀNG</h3></header>
       <p>Mã: {order.orderCode}</p>
-      <p>Ngày: {new Date(order.createdAt).toLocaleString('vi-VN')}</p>
-      <p>Thu ngân: {order.staffName}</p>
-      <p>Khách hàng: {order.customerName}</p>
+      <p>Ngày: {order.createdAt ? new Date(order.createdAt).toLocaleString('vi-VN') : new Date().toLocaleString('vi-VN')}</p>
+      <p>Thu ngân: {order.staffName || 'Thu ngân'}</p>
+      <p>Khách hàng: {order.customerName || 'Khách vãng lai'}</p>
       {order.customerPhone && <p>Điện thoại: {order.customerPhone}</p>}
       <table><thead><tr><th>Sản phẩm / SL × Đơn giá</th><th>Thành tiền</th></tr></thead>
-        <tbody>{order.items.map((item, index) => <tr key={item.id || index}>
-          <td><strong>{item.productName}</strong><br />{item.skuId}<br />{item.quantity} × {money(item.unitPrice)}</td>
+        <tbody>{(order.items || []).map((item, index) => <tr key={item.id || index}>
+          <td><strong>{item.productName || item.skuId}</strong><br />{item.skuId}<br />{item.quantity} × {money(item.unitPrice)}</td>
           <td>{money(item.subtotal)}</td>
         </tr>)}</tbody>
       </table>
@@ -43,7 +43,7 @@ export default function ReceiptPreview({ order, open, onClose }) {
         <div><dt>Tiền tính thuế</dt><dd>{money(Number(order.totalAmount)-Number(order.discountAmount||0))}</dd></div>
         <div><dt>VAT 8%</dt><dd>{money(order.taxAmount)}</dd></div>
         <div className="pos-receipt-total"><dt>TỔNG THANH TOÁN</dt><dd>{money(order.finalAmount)}</dd></div>
-        <div><dt>Phương thức</dt><dd>{{ CASH: 'Tiền mặt', VIETQR: 'VietQR', CARD: 'Thẻ POS' }[order.paymentMethod] || order.paymentMethod}</dd></div>
+        <div><dt>Phương thức</dt><dd>{{ CASH: 'Tiền mặt', VIETQR: 'VietQR', SEPAY: 'Cổng SePay', CARD: 'Thẻ POS' }[order.paymentMethod] || order.paymentMethod}</dd></div>
         {cashGiven != null && <><div><dt>Tiền khách đưa</dt><dd>{money(cashGiven)}</dd></div>
           <div><dt>Tiền thừa</dt><dd>{money(cashGiven - Number(order.finalAmount))}</dd></div></>}
       </dl>

@@ -18,8 +18,9 @@ export default function useHeldCarts(staffId, branchCode) {
     if (!branchCode || !staffId) throw new Error('Chọn chi nhánh và đăng nhập trước khi lưu tạm.');
     if (!cart.length) throw new Error('Giỏ hàng đang trống.');
     const draft = { id: crypto.randomUUID(), savedAt: new Date().toISOString(), branchCode,
-      customer: { id: customer.id, name: customer.name, phone: customer.phone, tier: customer.tier },
+      customer: customer ? { id: customer.id ?? null, name: customer.name, phone: customer.phone, tier: customer.tier } : null,
       voucherCode, pointsToUse, prescriptionId: linkedRx?.id, prescriptionCode: linkedRx?.code,
+      linkedRx: linkedRx ? { ...linkedRx } : null,
       items: cart.map(item => ({ sku: item.sku, quantity: item.quantity, name: item.name, price: item.price })) };
     const current = read(); if (current.length >= 30) throw new Error('Đã có 30 đơn tạm. Vui lòng xử lý bớt trước.');
     write([draft, ...current]); return draft;

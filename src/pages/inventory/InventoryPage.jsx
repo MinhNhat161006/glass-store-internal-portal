@@ -71,9 +71,22 @@ export default function InventoryPage() {
 
   useEffect(() => {
     loadInventory(true);
-    const refreshTimer = window.setInterval(() => loadInventory(), 30000);
-    return () => window.clearInterval(refreshTimer);
+    const refreshTimer = window.setInterval(() => loadInventory(), 15000);
+    const handleSync = () => loadInventory();
+    window.addEventListener('inventory-changed', handleSync);
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'optivision_last_inventory_sync') handleSync();
+    });
+    window.addEventListener('focus', handleSync);
+    return () => {
+      window.clearInterval(refreshTimer);
+      window.removeEventListener('inventory-changed', handleSync);
+      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('focus', handleSync);
+    };
   }, [loadInventory]);
+
+  const activeLocations = locations.length > 0 ? locations : DEFAULT_LOCATIONS;
 
   const filteredInventory = useMemo(() => {
     const searchTerm = query.trim().toLowerCase();
@@ -96,7 +109,13 @@ export default function InventoryPage() {
       <div className="mx-auto flex max-w-[1600px] flex-col gap-4 p-4 sm:p-6">
         <header className="flex flex-col justify-between gap-4 rounded-xl border border-[#d8e3fb]/50 bg-white p-5 shadow-sm sm:flex-row sm:items-center">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-[#086288]">Kho vận / Tồn kho</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-[#086288]">Kho vận / Tồn kho</p>
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                Đồng bộ trực tiếp với quầy POS
+              </span>
+            </div>
             <h1 className="mt-1 text-2xl font-bold text-slate-900">Tồn kho đa chi nhánh</h1>
             <p className="mt-1 text-sm text-slate-600">Số lượng theo SKU tại từng địa điểm. Cảnh báo áp dụng riêng từng kho khi tồn dưới 5.</p>
           </div>

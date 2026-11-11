@@ -321,7 +321,7 @@ export default function CrmPage() {
             </div>
             <div className="mt-2 pt-2 border-t border-[#e7eeff] flex items-center gap-1 font-body-sm text-body-sm text-on-surface-variant">
               <span className="material-symbols-outlined text-emerald-600 text-[14px]">check_circle</span>
-              <span className="truncate text-outline text-[11px]">Đồng bộ từ MySQL db_identity</span>
+              <span className="truncate text-outline text-[11px]">Dữ liệu khách hàng thực tế</span>
             </div>
           </div>
 
@@ -333,7 +333,7 @@ export default function CrmPage() {
                   <span className="font-display-lg text-display-lg text-secondary tracking-tight">
                     {customerList.filter(c => c.marketingConsent).length}
                   </span>
-                  <span className="font-label-md text-label-md text-outline font-bold">Opt-in</span>
+                  <span className="font-label-md text-label-md text-outline font-bold">Thành viên</span>
                 </div>
               </div>
               <div className="w-8 h-8 rounded-lg bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center">
@@ -342,7 +342,7 @@ export default function CrmPage() {
             </div>
             <div className="mt-2 pt-2 border-t border-[#e7eeff] flex items-center gap-1 font-body-sm text-body-sm text-on-surface-variant">
               <span className="material-symbols-outlined text-outline text-[14px]">verified_user</span>
-              <span className="truncate text-outline text-[11px]">Tuân thủ Consent FR-CUS-04</span>
+              <span className="truncate text-outline text-[11px]">Đồng ý nhận tin khuyến mãi</span>
             </div>
           </div>
 
@@ -409,7 +409,7 @@ export default function CrmPage() {
                   Tất cả ({customerList.length})
                 </button>
                 <button className="px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant hover:bg-surface-container-high shrink-0 transition-colors cursor-pointer text-xs">
-                  Consent Opt-in ({customerList.filter(c => c.marketingConsent).length})
+                  Nhận tin tiếp thị ({customerList.filter(c => c.marketingConsent).length})
                 </button>
               </div>
             </div>
@@ -467,7 +467,7 @@ export default function CrmPage() {
                           </div>
                         </div>
                         {item.marketingConsent ? (
-                          <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-label-mono text-[9px] font-semibold">Consent ✓</span>
+                          <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-label-mono text-[9px] font-semibold">SMS ✓</span>
                         ) : (
                           <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 font-label-mono text-[9px]">Chưa opt-in</span>
                         )}
@@ -589,6 +589,32 @@ export default function CrmPage() {
                         <span className="material-symbols-outlined text-[15px]">edit</span>
                         Sửa Hồ Sơ
                       </button>
+                      <button
+                        onClick={() => {
+                          Modal.confirm({
+                            title: `Xóa khách hàng ${activeCustomer.name}?`,
+                            content: 'Thao tác này sẽ xóa hồ sơ khách hàng khỏi hệ thống nếu chưa có dữ liệu ràng buộc hóa đơn, hoặc vô hiệu hóa tài khoản.',
+                            okText: 'Xác nhận xóa',
+                            okType: 'danger',
+                            cancelText: 'Hủy',
+                            onOk: async () => {
+                              try {
+                                await customerApi.deleteCustomer(activeCustomer.id);
+                                message.success(`Đã xóa khách hàng: ${activeCustomer.name}`);
+                                const updated = customerList.filter(c => c.id !== activeCustomer.id);
+                                setCustomerList(updated);
+                                if (updated.length > 0) setActiveCustomer(updated[0]);
+                              } catch (err) {
+                                message.error(`Không thể xóa: ${err.message || 'Lỗi hệ thống'}`);
+                              }
+                            }
+                          });
+                        }}
+                        className="px-2.5 py-1 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-lg font-label-md text-label-md flex items-center gap-1 transition-colors cursor-pointer text-xs font-semibold"
+                      >
+                        <span className="material-symbols-outlined text-[15px]">delete</span>
+                        Xóa
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -597,8 +623,8 @@ export default function CrmPage() {
               {/* Profile Tabs */}
               <div className="flex items-center gap-1 bg-surface-container-low p-1 rounded-xl border border-[#d8e3fb]/40 overflow-x-auto whitespace-nowrap">
                 {[
-                  { id: 'rx', label: 'Hồ Sơ Thị Lực & Biểu Đồ OD/OS (FR-CUS-05)', icon: 'biotech' },
-                  { id: 'notes', label: `Nhật Ký Chăm Sóc CRM & Ghi Chú (${interactions.length})`, icon: 'support_agent' }
+                  { id: 'rx', label: 'Hồ Sơ Thị Lực & Biểu Đồ OD/OS', icon: 'biotech' },
+                  { id: 'notes', label: `Nhật Ký Chăm Sóc CRM (${interactions.length})`, icon: 'support_agent' }
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -720,7 +746,7 @@ export default function CrmPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <span className="font-title-md text-title-md text-on-surface font-semibold block">Lịch Sử Toa Kính &amp; Hồ Sơ Lâm Sàng</span>
-                        <span className="font-body-sm text-body-sm text-outline">Bảo toàn vĩnh viễn theo chuẩn Y Khoa NFR-SEC-04</span>
+                        <span className="font-body-sm text-body-sm text-outline">Bảo toàn lịch sử đo khám nhãn khoa</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <button onClick={() => handleAction('Đã gửi lệnh in sổ khám A5 ra máy in')} className="px-2.5 py-1 bg-surface-container text-on-surface rounded-lg text-label-md font-label-md flex items-center gap-1 hover:bg-surface-container-high transition-all cursor-pointer">
@@ -836,7 +862,7 @@ export default function CrmPage() {
                   className="mt-0.5 accent-primary"
                 />
                 <span className="text-slate-700 font-medium">
-                  Khách hàng đồng ý nhận thông tin tiếp thị, khuyến mãi và chăm sóc thị lực qua SMS/Zalo (FR-CUS-04).
+                  Khách hàng đồng ý nhận thông tin tiếp thị, khuyến mãi và chăm sóc thị lực qua SMS/Zalo.
                 </span>
               </label>
             </div>
@@ -915,7 +941,7 @@ export default function CrmPage() {
                   className="mt-0.5 accent-primary"
                 />
                 <span className="text-slate-700 font-medium">
-                  Khách hàng đồng ý nhận thông tin tiếp thị, khuyến mãi và chăm sóc thị lực qua SMS/Zalo (FR-CUS-04).
+                  Khách hàng đồng ý nhận thông tin tiếp thị, khuyến mãi và chăm sóc thị lực qua SMS/Zalo.
                 </span>
               </label>
             </div>
