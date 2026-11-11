@@ -67,10 +67,23 @@ export default function PosSepayModal({
   const [settlingManual, setSettlingManual] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [simulating, setSimulating] = useState(false);
-  const [qrMode, setQrMode] = useState('vietqr'); // 'vietqr' | 'mobile_quick'
+  const [qrMode, setQrMode] = useState('mobile_quick'); // Default to mobile mock bank app
+  const [serverHost, setServerHost] = useState(window.location.hostname || '127.0.0.1');
 
   const pollIntervalRef = useRef(null);
   const isCompletedRef = useRef(false);
+
+  // Discover actual LAN IP for mobile scan
+  useEffect(() => {
+    fetch('/api/payments/sandbox/host-info')
+      .then(res => res.json())
+      .then(data => {
+        if (data?.data?.ip && data.data.ip !== '127.0.0.1') {
+          setServerHost(data.data.ip);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // 1. Khởi tạo SePay checkout khi mở modal
   useEffect(() => {
@@ -275,10 +288,9 @@ export default function PosSepayModal({
   // Mobile quick confirmation link (when scanned by smartphone camera or Zalo on same Wi-Fi)
   const mobileQuickPayUrl = useMemo(() => {
     if (!order) return '';
-    const isLocal = !window.location.hostname || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    const host = isLocal ? '10.222.6.99' : window.location.hostname;
-    return `http://${host}:8083/api/payments/sandbox/quick-pay?orderCode=${encodeURIComponent(order.orderCode)}`;
-  }, [order]);
+    const host = serverHost || window.location.hostname || 'localhost';
+    return `http://${host}:8083/api/payments/sandbox/vietqr-app?orderCode=${encodeURIComponent(order.orderCode)}`;
+  }, [order, serverHost]);
 
   if (!order) return null;
 
@@ -295,12 +307,17 @@ export default function PosSepayModal({
               qr_code_2
             </span>
             <span style={{ fontSize: '17px', fontWeight: 700, color: '#0f172a' }}>
-              Thanh toán Chuyển khoản Tự Động · SePay Sandbox
+              Thanh toán Chuyển khoản VietQR
             </span>
           </div>
-          <Tag color="cyan" style={{ fontWeight: 600, fontSize: '12px' }}>
-            Mã đơn: {order.orderCode}
-          </Tag>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Tag color="blue" style={{ fontWeight: 600, fontSize: '11px' }}>
+              SePay Gateway
+            </Tag>
+            <Tag color="cyan" style={{ fontWeight: 600, fontSize: '12px' }}>
+              Mã đơn: {order.orderCode}
+            </Tag>
+          </div>
         </div>
       }
       footer={
@@ -338,10 +355,6 @@ export default function PosSepayModal({
               disabled={status === 'PAID'}
             >
               Giả lập thanh toán SePay
-            </Button>
-
-            <Button onClick={handleOpenSepayGateway} loading={loading} disabled={status === 'PAID'}>
-              Cổng SePay Gateway
             </Button>
           </div>
         </div>
@@ -389,27 +402,10 @@ export default function PosSepayModal({
             <div style={{ display: 'flex', width: '100%', marginBottom: '10px', gap: '4px' }}>
               <button
                 type="button"
-                onClick={() => setQrMode('vietqr')}
-                style={{
-                  flex: 1,
-                  padding: '6px 8px',
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  border: qrMode === 'vietqr' ? '1.5px solid #086288' : '1px solid #cbd5e1',
-                  backgroundColor: qrMode === 'vietqr' ? '#e0f2fe' : '#ffffff',
-                  color: qrMode === 'vietqr' ? '#0369a1' : '#64748b',
-                  cursor: 'pointer'
-                }}
-              >
-                App Ngân Hàng
-              </button>
-              <button
-                type="button"
                 onClick={() => setQrMode('mobile_quick')}
                 style={{
                   flex: 1,
-                  padding: '6px 8px',
+                  padding: '7px 8px',
                   borderRadius: '6px',
                   fontSize: '11px',
                   fontWeight: 600,
@@ -419,7 +415,24 @@ export default function PosSepayModal({
                   cursor: 'pointer'
                 }}
               >
-                Camera ĐT / Zalo
+                Mở App MB (Quét ĐT)
+              </button>
+              <button
+                type="button"
+                onClick={() => setQrMode('vietqr')}
+                style={{
+                  flex: 1,
+                  padding: '7px 8px',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  border: qrMode === 'vietqr' ? '1.5px solid #086288' : '1px solid #cbd5e1',
+                  backgroundColor: qrMode === 'vietqr' ? '#e0f2fe' : '#ffffff',
+                  color: qrMode === 'vietqr' ? '#0369a1' : '#64748b',
+                  cursor: 'pointer'
+                }}
+              >
+                Mã Chuẩn Napas 247
               </button>
             </div>
 
@@ -446,10 +459,10 @@ export default function PosSepayModal({
             </div>
 
             <div style={{ textAlign: 'center', width: '100%' }}>
-              <div style={{ fontSize: '11.5px', color: '#64748b', marginBottom: '8px', lineHeight: 1.4 }}>
-                {qrMode === 'vietqr'
-                  ? 'Quét qua MBBank hoặc App Ngân hàng bất kỳ (Chuẩn Napas 247)'
-                  : 'Quét bằng Camera điện thoại hoặc Zalo để xác nhận ngay'}
+              <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '8px', lineHeight: 1.4 }}>
+                {qrMode === 'mobile_quick'
+                  ? 'Quét bằng Camera ĐT / Zalo để mở giao diện App MBBank và xác nhận'
+                  : 'Dùng App MBBank thật quét mã chuẩn VietQR Napas 247'}
               </div>
               <Button
                 type="primary"
